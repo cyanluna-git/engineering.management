@@ -36,3 +36,6 @@ pandas>=2.0.0  # For DataFrame handling in CSV sync
 
 # AI Worklog Parsing - String similarity
 jellyfish>=1.0.0  # Jaro-Winkler, Levenshtein similarity algorithms
+
+# Docker SDK for container monitoring
+docker>=7.0.0

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { usePermissions } from '@/hooks/usePermissions';
 import { apiClient } from '@/api/client';
@@ -6,7 +6,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend,
 } from 'recharts';
-import { ArrowLeft, Users, Activity, BarChart3, Clock } from 'lucide-react';
+import { ArrowLeft, Users, Activity, BarChart3, Clock, Container, Cpu, HardDrive, Wifi, AlertTriangle } from 'lucide-react';
 
 interface TopUser {
   user_id: string;
@@ -25,6 +25,17 @@ interface PortalStats {
   hourly_activity: HourlyActivity[];
 }
 
+interface ContainerInfo {
+  name: string;
+  status: string;
+  cpu_percent: number;
+  memory_usage_mb: number;
+  memory_limit_mb: number;
+  network_rx_mb: number;
+  network_tx_mb: number;
+  uptime_seconds: number;
+}
+
 const SERVICE_COLORS: Record<string, string> = {
   eob: '#2563eb',
   oqc: '#059669',
@@ -39,21 +50,12 @@ const SERVICE_LABELS: Record<string, string> = {
   testrig: 'TestRig',
 };
 
+type TabKey = 'usage' | 'containers';
+
 export default function PortalStatsPage() {
   const { isAdmin } = usePermissions();
   const navigate = useNavigate();
-  const [stats, setStats] = useState<PortalStats | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!isAdmin) return;
-
-    apiClient.get('/portal/stats')
-      .then((res) => setStats(res.data))
-      .catch((err) => setError(err.response?.data?.detail || 'Failed to load stats'))
-      .finally(() => setLoading(false));
-  }, [isAdmin]);
+  const [activeTab, setActiveTab] = useState<TabKey>('usage');
 
   if (!isAdmin) {
     return (
@@ -63,9 +65,80 @@ export default function PortalStatsPage() {
     );
   }
 
+  return (
+    <div className="mx-auto max-w-6xl space-y-8 px-6 py-8">
+      {/* Header */}
+      <div className="flex items-center gap-4">
+        <button
+          onClick={() => navigate('/portal')}
+          className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-500 shadow-sm transition hover:bg-slate-50"
+        >
+          <ArrowLeft className="h-5 w-5" />
+        </button>
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.28em] text-red-500">Admin</p>
+          <h1 className="text-2xl font-semibold tracking-tight text-slate-950">Portal Statistics</h1>
+        </div>
+      </div>
+
+      {/* Tabs */}
+      <div className="flex gap-1 rounded-xl border border-slate-200 bg-slate-50 p-1">
+        <TabButton active={activeTab === 'usage'} onClick={() => setActiveTab('usage')}>
+          <BarChart3 className="h-4 w-4" />
+          Portal Usage
+        </TabButton>
+        <TabButton active={activeTab === 'containers'} onClick={() => setActiveTab('containers')}>
+          <Container className="h-4 w-4" />
+          Container Monitoring
+        </TabButton>
+      </div>
+
+      {/* Tab Content */}
+      {activeTab === 'usage' && <PortalUsageTab />}
+      {activeTab === 'containers' && <ContainerMonitoringTab />}
+    </div>
+  );
+}
+
+/* ─── Tab Button ─────────────────────────────────────────── */
+
+function TabButton({ active, onClick, children }: {
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition ${
+        active
+          ? 'bg-white text-slate-900 shadow-sm'
+          : 'text-slate-500 hover:text-slate-700'
+      }`}
+    >
+      {children}
+    </button>
+  );
+}
+
+/* ─── Portal Usage Tab (existing content) ────────────────── */
+
+function PortalUsageTab() {
+  const navigate = useNavigate();
+  const [stats, setStats] = useState<PortalStats | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    apiClient.get('/portal/stats')
+      .then((res) => setStats(res.data))
+      .catch((err) => setError(err.response?.data?.detail || 'Failed to load stats'))
+      .finally(() => setLoading(false));
+  }, []);
+
   if (loading) {
     return (
-      <div className="flex min-h-[60vh] items-center justify-center">
+      <div className="flex min-h-[40vh] items-center justify-center">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-red-500" />
       </div>
     );
@@ -73,7 +146,7 @@ export default function PortalStatsPage() {
 
   if (error || !stats) {
     return (
-      <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4">
+      <div className="flex min-h-[40vh] flex-col items-center justify-center gap-4">
         <p className="text-lg text-red-500">{error || 'No data'}</p>
         <button onClick={() => navigate('/portal')} className="text-sm text-slate-500 underline">
           Back to Portal
@@ -96,21 +169,8 @@ export default function PortalStatsPage() {
   });
 
   return (
-    <div className="mx-auto max-w-6xl space-y-8 px-6 py-8">
-      {/* Header */}
-      <div className="flex items-center gap-4">
-        <button
-          onClick={() => navigate('/portal')}
-          className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-500 shadow-sm transition hover:bg-slate-50"
-        >
-          <ArrowLeft className="h-5 w-5" />
-        </button>
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.28em] text-red-500">Admin</p>
-          <h1 className="text-2xl font-semibold tracking-tight text-slate-950">Portal Usage Statistics</h1>
-          <p className="text-sm text-slate-500">Last 30 days</p>
-        </div>
-      </div>
+    <div className="space-y-8">
+      <p className="text-sm text-slate-500">Last 30 days</p>
 
       {/* Summary Cards */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -199,6 +259,171 @@ export default function PortalStatsPage() {
   );
 }
 
+/* ─── Container Monitoring Tab ───────────────────────────── */
+
+function ContainerMonitoringTab() {
+  const [containers, setContainers] = useState<ContainerInfo[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const fetchContainers = useCallback(() => {
+    apiClient.get('/portal/containers')
+      .then((res) => {
+        setContainers(res.data);
+        setError(null);
+      })
+      .catch((err) => {
+        setError(err.response?.data?.detail || 'Failed to load containers');
+      })
+      .finally(() => setLoading(false));
+  }, []);
+
+  useEffect(() => {
+    fetchContainers();
+    intervalRef.current = setInterval(fetchContainers, 30_000);
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    };
+  }, [fetchContainers]);
+
+  if (loading) {
+    return (
+      <div className="flex min-h-[40vh] items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-red-500" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex min-h-[40vh] flex-col items-center justify-center gap-4">
+        <AlertTriangle className="h-12 w-12 text-amber-400" />
+        <p className="text-lg font-medium text-slate-700">Docker not available</p>
+        <p className="text-sm text-slate-400">{error}</p>
+      </div>
+    );
+  }
+
+  if (containers.length === 0) {
+    return (
+      <div className="flex min-h-[40vh] flex-col items-center justify-center gap-4">
+        <Container className="h-12 w-12 text-slate-300" />
+        <p className="text-lg font-medium text-slate-500">No containers found</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <p className="text-sm text-slate-500">Auto-refreshes every 30 seconds</p>
+        <button
+          onClick={fetchContainers}
+          className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 shadow-sm transition hover:bg-slate-50"
+        >
+          Refresh now
+        </button>
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        {containers.map((c) => (
+          <ContainerCard key={c.name} container={c} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ─── Container Card ─────────────────────────────────────── */
+
+function ContainerCard({ container }: { container: ContainerInfo }) {
+  const memPercent = container.memory_limit_mb > 0
+    ? (container.memory_usage_mb / container.memory_limit_mb) * 100
+    : 0;
+
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+      {/* Header: Name + Status */}
+      <div className="mb-4 flex items-center justify-between">
+        <h3 className="text-sm font-semibold text-slate-900 truncate">{container.name}</h3>
+        <StatusBadge status={container.status} />
+      </div>
+
+      {/* CPU */}
+      <div className="mb-3">
+        <div className="mb-1 flex items-center gap-2 text-xs text-slate-500">
+          <Cpu className="h-3.5 w-3.5" />
+          <span>CPU</span>
+          <span className="ml-auto font-semibold text-slate-800">{container.cpu_percent}%</span>
+        </div>
+        <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100">
+          <div
+            className="h-full rounded-full bg-blue-500 transition-all"
+            style={{ width: `${Math.min(container.cpu_percent, 100)}%` }}
+          />
+        </div>
+      </div>
+
+      {/* Memory */}
+      <div className="mb-3">
+        <div className="mb-1 flex items-center gap-2 text-xs text-slate-500">
+          <HardDrive className="h-3.5 w-3.5" />
+          <span>Memory</span>
+          <span className="ml-auto font-semibold text-slate-800">
+            {container.memory_usage_mb} / {container.memory_limit_mb} MB
+          </span>
+        </div>
+        <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100">
+          <div
+            className={`h-full rounded-full transition-all ${
+              memPercent > 80 ? 'bg-red-500' : memPercent > 60 ? 'bg-amber-500' : 'bg-emerald-500'
+            }`}
+            style={{ width: `${Math.min(memPercent, 100)}%` }}
+          />
+        </div>
+      </div>
+
+      {/* Network + Uptime */}
+      <div className="flex items-center justify-between text-xs text-slate-500">
+        <div className="flex items-center gap-1.5">
+          <Wifi className="h-3.5 w-3.5" />
+          <span>{container.network_rx_mb} MB in / {container.network_tx_mb} MB out</span>
+        </div>
+        <span>{formatUptime(container.uptime_seconds)}</span>
+      </div>
+    </div>
+  );
+}
+
+/* ─── Status Badge ───────────────────────────────────────── */
+
+function StatusBadge({ status }: { status: string }) {
+  const colors: Record<string, string> = {
+    running: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+    exited: 'bg-red-50 text-red-700 border-red-200',
+    paused: 'bg-amber-50 text-amber-700 border-amber-200',
+    restarting: 'bg-amber-50 text-amber-700 border-amber-200',
+    created: 'bg-slate-50 text-slate-600 border-slate-200',
+  };
+
+  const colorClass = colors[status] || 'bg-slate-50 text-slate-600 border-slate-200';
+
+  return (
+    <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${colorClass}`}>
+      <span className={`h-1.5 w-1.5 rounded-full ${
+        status === 'running' ? 'bg-emerald-500' :
+        status === 'exited' ? 'bg-red-500' :
+        status === 'paused' || status === 'restarting' ? 'bg-amber-500' :
+        'bg-slate-400'
+      }`} />
+      {status}
+    </span>
+  );
+}
+
+/* ─── Helper Components ──────────────────────────────────── */
+
 function SummaryCard({ icon, label, value, color, bg, isText }: {
   icon: React.ReactNode; label: string; value: number | string; color: string; bg: string; isText?: boolean;
 }) {
@@ -217,4 +442,14 @@ function getPeakHour(activity: HourlyActivity[]): string {
   if (!activity.length) return '--';
   const peak = activity.reduce((max, h) => (h.count > max.count ? h : max), activity[0]);
   return `${peak.hour.toString().padStart(2, '0')}:00`;
+}
+
+function formatUptime(seconds: number): string {
+  if (seconds <= 0) return 'Stopped';
+  const days = Math.floor(seconds / 86400);
+  const hours = Math.floor((seconds % 86400) / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  if (days > 0) return `${days}d ${hours}h`;
+  if (hours > 0) return `${hours}h ${minutes}m`;
+  return `${minutes}m`;
 }
