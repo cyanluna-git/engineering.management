@@ -39,3 +39,6 @@ jellyfish>=1.0.0  # Jaro-Winkler, Levenshtein similarity algorithms
 
 # Docker SDK for container monitoring
 docker>=7.0.0
+
+# System resource monitoring
+psutil>=5.9.0

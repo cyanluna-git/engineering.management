@@ -15,6 +15,7 @@ from app.schemas.portal import (
     ContainerInfo,
     MyAccessHistoryResponse,
     PortalStatsResponse,
+    ServerStats,
 )
 from app.services.container_service import ContainerService
 from app.services.portal_service import PortalService
@@ -43,6 +44,15 @@ async def get_stats(
     """Get portal usage statistics (last 30 days). Admin only."""
     service = PortalService(db)
     return service.get_stats()
+
+
+@router.get("/server-stats", response_model=ServerStats)
+async def get_server_stats(
+    current_user: User = Depends(require_role("ADMIN")),
+):
+    """Get host server resource stats (CPU, memory, disk, network). Admin only."""
+    service = ContainerService()
+    return service.get_server_stats()
 
 
 @router.get("/containers", response_model=list[ContainerInfo])

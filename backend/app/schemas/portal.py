@@ -42,6 +42,16 @@ class MyAccessHistoryResponse(BaseModel):
     items: List[AccessLogResponse]
 
 
+class ServerStats(BaseModel):
+    cpu_percent: float
+    memory_used_mb: float
+    memory_total_mb: float
+    disk_used_gb: float
+    disk_total_gb: float
+    network_rx_mb: float
+    network_tx_mb: float
+
+
 class ContainerInfo(BaseModel):
     name: str
     status: str

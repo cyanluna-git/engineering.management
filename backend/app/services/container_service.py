@@ -3,11 +3,25 @@ Service layer for Docker container resource monitoring
 """
 
 import logging
+import os
+import time
 from typing import List
 
 from fastapi import HTTPException
 
 logger = logging.getLogger(__name__)
+
+
+def _parse_proc_stat() -> dict[str, float]:
+    """Parse aggregate CPU times from /proc/stat first line."""
+    with open("/proc/stat", "r") as f:
+        line = f.readline()  # 'cpu  user nice system idle iowait irq softirq ...'
+    parts = line.split()
+    # indices: 1=user, 2=nice, 3=system, 4=idle, 5=iowait, 6=irq, 7=softirq, 8=steal
+    values = [float(v) for v in parts[1:]]
+    idle = values[3] + values[4]  # idle + iowait
+    total = sum(values)
+    return {"idle": idle, "total": total}
 
 
 class ContainerService:
@@ -89,6 +103,111 @@ class ContainerService:
             round(rx_bytes / (1024 * 1024), 1),
             round(tx_bytes / (1024 * 1024), 1),
         )
+
+    def get_server_stats(self) -> dict:
+        """Return host-level resource stats (CPU, memory, disk, network).
+
+        Primary path reads from /proc and os.statvfs.
+        Falls back to psutil if /proc is unavailable.
+        Raises 503 if both methods fail.
+        """
+        try:
+            return self._read_proc_stats()
+        except Exception as exc:
+            logger.warning("Failed to read /proc stats, falling back to psutil: %s", exc)
+
+        try:
+            return self._read_psutil_stats()
+        except Exception as exc:
+            logger.error("Failed to read server stats via psutil: %s", exc)
+            raise HTTPException(status_code=503, detail="Server stats unavailable")
+
+    @staticmethod
+    def _read_proc_stats() -> dict:
+        """Read server stats from /proc filesystem and os.statvfs."""
+        # --- CPU: two samples 0.1s apart from /proc/stat ---
+        cpu1 = _parse_proc_stat()
+        time.sleep(0.1)
+        cpu2 = _parse_proc_stat()
+
+        idle_delta = cpu2["idle"] - cpu1["idle"]
+        total_delta = cpu2["total"] - cpu1["total"]
+        cpu_percent = round((1.0 - idle_delta / total_delta) * 100, 2) if total_delta > 0 else 0.0
+
+        # --- Memory from /proc/meminfo ---
+        meminfo: dict[str, int] = {}
+        with open("/proc/meminfo", "r") as f:
+            for line in f:
+                parts = line.split()
+                if len(parts) >= 2:
+                    key = parts[0].rstrip(":")
+                    meminfo[key] = int(parts[1])  # kB
+
+        mem_total_kb = meminfo.get("MemTotal", 0)
+        mem_available_kb = meminfo.get("MemAvailable", 0)
+        memory_total_mb = round(mem_total_kb / 1024, 1)
+        memory_used_mb = round((mem_total_kb - mem_available_kb) / 1024, 1)
+
+        # --- Disk from os.statvfs ---
+        st = os.statvfs("/")
+        disk_total_gb = round((st.f_frsize * st.f_blocks) / (1024 ** 3), 1)
+        disk_used_gb = round((st.f_frsize * (st.f_blocks - st.f_bfree)) / (1024 ** 3), 1)
+
+        # --- Network from /proc/net/dev (exclude lo) ---
+        rx_bytes = 0
+        tx_bytes = 0
+        with open("/proc/net/dev", "r") as f:
+            for line in f:
+                line = line.strip()
+                if ":" not in line:
+                    continue
+                iface, data = line.split(":", 1)
+                iface = iface.strip()
+                if iface == "lo":
+                    continue
+                fields = data.split()
+                if len(fields) >= 10:
+                    rx_bytes += int(fields[0])
+                    tx_bytes += int(fields[8])
+
+        return {
+            "cpu_percent": cpu_percent,
+            "memory_used_mb": memory_used_mb,
+            "memory_total_mb": memory_total_mb,
+            "disk_used_gb": disk_used_gb,
+            "disk_total_gb": disk_total_gb,
+            "network_rx_mb": round(rx_bytes / (1024 * 1024), 1),
+            "network_tx_mb": round(tx_bytes / (1024 * 1024), 1),
+        }
+
+    @staticmethod
+    def _read_psutil_stats() -> dict:
+        """Read server stats using psutil as fallback."""
+        import psutil
+
+        cpu_percent = psutil.cpu_percent(interval=0.1)
+
+        mem = psutil.virtual_memory()
+        memory_total_mb = round(mem.total / (1024 * 1024), 1)
+        memory_used_mb = round(mem.used / (1024 * 1024), 1)
+
+        disk = psutil.disk_usage("/")
+        disk_total_gb = round(disk.total / (1024 ** 3), 1)
+        disk_used_gb = round(disk.used / (1024 ** 3), 1)
+
+        net = psutil.net_io_counters()
+        network_rx_mb = round(net.bytes_recv / (1024 * 1024), 1)
+        network_tx_mb = round(net.bytes_sent / (1024 * 1024), 1)
+
+        return {
+            "cpu_percent": round(cpu_percent, 2),
+            "memory_used_mb": memory_used_mb,
+            "memory_total_mb": memory_total_mb,
+            "disk_used_gb": disk_used_gb,
+            "disk_total_gb": disk_total_gb,
+            "network_rx_mb": network_rx_mb,
+            "network_tx_mb": network_tx_mb,
+        }
 
     @staticmethod
     def _calc_uptime(container) -> int:
