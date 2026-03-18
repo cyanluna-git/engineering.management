@@ -6,6 +6,7 @@ import logging
 import os
 import time
 from collections import defaultdict
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import List
 
 from fastapi import HTTPException
@@ -29,7 +30,11 @@ class ContainerService:
     """Fetches resource metrics from Docker containers via the Docker SDK."""
 
     def get_containers(self) -> List[dict]:
-        """Return a list of container metrics for all containers."""
+        """Return a list of container metrics for all containers.
+
+        Uses ThreadPoolExecutor to collect stats from running containers
+        in parallel, reducing total wait time from O(n) to ~O(1).
+        """
         try:
             import docker
             client = docker.from_env()
@@ -38,13 +43,13 @@ class ContainerService:
             raise HTTPException(status_code=503, detail="Docker not available")
 
         containers = client.containers.list(all=True)
-        results: List[dict] = []
 
-        for container in containers:
+        def _collect_stats(container) -> dict:
+            """Collect stats for a single container (runs in thread)."""
             stack = (container.labels or {}).get(
                 "com.docker.compose.project", "other"
             )
-            info = {
+            info: dict = {
                 "name": container.name,
                 "status": container.status,
                 "stack": stack,
@@ -71,7 +76,36 @@ class ContainerService:
                 except Exception as exc:
                     logger.warning("Failed to get stats for %s: %s", container.name, exc)
 
-            results.append(info)
+            return info
+
+        results: List[dict] = []
+        with ThreadPoolExecutor(max_workers=10) as executor:
+            futures = {
+                executor.submit(_collect_stats, c): c for c in containers
+            }
+            for future in as_completed(futures):
+                container = futures[future]
+                try:
+                    results.append(future.result())
+                except Exception as exc:
+                    logger.warning(
+                        "Unexpected error collecting stats for %s: %s",
+                        container.name, exc,
+                    )
+                    stack = (container.labels or {}).get(
+                        "com.docker.compose.project", "other"
+                    )
+                    results.append({
+                        "name": container.name,
+                        "status": container.status,
+                        "stack": stack,
+                        "cpu_percent": 0.0,
+                        "memory_usage_mb": 0.0,
+                        "memory_limit_mb": 0.0,
+                        "network_rx_mb": 0.0,
+                        "network_tx_mb": 0.0,
+                        "uptime_seconds": 0,
+                    })
 
         return results
 
@@ -156,9 +190,9 @@ class ContainerService:
     @staticmethod
     def _read_proc_stats() -> dict:
         """Read server stats from /proc filesystem and os.statvfs."""
-        # --- CPU: two samples 0.1s apart from /proc/stat ---
+        # --- CPU: two samples 0.05s apart from /proc/stat ---
         cpu1 = _parse_proc_stat()
-        time.sleep(0.1)
+        time.sleep(0.05)
         cpu2 = _parse_proc_stat()
 
         idle_delta = cpu2["idle"] - cpu1["idle"]
