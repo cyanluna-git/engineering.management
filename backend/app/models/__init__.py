@@ -19,12 +19,14 @@ from app.models.project import (
     ProjectMilestone,
     project_product_lines,  # Junction table for M:N
 )
-from app.models.resource import ResourcePlan, WorkLog
+from app.models.resource import ResourcePlan, ResourcePlanHistory, WorkLog
 from app.models.common import CommonCode, Holiday
 from app.models.scenario import ProjectScenario, ScenarioMilestone, ScenarioResourcePlan
 from app.models.hiring_plan import HiringPlan
 from app.models.work_type import WorkTypeCategory, WorkTypeLegacyMapping
 from app.models.ai_summary import AISummary
+from app.models.portal_access_log import PortalAccessLog
+from app.models.weekly_report import WeeklyReport
 
 
 __all__ = [
@@ -53,6 +55,7 @@ __all__ = [
     "ScenarioResourcePlan",
     # Resource
     "ResourcePlan",
+    "ResourcePlanHistory",
     "WorkLog",
     # Common
     "CommonCode",
@@ -64,4 +67,8 @@ __all__ = [
     "WorkTypeLegacyMapping",
     # AI Summary
     "AISummary",
+    # Portal
+    "PortalAccessLog",
+    # Weekly Reports
+    "WeeklyReport",
 ]

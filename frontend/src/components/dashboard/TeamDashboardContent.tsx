@@ -10,12 +10,14 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Users, Building, Building2, Maximize2 } from 'lucide-react';
 import { WeeklySummaryCard } from './WeeklySummaryCard';
+import { TeamWeeklyReportCard } from './TeamWeeklyReportCard';
 
 interface TeamDashboardContentProps {
     teamScope: TeamDashboardScope;
     setTeamScope: (scope: TeamDashboardScope) => void;
     teamViewMode: DashboardViewMode;
     setTeamViewMode: (mode: DashboardViewMode) => void;
+    referenceDate: Date;
     dateRange?: { start: string; end: string };
     selectedOrgId?: string;
     onOrgChange?: (orgId: string) => void;
@@ -31,6 +33,7 @@ export const TeamDashboardContent: React.FC<TeamDashboardContentProps> = ({
     setTeamScope,
     teamViewMode,
     setTeamViewMode: _setTeamViewMode,
+    referenceDate,
     dateRange,
     selectedOrgId,
     onOrgChange,
@@ -199,7 +202,14 @@ export const TeamDashboardContent: React.FC<TeamDashboardContentProps> = ({
             <WeeklySummaryCard
                 mode="team"
                 scope={teamScope}
-                period={teamViewMode === 'weekly' ? 'weekly' : 'monthly'}
+                period={teamViewMode}
+            />
+
+            <TeamWeeklyReportCard
+                teamScope={teamScope}
+                selectedOrgId={selectedOrgId}
+                referenceDate={referenceDate}
+                teamName={team_info.name}
             />
 
             {/* Category Distribution Bar */}

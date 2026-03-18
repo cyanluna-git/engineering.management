@@ -170,6 +170,16 @@ export const ssoRegister = async (data: SSORegistrationData): Promise<Token> => 
   return response.data;
 };
 
+export interface ReleaseNotesAckResponse {
+  success: boolean;
+  seen_release_note_version: string;
+}
+
+export const acknowledgeReleaseNotes = async (version: string): Promise<ReleaseNotesAckResponse> => {
+  const response = await apiClient.post<ReleaseNotesAckResponse>('/auth/release-notes/ack', { version });
+  return response.data;
+};
+
 // ============ Milestones API ============
 
 import type { ProjectMilestone, ProjectMilestoneCreate, ProjectMilestoneUpdate } from '@/types';
@@ -254,7 +264,14 @@ export const getProject = async (id: string): Promise<Project> => {
 
 // ============ Resource Plans API ============
 
-import type { ResourcePlan, ResourcePlanCreate, ResourcePlanUpdate, ResourcePlanAssign, JobPosition } from '@/types';
+import type {
+  ResourcePlan,
+  ResourcePlanCreate,
+  ResourcePlanUpdate,
+  ResourcePlanAssign,
+  ResourcePlanHistory,
+  JobPosition,
+} from '@/types';
 
 export interface ResourcePlanFilters {
   project_id?: string;
@@ -262,6 +279,15 @@ export interface ResourcePlanFilters {
   month?: number;
   position_id?: string;
   user_id?: string;
+}
+
+export interface ResourcePlanHistoryFilters {
+  project_id: string;
+  position_id: string;
+  project_role_id?: string;
+  user_id?: string;
+  is_tbd?: boolean;
+  limit?: number;
 }
 
 export const getResourcePlans = async (filters?: ResourcePlanFilters): Promise<ResourcePlan[]> => {
@@ -290,6 +316,21 @@ export const getTbdPositions = async (filters?: Pick<ResourcePlanFilters, 'proje
 
 export const getResourcePlan = async (planId: number): Promise<ResourcePlan> => {
   const response = await apiClient.get(`/resource-plans/${planId}`);
+  return response.data;
+};
+
+export const getResourcePlanHistory = async (
+  filters: ResourcePlanHistoryFilters
+): Promise<ResourcePlanHistory[]> => {
+  const params = new URLSearchParams();
+  params.append('project_id', filters.project_id);
+  params.append('position_id', filters.position_id);
+  if (filters.project_role_id) params.append('project_role_id', filters.project_role_id);
+  if (filters.user_id) params.append('user_id', filters.user_id);
+  if (filters.is_tbd) params.append('is_tbd', 'true');
+  if (filters.limit) params.append('limit', String(filters.limit));
+
+  const response = await apiClient.get(`/resource-plans/history?${params.toString()}`);
   return response.data;
 };
 
@@ -1004,6 +1045,7 @@ export interface PivotRow {
   department_name: string | null;
   sub_team_name: string | null;
   total_fte: number;
+  total_hours: number;
   allocations: Record<string, number>;
 }
 
@@ -1168,6 +1210,12 @@ export const getRechargeIOsByBusinessUnit = async (buId: string): Promise<Rechar
 
 export interface UserAISummary {
   summary: string[];
+  focus_areas?: string[];
+  workload_observations?: string[];
+  risk_signals?: string[];
+  record_quality_notes?: string[];
+  period_start: string;
+  period_end: string;
   generated_at: string;
   from_cache?: boolean;
   error?: string;
@@ -1177,6 +1225,13 @@ export interface TeamAISummary {
   project_summary: string[];
   member_summary: string[];
   issues: string[];
+  analysis?: string[];
+  workload_observations?: string[];
+  risk_signals?: string[];
+  coverage_gaps?: string[];
+  record_quality_notes?: string[];
+  period_start: string;
+  period_end: string;
   generated_at: string;
   from_cache?: boolean;
   error?: string;
@@ -1223,6 +1278,117 @@ export const getTeamAISummaryHistory = async (
   const response = await apiClient.get(`/dashboard/ai-summary/team/history?scope=${scope}&limit=${limit}`);
   return response.data;
 };
+
+// ============ Weekly Report API ============
+
+export type WeeklyReportScope = 'user' | 'team';
+export type WeeklyReportTeamScope = 'department' | 'sub_team';
+export type WeeklyReportStatus = 'draft' | 'published';
+
+export interface WeeklyReport {
+  id: string;
+  scope: WeeklyReportScope;
+  team_scope_type: WeeklyReportTeamScope | null;
+  scope_id: string;
+  target_key: string;
+  week_start: string;
+  week_end: string;
+  week_key: string;
+  is_in_progress: boolean;
+  status: WeeklyReportStatus;
+  title: string | null;
+  markdown_body: string;
+  source_metadata: Record<string, unknown> | null;
+  owner_user_id: string | null;
+  created_by_user_id: string;
+  updated_by_user_id: string;
+  published_by_user_id: string | null;
+  published_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface WeeklyReportCurrentResponse {
+  scope: WeeklyReportScope;
+  team_scope_type: WeeklyReportTeamScope | null;
+  scope_id: string;
+  target_key: string;
+  week_start: string;
+  week_end: string;
+  week_key: string;
+  is_in_progress: boolean;
+  report: WeeklyReport | null;
+}
+
+export interface WeeklyReportUpsertRequest {
+  scope: WeeklyReportScope;
+  team_scope_type?: WeeklyReportTeamScope;
+  scope_id?: string;
+  week_start?: string;
+  reference_date?: string;
+  status?: WeeklyReportStatus;
+  title?: string;
+  markdown_body: string;
+}
+
+export const getCurrentWeeklyReport = async (params: {
+  scope?: WeeklyReportScope;
+  team_scope_type?: WeeklyReportTeamScope;
+  scope_id?: string;
+  reference_date?: string;
+}): Promise<WeeklyReportCurrentResponse> => {
+  const response = await apiClient.get('/weekly-reports/current', { params });
+  return response.data;
+};
+
+export const getWeeklyReportHistory = async (params: {
+  scope?: WeeklyReportScope;
+  team_scope_type?: WeeklyReportTeamScope;
+  scope_id?: string;
+  limit?: number;
+}): Promise<WeeklyReport[]> => {
+  const response = await apiClient.get('/weekly-reports/history', { params });
+  return response.data.items;
+};
+
+export const upsertWeeklyReport = async (
+  data: WeeklyReportUpsertRequest
+): Promise<WeeklyReport> => {
+  const response = await apiClient.put('/weekly-reports', data);
+  return response.data;
+};
+
+export const deleteWeeklyReport = async (id: string): Promise<{ success: boolean; id: string }> => {
+  const response = await apiClient.delete(`/weekly-reports/${id}`);
+  return response.data;
+};
+
+export interface WeeklyReportLLMSummaryRequest {
+  team_scope_type: string;
+  scope_id: string;
+  week_start?: string;
+  save_intermediate?: boolean;
+}
+
+export interface SubTeamSummaryResult {
+  sub_team_id: string;
+  sub_team_name: string;
+  summary_markdown: string;
+  member_count: number;
+}
+
+export interface WeeklyReportLLMSummaryResponse {
+  team_summary_markdown: string;
+  sub_team_summaries?: SubTeamSummaryResult[];
+  personal_report_count: number;
+  missing_members: string[];
+  scope_description: string;
+}
+
+export const generateWeeklyReportLLMSummary = (
+  data: WeeklyReportLLMSummaryRequest
+): Promise<WeeklyReportLLMSummaryResponse> =>
+  apiClient.post('/weekly-reports/llm-summary', data).then((r) => r.data);
 
 // ============ Resource Matrix Drill-down ============
 

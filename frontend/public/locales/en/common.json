@@ -96,6 +96,50 @@
     "clickForDetails": "Click for details",
     "nMore": "+ {{count}} more"
   },
+  "releaseNotes": {
+    "title": "What's New",
+    "description": "Review the latest weekly reporting, AI summary, and portal updates in one place.",
+    "confirm": "Got it",
+    "viewFullHistory": "Open updates page",
+    "pageTitle": "Update History",
+    "pageDescription": "Review the latest product changes in one place. This release centers on unified weekly reports and a cleaner portal/dashboard experience.",
+    "latestBadge": "Latest Update",
+    "versionLabel": "Current Release",
+    "tryItHint": "Open the dashboard or portal to try the latest workflow improvements.",
+    "goToWorklogs": "Go to Dashboard",
+    "quickStartTitle": "Try it now",
+    "quickStart": {
+      "step1Title": "Open the dashboard",
+      "step1Body": "Open the personal or team dashboard and locate the weekly report card for the current week.",
+      "step2Title": "Write the report faster",
+      "step2Body": "Use the lightweight Markdown editor with quick-format buttons and the copy-last-week action to draft updates quickly.",
+      "step3Title": "Review portal and AI insights",
+      "step3Body": "Use Edwards Portal for service entry points and review the updated AI summary cards for the same reporting context."
+    },
+    "items": {
+      "weeklyReports": {
+        "title": "Unified personal and team weekly reports",
+        "body": "Weekly reports can now be created directly from the personal and team dashboards. Department and sub-team scopes are supported, and the writing flow is now centralized in a Markdown editor.",
+        "highlight": "Key feature of this release"
+      },
+      "aiSummary": {
+        "title": "More reliable AI summary periods",
+        "body": "AI summaries now use fixed last-completed week and last-completed month periods, with explicit date ranges shown in the dashboard. Team summaries also focus more on grounded observations and risk signals."
+      },
+      "portal": {
+        "title": "Edwards Portal refresh",
+        "body": "The portal landing page has been redesigned around the Edwards Portal identity, with updated service names and clearer descriptions that better match how each service is actually used."
+      },
+      "navigation": {
+        "title": "Sidebar and weekly report UX cleanup",
+        "body": "Sidebar branding and quick actions were simplified, and the weekly report editor was reduced to body-first writing. Quick buttons for H3, H4, numbered lists, bullets, and copy-last-week were added."
+      },
+      "aiWorklog": {
+        "title": "LLM-based natural language worklog entry",
+        "body": "The WorkLogs Entry AI action remains available with a cleaner fixed icon button in the weekly grid, so natural-language worklog entry is still part of the daily flow."
+      }
+    }
+  },
   "form": {
     "name": "Name",
     "description": "Description",
