@@ -3,12 +3,12 @@ Pydantic schemas for Portal access logging and statistics
 """
 
 from datetime import datetime
-from typing import Dict, List, Literal
+from typing import Dict, List
 from pydantic import BaseModel
 
 
 class AccessLogCreate(BaseModel):
-    service: Literal["oqc", "jarvis", "testrig", "eob"]
+    service: str
 
 
 class AccessLogResponse(BaseModel):

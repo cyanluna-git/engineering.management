@@ -15,7 +15,7 @@ class PortalAccessLog(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     user_id = Column(String(36), ForeignKey("users.id"), nullable=False, index=True)
-    service = Column(String(20), nullable=False, index=True)
+    service = Column(String(50), nullable=False, index=True)
     accessed_at = Column(DateTime, nullable=False, default=datetime.utcnow, index=True)
 
     # Relationships

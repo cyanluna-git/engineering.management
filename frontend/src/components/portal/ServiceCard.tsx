@@ -42,7 +42,7 @@ export function ServiceCard({ service }: ServiceCardProps) {
   const Icon = ICON_MAP[service.icon] || LayoutDashboard;
 
   const logAccess = () => {
-    apiClient.post('/portal/access-log', { service_id: service.id }).catch(() => {});
+    apiClient.post('/portal/access-log', { service: service.id }).catch(() => {});
   };
 
   if (service.internal) {
