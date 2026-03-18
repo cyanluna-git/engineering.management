@@ -12,7 +12,7 @@ from app.models.user import User
 from app.schemas.portal import (
     AccessLogCreate,
     AccessLogResponse,
-    ContainerInfo,
+    ContainerMonitoringResponse,
     MyAccessHistoryResponse,
     PortalStatsResponse,
     ServerStats,
@@ -55,13 +55,13 @@ async def get_server_stats(
     return service.get_server_stats()
 
 
-@router.get("/containers", response_model=list[ContainerInfo])
+@router.get("/containers", response_model=ContainerMonitoringResponse)
 async def get_containers(
     current_user: User = Depends(require_role("ADMIN")),
 ):
-    """Get Docker container resource metrics. Admin only."""
+    """Get Docker container resource metrics grouped by stack. Admin only."""
     service = ContainerService()
-    return service.get_containers()
+    return service.get_containers_grouped()
 
 
 @router.get("/stats/me", response_model=MyAccessHistoryResponse)

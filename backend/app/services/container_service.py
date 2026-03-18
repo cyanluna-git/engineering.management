@@ -5,6 +5,7 @@ Service layer for Docker container resource monitoring
 import logging
 import os
 import time
+from collections import defaultdict
 from typing import List
 
 from fastapi import HTTPException
@@ -40,9 +41,13 @@ class ContainerService:
         results: List[dict] = []
 
         for container in containers:
+            stack = (container.labels or {}).get(
+                "com.docker.compose.project", "other"
+            )
             info = {
                 "name": container.name,
                 "status": container.status,
+                "stack": stack,
                 "cpu_percent": 0.0,
                 "memory_usage_mb": 0.0,
                 "memory_limit_mb": 0.0,
@@ -69,6 +74,32 @@ class ContainerService:
             results.append(info)
 
         return results
+
+    def get_containers_grouped(self) -> dict:
+        """Return containers grouped by docker-compose stack with server stats."""
+        containers = self.get_containers()
+
+        groups: dict[str, list[dict]] = defaultdict(list)
+        for container in containers:
+            groups[container["stack"]].append(container)
+
+        # Sort containers within each group by name
+        for group_containers in groups.values():
+            group_containers.sort(key=lambda c: c["name"])
+
+        # Sort stacks alphabetically, "other" last
+        sorted_names = sorted(
+            groups.keys(),
+            key=lambda name: (name == "other", name),
+        )
+        stacks = [
+            {"name": name, "containers": groups[name]}
+            for name in sorted_names
+        ]
+
+        server_stats = self.get_server_stats()
+
+        return {"stacks": stacks, "server_stats": server_stats}
 
     @staticmethod
     def _calc_cpu_percent(stats: dict) -> float:

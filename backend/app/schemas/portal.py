@@ -55,9 +55,20 @@ class ServerStats(BaseModel):
 class ContainerInfo(BaseModel):
     name: str
     status: str
+    stack: str
     cpu_percent: float
     memory_usage_mb: float
     memory_limit_mb: float
     network_rx_mb: float
     network_tx_mb: float
     uptime_seconds: int
+
+
+class ContainerStackGroup(BaseModel):
+    name: str
+    containers: List[ContainerInfo]
+
+
+class ContainerMonitoringResponse(BaseModel):
+    stacks: List[ContainerStackGroup]
+    server_stats: ServerStats
