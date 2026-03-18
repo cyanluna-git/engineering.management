@@ -548,3 +548,37 @@ export interface AIHealthResponse {
     model: string
     message?: string
 }
+
+// ============ Container Monitoring Types ============
+
+export interface ServerStats {
+    cpu_percent: number
+    memory_used_mb: number
+    memory_total_mb: number
+    disk_used_gb: number
+    disk_total_gb: number
+    network_rx_mb: number
+    network_tx_mb: number
+}
+
+export interface ContainerInfo {
+    name: string
+    status: string
+    stack: string
+    cpu_percent: number
+    memory_usage_mb: number
+    memory_limit_mb: number
+    network_rx_mb: number
+    network_tx_mb: number
+    uptime_seconds: number
+}
+
+export interface ContainerStack {
+    name: string
+    containers: ContainerInfo[]
+}
+
+export interface ContainerMonitoringResponse {
+    server_stats: ServerStats
+    stacks: ContainerStack[]
+}

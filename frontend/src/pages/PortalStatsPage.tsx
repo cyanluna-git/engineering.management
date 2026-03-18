@@ -6,7 +6,8 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend,
 } from 'recharts';
-import { ArrowLeft, Users, Activity, BarChart3, Clock, Container, Cpu, HardDrive, Wifi, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, Users, Activity, BarChart3, Clock, Container, Cpu, HardDrive, Wifi, AlertTriangle, Server, Database } from 'lucide-react';
+import type { ContainerInfo, ContainerMonitoringResponse, ServerStats } from '@/types';
 
 interface TopUser {
   user_id: string;
@@ -23,17 +24,6 @@ interface PortalStats {
   service_counts: Record<string, number>;
   top_users: TopUser[];
   hourly_activity: HourlyActivity[];
-}
-
-interface ContainerInfo {
-  name: string;
-  status: string;
-  cpu_percent: number;
-  memory_usage_mb: number;
-  memory_limit_mb: number;
-  network_rx_mb: number;
-  network_tx_mb: number;
-  uptime_seconds: number;
 }
 
 const SERVICE_COLORS: Record<string, string> = {
@@ -261,8 +251,26 @@ function PortalUsageTab() {
 
 /* ─── Container Monitoring Tab ───────────────────────────── */
 
+function getThresholdColor(percent: number): string {
+  if (percent > 80) return '#ef4444';
+  if (percent > 60) return '#f59e0b';
+  return '#10b981';
+}
+
+function getThresholdClass(percent: number): string {
+  if (percent > 80) return 'bg-red-500';
+  if (percent > 60) return 'bg-amber-500';
+  return 'bg-emerald-500';
+}
+
+function getThresholdTextClass(percent: number): string {
+  if (percent > 80) return 'text-red-500';
+  if (percent > 60) return 'text-amber-500';
+  return 'text-emerald-500';
+}
+
 function ContainerMonitoringTab() {
-  const [containers, setContainers] = useState<ContainerInfo[]>([]);
+  const [data, setData] = useState<ContainerMonitoringResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -270,7 +278,7 @@ function ContainerMonitoringTab() {
   const fetchContainers = useCallback(() => {
     apiClient.get('/portal/containers')
       .then((res) => {
-        setContainers(res.data);
+        setData(res.data);
         setError(null);
       })
       .catch((err) => {
@@ -305,7 +313,7 @@ function ContainerMonitoringTab() {
     );
   }
 
-  if (containers.length === 0) {
+  if (!data || data.stacks.length === 0) {
     return (
       <div className="flex min-h-[40vh] flex-col items-center justify-center gap-4">
         <Container className="h-12 w-12 text-slate-300" />
@@ -313,6 +321,8 @@ function ContainerMonitoringTab() {
       </div>
     );
   }
+
+  const { server_stats, stacks } = data;
 
   return (
     <div className="space-y-6">
@@ -326,8 +336,145 @@ function ContainerMonitoringTab() {
         </button>
       </div>
 
+      {/* Server Resource Cards */}
+      <ServerResourceCards stats={server_stats} />
+
+      {/* Stack Sections */}
+      {stacks.map((stack) => (
+        <StackSection key={stack.name} stack={stack} />
+      ))}
+    </div>
+  );
+}
+
+/* ─── Server Resource Cards ──────────────────────────────── */
+
+function ServerResourceCards({ stats }: { stats: ServerStats }) {
+  const memPercent = stats.memory_total_mb > 0
+    ? (stats.memory_used_mb / stats.memory_total_mb) * 100
+    : 0;
+  const diskPercent = stats.disk_total_gb > 0
+    ? (stats.disk_used_gb / stats.disk_total_gb) * 100
+    : 0;
+
+  return (
+    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      {/* CPU */}
+      <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <div className="mb-3 flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-50 text-slate-500">
+            <Cpu className="h-5 w-5" />
+          </div>
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">CPU</p>
+            <p className={`text-xl font-semibold tracking-tight ${getThresholdTextClass(stats.cpu_percent)}`}>
+              {stats.cpu_percent.toFixed(1)}%
+            </p>
+          </div>
+        </div>
+        <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100">
+          <div
+            className="h-full rounded-full transition-all"
+            style={{
+              width: `${Math.min(stats.cpu_percent, 100)}%`,
+              backgroundColor: getThresholdColor(stats.cpu_percent),
+            }}
+          />
+        </div>
+      </div>
+
+      {/* Memory */}
+      <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <div className="mb-3 flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-50 text-slate-500">
+            <Server className="h-5 w-5" />
+          </div>
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Memory</p>
+            <p className={`text-xl font-semibold tracking-tight ${getThresholdTextClass(memPercent)}`}>
+              {memPercent.toFixed(1)}%
+            </p>
+          </div>
+        </div>
+        <div className="mb-1.5 h-2 w-full overflow-hidden rounded-full bg-slate-100">
+          <div
+            className="h-full rounded-full transition-all"
+            style={{
+              width: `${Math.min(memPercent, 100)}%`,
+              backgroundColor: getThresholdColor(memPercent),
+            }}
+          />
+        </div>
+        <p className="text-xs text-slate-400">
+          {stats.memory_used_mb.toLocaleString()} / {stats.memory_total_mb.toLocaleString()} MB
+        </p>
+      </div>
+
+      {/* Disk */}
+      <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <div className="mb-3 flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-50 text-slate-500">
+            <Database className="h-5 w-5" />
+          </div>
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Disk</p>
+            <p className={`text-xl font-semibold tracking-tight ${getThresholdTextClass(diskPercent)}`}>
+              {diskPercent.toFixed(1)}%
+            </p>
+          </div>
+        </div>
+        <div className="mb-1.5 h-2 w-full overflow-hidden rounded-full bg-slate-100">
+          <div
+            className="h-full rounded-full transition-all"
+            style={{
+              width: `${Math.min(diskPercent, 100)}%`,
+              backgroundColor: getThresholdColor(diskPercent),
+            }}
+          />
+        </div>
+        <p className="text-xs text-slate-400">
+          {stats.disk_used_gb.toFixed(1)} / {stats.disk_total_gb.toFixed(1)} GB
+        </p>
+      </div>
+
+      {/* Network */}
+      <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <div className="mb-3 flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-50 text-slate-500">
+            <Wifi className="h-5 w-5" />
+          </div>
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Network</p>
+          </div>
+        </div>
+        <div className="flex items-center justify-between text-sm">
+          <div>
+            <p className="text-xs text-slate-400">Received</p>
+            <p className="font-semibold text-slate-800">{stats.network_rx_mb.toFixed(1)} MB</p>
+          </div>
+          <div className="text-right">
+            <p className="text-xs text-slate-400">Sent</p>
+            <p className="font-semibold text-slate-800">{stats.network_tx_mb.toFixed(1)} MB</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─── Stack Section ──────────────────────────────────────── */
+
+function StackSection({ stack }: { stack: { name: string; containers: ContainerInfo[] } }) {
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center gap-3">
+        <h3 className="text-sm font-semibold text-slate-900">{stack.name}</h3>
+        <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-600">
+          {stack.containers.length}
+        </span>
+      </div>
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-        {containers.map((c) => (
+        {stack.containers.map((c) => (
           <ContainerCard key={c.name} container={c} />
         ))}
       </div>
@@ -359,7 +506,7 @@ function ContainerCard({ container }: { container: ContainerInfo }) {
         </div>
         <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100">
           <div
-            className="h-full rounded-full bg-blue-500 transition-all"
+            className={`h-full rounded-full transition-all ${getThresholdClass(container.cpu_percent)}`}
             style={{ width: `${Math.min(container.cpu_percent, 100)}%` }}
           />
         </div>
@@ -376,9 +523,7 @@ function ContainerCard({ container }: { container: ContainerInfo }) {
         </div>
         <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100">
           <div
-            className={`h-full rounded-full transition-all ${
-              memPercent > 80 ? 'bg-red-500' : memPercent > 60 ? 'bg-amber-500' : 'bg-emerald-500'
-            }`}
+            className={`h-full rounded-full transition-all ${getThresholdClass(memPercent)}`}
             style={{ width: `${Math.min(memPercent, 100)}%` }}
           />
         </div>
