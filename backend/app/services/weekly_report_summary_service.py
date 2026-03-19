@@ -80,8 +80,8 @@ class WeeklyReportSummaryService:
             scope_id=scope_id,
         )
 
-        # Determine target week
-        resolved_week_start = week_start or _monday_of_week(date.today())
+        # Determine target week (normalize to Monday)
+        resolved_week_start = _monday_of_week(week_start) if week_start else _monday_of_week(date.today())
 
         if team_scope_type == "sub_team":
             return await self._summarize_sub_team(
