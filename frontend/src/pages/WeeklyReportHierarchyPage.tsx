@@ -1,7 +1,6 @@
 import { useState, useMemo } from 'react';
 import { format, startOfWeek, addWeeks, subWeeks } from 'date-fns';
 import { useQuery } from '@tanstack/react-query';
-import { useTranslation } from 'react-i18next';
 import {
   ChevronDown,
   ChevronRight,
@@ -147,7 +146,6 @@ function SubTeamSection({
 
 export function WeeklyReportHierarchyPage() {
   const { user } = useAuth();
-  const { t } = useTranslation('dashboard');
   const [referenceDate, setReferenceDate] = useState<Date>(new Date());
   const [expandedSubTeams, setExpandedSubTeams] = useState<Set<string>>(new Set());
   const [expandedMembers, setExpandedMembers] = useState<Set<string>>(new Set());
