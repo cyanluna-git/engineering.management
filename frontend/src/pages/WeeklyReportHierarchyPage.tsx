@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { format, startOfWeek, addWeeks, subWeeks } from 'date-fns';
 import { useQuery } from '@tanstack/react-query';
 import {
@@ -160,6 +160,14 @@ export function WeeklyReportHierarchyPage() {
     queryFn: () => getWeeklyReportHierarchy(departmentId!, dateKey),
     enabled: !!departmentId,
   });
+
+  // Auto-expand all sub-teams when data loads
+  useEffect(() => {
+    if (data) {
+      setExpandedSubTeams(new Set(data.sub_teams.map((st) => st.id ?? 'unassigned')));
+      setExpandedMembers(new Set());
+    }
+  }, [data]);
 
   const toggleSubTeam = (id: string) => {
     setExpandedSubTeams((prev) => {
