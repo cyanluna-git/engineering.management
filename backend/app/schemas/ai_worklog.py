@@ -46,3 +46,4 @@ class AIHealthResponse(BaseModel):
     status: str = Field(..., description="AI service status: 'healthy' or 'unhealthy'")
     model: str = Field(..., description="Currently configured AI model")
     message: Optional[str] = Field(None, description="Additional status message")
+    cached_at: Optional[float] = Field(None, description="Unix timestamp when health was last checked")

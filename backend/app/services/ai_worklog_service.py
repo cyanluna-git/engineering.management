@@ -4,12 +4,18 @@ Business logic for AI-assisted worklog parsing
 """
 
 import logging
+import time
 from datetime import date, timedelta
 from typing import List, Dict, Any, Optional
 from sqlalchemy.orm import Session
 from sqlalchemy import func, case, desc
 
 logger = logging.getLogger(__name__)
+
+# Health check cache — avoids repeated PCAS chat API calls
+_health_cache: Dict[str, Any] | None = None
+_health_cache_time: float = 0.0
+_HEALTH_CACHE_TTL: float = 300.0  # 5 minutes
 
 from app.models.project import Project
 from app.models.internal_io import InternalIO
@@ -534,17 +540,26 @@ class AIWorklogService:
 
     async def check_health(self) -> Dict[str, Any]:
         """
-        Check AI service health.
+        Check AI service health with server-side caching.
+
+        Caches healthy results for 5 minutes to avoid excessive
+        PCAS chat API calls (health check sends "test" message).
+        Unhealthy results are not cached so recovery is detected promptly.
 
         Returns:
             Dict with status, model, and message
         """
+        global _health_cache, _health_cache_time
+        now = time.monotonic()
+        if _health_cache and (now - _health_cache_time) < _HEALTH_CACHE_TTL:
+            return _health_cache
+
         provider = settings.AI_PROVIDER
         result = await self.client.health_check()
         is_available = result.get("available", False)
         model = result.get("model", "unknown")
 
-        return {
+        response = {
             "status": "healthy" if is_available else "unhealthy",
             "model": model,
             "provider": provider,
@@ -553,4 +568,11 @@ class AIWorklogService:
                 if is_available
                 else f"{provider.upper()} API 연결 실패: {result.get('error', 'Unknown')}"
             ),
+            "cached_at": time.time(),
         }
+
+        if is_available:
+            _health_cache = response
+            _health_cache_time = now
+
+        return response
