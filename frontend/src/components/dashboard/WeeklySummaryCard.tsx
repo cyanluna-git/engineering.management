@@ -30,11 +30,13 @@ import {
   AISummaryHistoryItem,
 } from "@/api/client";
 import { useAIHealth } from "@/hooks/useAIWorklog";
+import { useAuth } from "@/hooks/useAuth";
 
 interface WeeklySummaryCardProps {
   mode: "user" | "team";
   scope?: TeamDashboardScope;
   period?: "weekly" | "monthly" | "quarterly" | "halfYear" | "yearly";
+  userId?: string;
 }
 
 type SupportedSummaryPeriod = "weekly" | "monthly";
@@ -69,8 +71,11 @@ export const WeeklySummaryCard: React.FC<WeeklySummaryCardProps> = ({
   mode,
   scope = "department",
   period = "weekly",
+  userId,
 }) => {
   const { t } = useTranslation('dashboard');
+  const { user } = useAuth();
+  const isOwnData = !userId || userId === user?.id;
   const [isRegenerating, setIsRegenerating] = useState(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
@@ -85,8 +90,8 @@ export const WeeklySummaryCard: React.FC<WeeklySummaryCardProps> = ({
 
   // User Summary Query
   const userQuery = useQuery({
-    queryKey: ["ai-summary", "user", period],
-    queryFn: () => getUserAISummary(isSupportedPeriod ? period : "weekly", false),
+    queryKey: ["ai-summary", "user", period, userId],
+    queryFn: () => getUserAISummary(isSupportedPeriod ? period : "weekly", false, userId),
     enabled: mode === "user" && !selectedHistory && isAIAvailable && isSupportedPeriod,
     staleTime: 10 * 60 * 1000,
     refetchOnWindowFocus: false,
@@ -103,10 +108,10 @@ export const WeeklySummaryCard: React.FC<WeeklySummaryCardProps> = ({
 
   // History Query
   const historyQuery = useQuery({
-    queryKey: ["ai-summary-history", mode, scope, period],
+    queryKey: ["ai-summary-history", mode, scope, period, userId],
     queryFn: async () => {
       if (mode === "user") {
-        return getUserAISummaryHistory(10);
+        return getUserAISummaryHistory(10, userId);
       } else {
         return getTeamAISummaryHistory(scope, 10);
       }
@@ -296,18 +301,20 @@ export const WeeklySummaryCard: React.FC<WeeklySummaryCardProps> = ({
                   </DialogContent>
                 </Dialog>
 
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleForceRegenerate}
-                  disabled={isLoading}
-                  className="h-7 w-7 p-0"
-                  title={t('summary.regenerate')}
-                >
-                  <WandSparkles
-                    className={`w-4 h-4 text-amber-500 ${isLoading ? "animate-pulse" : ""}`}
-                  />
-                </Button>
+                {isOwnData && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleForceRegenerate}
+                    disabled={isLoading}
+                    className="h-7 w-7 p-0"
+                    title={t('summary.regenerate')}
+                  >
+                    <WandSparkles
+                      className={`w-4 h-4 text-amber-500 ${isLoading ? "animate-pulse" : ""}`}
+                    />
+                  </Button>
+                )}
               </>
             )}
           </div>

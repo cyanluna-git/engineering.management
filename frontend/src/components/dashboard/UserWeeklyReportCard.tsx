@@ -2,6 +2,7 @@ import { useRef, useState } from "react";
 import { format } from "date-fns";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
+import { useAuth } from "@/hooks/useAuth";
 import {
   CalendarDays,
   Eye,
@@ -38,6 +39,7 @@ import {
 
 interface UserWeeklyReportCardProps {
   referenceDate: Date;
+  userId?: string;
 }
 
 function getReferenceDateKey(referenceDate: Date) {
@@ -48,8 +50,10 @@ function formatWeekLabel(weekStart: string, weekEnd: string) {
   return `${weekStart} ~ ${weekEnd}`;
 }
 
-export function UserWeeklyReportCard({ referenceDate }: UserWeeklyReportCardProps) {
+export function UserWeeklyReportCard({ referenceDate, userId }: UserWeeklyReportCardProps) {
   const { t } = useTranslation("dashboard");
+  const { user } = useAuth();
+  const isOwnData = !userId || userId === user?.id;
   const queryClient = useQueryClient();
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<"edit" | "preview">("edit");
@@ -59,20 +63,22 @@ export function UserWeeklyReportCard({ referenceDate }: UserWeeklyReportCardProp
   const referenceDateKey = getReferenceDateKey(referenceDate);
 
   const currentQuery = useQuery({
-    queryKey: ["weekly-report", "user", "current", referenceDateKey],
+    queryKey: ["weekly-report", "user", "current", referenceDateKey, userId],
     queryFn: () =>
       getCurrentWeeklyReport({
         scope: "user",
         reference_date: referenceDateKey,
+        user_id: userId,
       }),
   });
 
   const historyQuery = useQuery({
-    queryKey: ["weekly-report", "user", "history"],
+    queryKey: ["weekly-report", "user", "history", userId],
     queryFn: () =>
       getWeeklyReportHistory({
         scope: "user",
         limit: 4,
+        user_id: userId,
       }),
   });
 
@@ -144,15 +150,17 @@ export function UserWeeklyReportCard({ referenceDate }: UserWeeklyReportCardProp
               </p>
             </div>
 
-            <Button
-              onClick={handleOpenEditor}
-              size="sm"
-              className="gap-2"
-              disabled={currentQuery.isLoading}
-            >
-              {currentReport ? <PencilLine className="h-3.5 w-3.5" /> : <SquarePen className="h-3.5 w-3.5" />}
-              {currentReport ? t("weeklyReport.edit") : t("weeklyReport.start")}
-            </Button>
+            {isOwnData && (
+              <Button
+                onClick={handleOpenEditor}
+                size="sm"
+                className="gap-2"
+                disabled={currentQuery.isLoading}
+              >
+                {currentReport ? <PencilLine className="h-3.5 w-3.5" /> : <SquarePen className="h-3.5 w-3.5" />}
+                {currentReport ? t("weeklyReport.edit") : t("weeklyReport.start")}
+              </Button>
+            )}
           </div>
         </CardHeader>
 

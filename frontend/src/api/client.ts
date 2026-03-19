@@ -1241,10 +1241,12 @@ export interface TeamAISummary {
 
 export const getUserAISummary = async (
   period: 'weekly' | 'monthly' = 'weekly',
-  forceRegenerate: boolean = false
+  forceRegenerate: boolean = false,
+  userId?: string
 ): Promise<UserAISummary> => {
+  const userParam = userId ? `&user_id=${userId}` : '';
   const response = await apiClient.get(
-    `/dashboard/ai-summary/user?period=${period}&force_regenerate=${forceRegenerate}`
+    `/dashboard/ai-summary/user?period=${period}&force_regenerate=${forceRegenerate}${userParam}`
   );
   return response.data;
 };
@@ -1268,8 +1270,9 @@ export interface AISummaryHistoryItem {
   generated_at: string;
 }
 
-export const getUserAISummaryHistory = async (limit: number = 5): Promise<AISummaryHistoryItem[]> => {
-  const response = await apiClient.get(`/dashboard/ai-summary/user/history?limit=${limit}`);
+export const getUserAISummaryHistory = async (limit: number = 5, userId?: string): Promise<AISummaryHistoryItem[]> => {
+  const userParam = userId ? `&user_id=${userId}` : '';
+  const response = await apiClient.get(`/dashboard/ai-summary/user/history?limit=${limit}${userParam}`);
   return response.data;
 };
 
@@ -1338,6 +1341,7 @@ export const getCurrentWeeklyReport = async (params: {
   team_scope_type?: WeeklyReportTeamScope;
   scope_id?: string;
   reference_date?: string;
+  user_id?: string;
 }): Promise<WeeklyReportCurrentResponse> => {
   const response = await apiClient.get('/weekly-reports/current', { params });
   return response.data;
@@ -1348,6 +1352,7 @@ export const getWeeklyReportHistory = async (params: {
   team_scope_type?: WeeklyReportTeamScope;
   scope_id?: string;
   limit?: number;
+  user_id?: string;
 }): Promise<WeeklyReport[]> => {
   const response = await apiClient.get('/weekly-reports/history', { params });
   return response.data.items;

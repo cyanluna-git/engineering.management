@@ -56,6 +56,7 @@ class WeeklyReportService:
         scope: str,
         team_scope_type: Optional[str],
         scope_id: Optional[str],
+        read_only: bool = False,
     ) -> ResolvedWeeklyReportTarget:
         if scope == "user":
             if team_scope_type is not None:
@@ -65,10 +66,10 @@ class WeeklyReportService:
                 )
 
             resolved_scope_id = scope_id or current_user.id
-            if resolved_scope_id != current_user.id:
+            if resolved_scope_id != current_user.id and not read_only:
                 raise HTTPException(
                     status_code=status.HTTP_403_FORBIDDEN,
-                    detail="Personal weekly reports can only be accessed by the owner",
+                    detail="Personal weekly reports can only be modified by the owner",
                 )
 
             target_user = self.db.query(User).filter(User.id == resolved_scope_id).first()
@@ -164,8 +165,9 @@ class WeeklyReportService:
         team_scope_type: Optional[str],
         scope_id: Optional[str],
         reference_date: Optional[date],
+        read_only: bool = False,
     ) -> dict:
-        target = self.resolve_target(current_user, scope, team_scope_type, scope_id)
+        target = self.resolve_target(current_user, scope, team_scope_type, scope_id, read_only=read_only)
         week_start, week_end, week_key = self.get_week_range(reference_date=reference_date)
         report = (
             self.db.query(WeeklyReport)
@@ -195,8 +197,9 @@ class WeeklyReportService:
         team_scope_type: Optional[str],
         scope_id: Optional[str],
         limit: int,
+        read_only: bool = False,
     ) -> list[dict]:
-        target = self.resolve_target(current_user, scope, team_scope_type, scope_id)
+        target = self.resolve_target(current_user, scope, team_scope_type, scope_id, read_only=read_only)
         reports = (
             self.db.query(WeeklyReport)
             .filter(WeeklyReport.target_key == target.target_key)

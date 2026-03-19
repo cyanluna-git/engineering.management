@@ -748,11 +748,11 @@ export const DashboardPage: React.FC = () => {
 
                     {/* AI Weekly Summary Card */}
                     <div className="mb-4">
-                        <WeeklySummaryCard mode="user" period={viewMode} />
+                        <WeeklySummaryCard mode="user" period={viewMode} userId={activeUserId} />
                     </div>
 
                     <div className="mb-4">
-                        <UserWeeklyReportCard referenceDate={currentDate} />
+                        <UserWeeklyReportCard referenceDate={currentDate} userId={activeUserId} />
                     </div>
 
                     {/* Charts Row */}

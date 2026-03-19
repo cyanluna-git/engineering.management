@@ -138,11 +138,12 @@ async def get_team_dashboard(
 async def get_user_ai_summary(
     period: str = Query("weekly", description="기간: weekly, monthly"),
     force_regenerate: bool = Query(False, description="캐시 무시하고 재생성"),
+    user_id: Optional[str] = Query(None, description="Target user ID (default: current user)"),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     """
-    AI-powered weekly summary for current user.
+    AI-powered weekly summary for a user.
     Uses Gemini to analyze worklogs and generate bullet-point summary.
     Caches summaries for past weeks to save tokens.
     """
@@ -152,9 +153,10 @@ async def get_user_ai_summary(
     else:  # weekly
         start_date, end_date = _get_last_completed_week_range(today)
 
+    target_id = user_id or str(current_user.id)
     service = SummaryService(db)
     return await service.generate_user_summary(
-        user_id=current_user.id,
+        user_id=target_id,
         start_date=start_date,
         end_date=end_date,
         force_regenerate=force_regenerate,
@@ -218,16 +220,18 @@ async def get_team_ai_summary(
 @router.get("/ai-summary/user/history")
 async def get_user_ai_summary_history(
     limit: int = Query(5, description="조회 개수"),
+    user_id: Optional[str] = Query(None, description="Target user ID (default: current user)"),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     """
     Get history of AI-generated user summaries.
     """
+    target_id = user_id or str(current_user.id)
     service = SummaryService(db)
     return service.get_summary_history(
         scope="user",
-        scope_id=current_user.id,
+        scope_id=target_id,
         limit=limit,
     )
 

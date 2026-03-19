@@ -35,16 +35,19 @@ async def get_current_weekly_report(
     ),
     scope_id: Optional[str] = Query(None, description="대상 식별자"),
     reference_date: Optional[date] = Query(None, description="주차 계산 기준 날짜"),
+    user_id: Optional[str] = Query(None, description="Target user ID for read-only access"),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     service = WeeklyReportService(db)
+    effective_scope_id = user_id if (scope == "user" and user_id) else scope_id
     return service.get_current(
         current_user=current_user,
         scope=scope,
         team_scope_type=team_scope_type,
-        scope_id=scope_id,
+        scope_id=effective_scope_id,
         reference_date=reference_date,
+        read_only=True,
     )
 
 
@@ -56,17 +59,20 @@ async def get_weekly_report_history(
     ),
     scope_id: Optional[str] = Query(None, description="대상 식별자"),
     limit: int = Query(10, ge=1, le=52, description="조회 개수"),
+    user_id: Optional[str] = Query(None, description="Target user ID for read-only access"),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     service = WeeklyReportService(db)
+    effective_scope_id = user_id if (scope == "user" and user_id) else scope_id
     return {
         "items": service.get_history(
             current_user=current_user,
             scope=scope,
             team_scope_type=team_scope_type,
-            scope_id=scope_id,
+            scope_id=effective_scope_id,
             limit=limit,
+            read_only=True,
         )
     }
 
