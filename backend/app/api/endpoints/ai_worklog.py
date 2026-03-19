@@ -4,6 +4,7 @@ Endpoints for AI-assisted worklog entry parsing
 """
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
@@ -42,23 +43,33 @@ async def parse_worklog_with_ai(
         )
 
 
-@router.get("/ai-health", response_model=AIHealthResponse)
+@router.get("/ai-health")
 async def check_ai_health(
     db: Session = Depends(get_db),
 ):
     """
-    Check the health status of the AI service (Groq/Gemini).
+    Check the health status of the AI service.
 
     Returns the connection status and configured model information.
+    Healthy responses are cacheable for 5 minutes; unhealthy are not cached.
     """
     service = AIWorklogService(db)
 
     try:
         result = await service.check_health()
-        return AIHealthResponse(**result)
+        data = AIHealthResponse(**result)
+        response = JSONResponse(content=data.model_dump())
+        if result.get("status") == "healthy":
+            response.headers["Cache-Control"] = "public, max-age=300"
+        else:
+            response.headers["Cache-Control"] = "no-cache"
+        return response
     except Exception as e:
-        return AIHealthResponse(
+        data = AIHealthResponse(
             status="unhealthy",
             model="unknown",
             message=f"상태 확인 실패: {str(e)}",
         )
+        response = JSONResponse(content=data.model_dump())
+        response.headers["Cache-Control"] = "no-cache"
+        return response
