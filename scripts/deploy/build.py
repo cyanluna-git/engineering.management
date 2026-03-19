@@ -100,19 +100,40 @@ def print_step(message):
     print_colored(f"\n>>> {message}", Colors.CYAN)
 
 
+def get_compose_cmd():
+    """Return the available docker compose command as a list."""
+    # Try docker-compose (standalone) — verify it actually runs
+    if shutil.which('docker-compose'):
+        result = subprocess.run(
+            ['docker-compose', 'version'],
+            capture_output=True,
+        )
+        if result.returncode == 0:
+            return ['docker-compose']
+    # docker compose (plugin)
+    result = subprocess.run(
+        ['docker', 'compose', 'version'],
+        capture_output=True,
+    )
+    if result.returncode == 0:
+        return ['docker', 'compose']
+    return None
+
+
 def check_prerequisites():
     """Check if required tools are available"""
     print_info("Checking prerequisites...")
-    
-    required_tools = ['docker', 'docker-compose']
-    
-    for tool in required_tools:
-        if shutil.which(tool):
-            print_colored(f"  ✓ {tool}", Colors.GREEN)
-        else:
-            print_error(f"{tool} is required but not installed.")
-            sys.exit(1)
-    
+
+    if not shutil.which('docker'):
+        print_error("docker is required but not installed.")
+        sys.exit(1)
+    print_colored("  ✓ docker", Colors.GREEN)
+
+    if get_compose_cmd() is None:
+        print_error("docker-compose or docker compose plugin is required.")
+        sys.exit(1)
+    print_colored(f"  ✓ {' '.join(get_compose_cmd())}", Colors.GREEN)
+
     print_info("Prerequisites OK")
     print()
 
@@ -342,10 +363,12 @@ def build_docker_images(project_dir):
                 docker_env['DOCKER_CONFIG'] = str(temp_docker_config_dir)
                 print_info("Using sanitized Docker config without credential helper for build")
 
+        compose_cmd = get_compose_cmd()
+
         # Build backend image
         print_info("Building backend Docker image...")
         subprocess.run(
-            ['docker-compose', 'build', 'backend'],
+            [*compose_cmd, 'build', 'backend'],
             check=True,
             capture_output=False,  # Show output directly to see errors
             env=docker_env,
@@ -355,7 +378,7 @@ def build_docker_images(project_dir):
         # Build frontend image
         print_info("Building frontend Docker image...")
         subprocess.run(
-            ['docker-compose', 'build', 'frontend', '--no-cache'],
+            [*compose_cmd, 'build', 'frontend', '--no-cache'],
             check=True,
             capture_output=False,  # Show output directly to see errors
             env=docker_env,
