@@ -16,6 +16,7 @@ const ResourcePlansPage = lazy(() => import('./pages/ResourcePlansPage').then(m 
 const ResourceMatrixPage = lazy(() => import('./pages/ResourceMatrixPage').then(m => ({ default: m.ResourceMatrixPage })));
 const OrganizationPage = lazy(() => import('./pages/OrganizationPage').then(m => ({ default: m.OrganizationPage })));
 const ReportsPage = lazy(() => import('./pages/ReportsPage').then(m => ({ default: m.ReportsPage })));
+const WeeklyReportHierarchyPage = lazy(() => import('./pages/WeeklyReportHierarchyPage'));
 const RequestBoardPage = lazy(() => import('./pages/RequestBoardPage').then(m => ({ default: m.RequestBoardPage })));
 const ProfilePage = lazy(() => import('./pages/ProfilePage').then(m => ({ default: m.ProfilePage })));
 const UpdatesPage = lazy(() => import('./pages/UpdatesPage').then(m => ({ default: m.UpdatesPage })));
@@ -63,6 +64,7 @@ function App() {
               <Route path="/resource-matrix" element={<Suspense fallback={<PageLoader />}><ResourceMatrixPage /></Suspense>} />
               <Route path="/organization" element={<Suspense fallback={<PageLoader />}><OrganizationPage /></Suspense>} />
               <Route path="/reports" element={<Suspense fallback={<PageLoader />}><ReportsPage /></Suspense>} />
+              <Route path="/reports/weekly" element={<Suspense fallback={<PageLoader />}><WeeklyReportHierarchyPage /></Suspense>} />
               <Route path="/requests" element={<Suspense fallback={<PageLoader />}><RequestBoardPage /></Suspense>} />
               <Route path="/profile" element={<Suspense fallback={<PageLoader />}><ProfilePage /></Suspense>} />
               <Route path="/updates" element={<Suspense fallback={<PageLoader />}><UpdatesPage /></Suspense>} />

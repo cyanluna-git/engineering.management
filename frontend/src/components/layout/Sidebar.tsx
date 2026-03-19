@@ -21,6 +21,7 @@ import {
   ChevronLeft,
   ChevronRight,
   History,
+  FileText,
 } from "lucide-react";
 
 // Nav item definition with i18n key
@@ -35,6 +36,7 @@ const monitoringNavigation: NavItem[] = [
   { nameKey: "main.dashboard", href: "/dashboard", icon: LayoutDashboard },
   { nameKey: "main.resourceMatrix", href: "/resource-matrix", icon: Grid3x3 },
   { nameKey: "main.reports", href: "/reports", icon: BarChart3 },
+  { nameKey: "main.weeklyReports", href: "/reports/weekly", icon: FileText },
 ];
 
 // Entry - Data Input
