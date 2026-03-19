@@ -17,8 +17,9 @@ export function useAIHealth() {
     return useQuery({
         queryKey: [AI_HEALTH_KEY],
         queryFn: checkAIHealth,
-        staleTime: 30000, // 30 seconds
-        refetchInterval: 60000, // Refetch every minute
+        staleTime: 4 * 60 * 1000, // 4 minutes
+        refetchInterval: 5 * 60 * 1000, // 5 minutes (was 1 minute)
+        refetchIntervalInBackground: false, // Stop polling when tab is inactive
         retry: 1,
     });
 }
