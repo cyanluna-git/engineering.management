@@ -11,6 +11,9 @@ import {
   CalendarDays,
   ChevronsUpDown,
   FileText,
+  Printer,
+  Copy,
+  Check,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, Button, Badge } from '@/components/ui';
 import { useAuth } from '@/hooks/useAuth';
@@ -192,6 +195,45 @@ export function WeeklyReportHierarchyPage() {
     }
   };
 
+  const [copied, setCopied] = useState(false);
+
+  const handlePrint = () => {
+    if (!data) return;
+    // Expand all before printing
+    const allSubTeamIds = data.sub_teams.map((st) => st.id ?? 'unassigned');
+    const allMemberIds = data.sub_teams.flatMap((st) => st.members.map((m) => m.user_id));
+    setExpandedSubTeams(new Set(allSubTeamIds));
+    setExpandedMembers(new Set(allMemberIds));
+    setTimeout(() => window.print(), 300);
+  };
+
+  const handleCopyMarkdown = () => {
+    if (!data) return;
+    const lines: string[] = [];
+    lines.push(`# ${data.department.name} 주간 보고서 (${data.week_start} ~ ${data.week_end})`);
+    if (data.department_report?.markdown_body?.trim()) {
+      lines.push('', data.department_report.markdown_body.trim());
+    }
+    for (const st of data.sub_teams) {
+      lines.push('', `## ${st.name} (${st.submitted_count}/${st.total_count}명 제출)`);
+      if (st.report?.markdown_body?.trim()) {
+        lines.push('', st.report.markdown_body.trim());
+      }
+      for (const m of st.members) {
+        const name = m.korean_name || m.name;
+        if (m.report?.markdown_body?.trim()) {
+          lines.push('', `### ${name}`, '', m.report.markdown_body.trim());
+        } else {
+          lines.push('', `### ${name}`, '', '*미작성*');
+        }
+      }
+    }
+    navigator.clipboard.writeText(lines.join('\n')).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  };
+
   if (!departmentId) {
     return (
       <div className="container mx-auto p-6">
@@ -224,6 +266,14 @@ export function WeeklyReportHierarchyPage() {
         <Button variant="ghost" size="sm" onClick={toggleAll} className="gap-1.5 text-xs">
           <ChevronsUpDown className="h-3.5 w-3.5" />
           전체 펼치기/접기
+        </Button>
+        <Button variant="ghost" size="sm" onClick={handlePrint} className="gap-1.5 text-xs print:hidden">
+          <Printer className="h-3.5 w-3.5" />
+          인쇄
+        </Button>
+        <Button variant="ghost" size="sm" onClick={handleCopyMarkdown} className="gap-1.5 text-xs print:hidden">
+          {copied ? <Check className="h-3.5 w-3.5 text-green-500" /> : <Copy className="h-3.5 w-3.5" />}
+          {copied ? '복사됨' : '마크다운 복사'}
         </Button>
       </div>
 

@@ -111,3 +111,24 @@ tbody.virtualized {
     animation: none;
   }
 }
+
+/* Print styles for weekly report hierarchy page */
+@media print {
+  /* Hide sidebar, header, nav elements */
+  nav, aside, header, .print\\:hidden {
+    display: none !important;
+  }
+
+  /* Remove layout constraints */
+  main, .container {
+    max-width: 100% !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  /* Expand all accordion content for print */
+  [data-print-expand] {
+    max-height: none !important;
+    overflow: visible !important;
+  }
+}
