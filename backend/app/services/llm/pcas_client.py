@@ -165,6 +165,7 @@ class PCASClient:
             Status dict with available flag and model info
         """
         try:
+            logger.info("PCAS health_check: starting (bot-info + chat verification)")
             url = f"{self.base_url}/bot-info"
             async with httpx.AsyncClient(
                 timeout=10,
@@ -177,14 +178,19 @@ class PCASClient:
             bot_info = info.get("botInfo", {})
             available = True
             message_extra = ""
+            logger.debug("PCAS health_check: bot-info OK")
 
             # Verify chat endpoint if default UPN is configured (ensures "user" requirement is satisfied)
             default_upn = (settings.PCAS_LLM_DEFAULT_UPN or "").strip()
             if default_upn:
+                logger.info("PCAS health_check: sending chat verification (Stage 2)")
                 chat_ok = await self._check_chat_endpoint(default_upn)
                 if not chat_ok:
                     available = False
                     message_extra = " (bot-info OK, chat endpoint failed - check PCAS_LLM_DEFAULT_UPN)"
+                    logger.warning("PCAS health_check: chat verification failed")
+                else:
+                    logger.debug("PCAS health_check: chat verification OK")
 
             return {
                 "status": "ok" if available else "error",
@@ -194,6 +200,7 @@ class PCASClient:
                 "error": None if available else f"Chat verification failed{message_extra}",
             }
         except Exception as e:
+            logger.error("PCAS health_check: failed - %s", e)
             return {
                 "status": "error",
                 "available": False,

@@ -552,8 +552,10 @@ class AIWorklogService:
         global _health_cache, _health_cache_time
         now = time.monotonic()
         if _health_cache and (now - _health_cache_time) < _HEALTH_CACHE_TTL:
+            logger.debug("AI health_check: cache HIT (age=%.1fs)", now - _health_cache_time)
             return _health_cache
 
+        logger.info("AI health_check: cache MISS, calling provider")
         provider = settings.AI_PROVIDER
         result = await self.client.health_check()
         is_available = result.get("available", False)
