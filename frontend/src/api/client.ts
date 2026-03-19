@@ -1397,6 +1397,42 @@ export const generateWeeklyReportLLMSummary = (
 ): Promise<WeeklyReportLLMSummaryResponse> =>
   apiClient.post('/weekly-reports/llm-summary', data).then((r) => r.data);
 
+// Weekly Report Hierarchy
+export interface WeeklyReportHierarchyMember {
+  user_id: string;
+  name: string;
+  korean_name: string | null;
+  report: WeeklyReport | null;
+}
+
+export interface WeeklyReportHierarchySubTeam {
+  id: string | null;
+  name: string;
+  report: WeeklyReport | null;
+  members: WeeklyReportHierarchyMember[];
+  submitted_count: number;
+  total_count: number;
+}
+
+export interface WeeklyReportHierarchy {
+  department: { id: string; name: string; code: string };
+  week_start: string;
+  week_end: string;
+  week_key: string;
+  department_report: WeeklyReport | null;
+  sub_teams: WeeklyReportHierarchySubTeam[];
+}
+
+export const getWeeklyReportHierarchy = async (
+  departmentId: string,
+  referenceDate?: string
+): Promise<WeeklyReportHierarchy> => {
+  const params: Record<string, string> = { department_id: departmentId };
+  if (referenceDate) params.reference_date = referenceDate;
+  const response = await apiClient.get('/weekly-reports/hierarchy', { params });
+  return response.data;
+};
+
 // ============ Resource Matrix Drill-down ============
 
 export interface WorklogDetail {

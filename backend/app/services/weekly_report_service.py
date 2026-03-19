@@ -313,3 +313,120 @@ class WeeklyReportService:
             "created_at": report.created_at,
             "updated_at": report.updated_at,
         }
+
+    def get_hierarchy(
+        self,
+        department_id: str,
+        reference_date: Optional[date] = None,
+    ) -> dict:
+        """Get hierarchical weekly reports for a department: dept → sub_teams → members."""
+        week_start, week_end, week_key = self.get_week_range(reference_date=reference_date)
+
+        department = self.db.query(Department).filter(Department.id == department_id).first()
+        if not department:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Department not found",
+            )
+
+        sub_teams = (
+            self.db.query(SubTeam)
+            .filter(SubTeam.department_id == department_id, SubTeam.is_active == True)
+            .order_by(SubTeam.name)
+            .all()
+        )
+
+        users = (
+            self.db.query(User)
+            .filter(User.department_id == department_id, User.is_active == True)
+            .order_by(User.korean_name, User.name)
+            .all()
+        )
+
+        # Build all target_keys to query in one batch
+        target_keys = [f"department:{department_id}"]
+        user_by_id = {}
+        for st in sub_teams:
+            target_keys.append(f"sub_team:{st.id}")
+        for u in users:
+            target_keys.append(f"user:{u.id}")
+            user_by_id[u.id] = u
+
+        # Single batch query for all reports
+        reports = (
+            self.db.query(WeeklyReport)
+            .filter(
+                WeeklyReport.target_key.in_(target_keys),
+                WeeklyReport.week_start == week_start,
+            )
+            .all()
+        )
+
+        report_by_key = {r.target_key: r for r in reports}
+
+        # Group users by sub_team
+        users_by_st: dict[str | None, list] = {}
+        for u in users:
+            users_by_st.setdefault(u.sub_team_id, []).append(u)
+
+        # Assemble sub_teams
+        sub_team_data = []
+        for st in sub_teams:
+            st_users = users_by_st.get(st.id, [])
+            st_report = report_by_key.get(f"sub_team:{st.id}")
+            members = []
+            submitted = 0
+            for u in st_users:
+                u_report = report_by_key.get(f"user:{u.id}")
+                members.append({
+                    "user_id": u.id,
+                    "name": u.name,
+                    "korean_name": u.korean_name,
+                    "report": self.serialize(u_report) if u_report else None,
+                })
+                if u_report:
+                    submitted += 1
+
+            sub_team_data.append({
+                "id": st.id,
+                "name": st.name,
+                "report": self.serialize(st_report) if st_report else None,
+                "members": members,
+                "submitted_count": submitted,
+                "total_count": len(st_users),
+            })
+
+        # Users without sub_team
+        unassigned = users_by_st.get(None, [])
+        if unassigned:
+            unassigned_members = []
+            submitted = 0
+            for u in unassigned:
+                u_report = report_by_key.get(f"user:{u.id}")
+                unassigned_members.append({
+                    "user_id": u.id,
+                    "name": u.name,
+                    "korean_name": u.korean_name,
+                    "report": self.serialize(u_report) if u_report else None,
+                })
+                if u_report:
+                    submitted += 1
+            sub_team_data.append({
+                "id": None,
+                "name": "Unassigned",
+                "report": None,
+                "members": unassigned_members,
+                "submitted_count": submitted,
+                "total_count": len(unassigned_members),
+            })
+
+        dept_report = report_by_key.get(f"department:{department_id}")
+
+        return {
+            "department": {"id": department.id, "name": department.name, "code": department.code},
+            "week_start": str(week_start),
+            "week_end": str(week_end),
+            "week_key": week_key,
+            "department_report": self.serialize(dept_report) if dept_report else None,
+            "sub_teams": sub_team_data,
+        }
