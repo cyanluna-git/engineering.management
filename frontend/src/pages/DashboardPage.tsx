@@ -6,9 +6,11 @@ import { useDashboard } from '@/hooks/useDashboard';
 import type { TeamDashboardScope, DashboardViewMode } from '@/api/client';
 import { useWorklogsTable } from '@/hooks/useWorklogs';
 import { useWorkTypeCategories, type WorkTypeCategory } from '@/hooks/useWorkTypeCategories';
-import { Card, CardContent, CardHeader, CardTitle, Button, Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui';
+import { Card, CardContent, CardHeader, CardTitle, Button, Tabs, TabsContent, TabsList, TabsTrigger, Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui';
 import { useAuth } from '@/hooks/useAuth';
-import { Construction } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import { getUsers } from '@/api/client';
+import { Construction, Users } from 'lucide-react';
 import { L1_CATEGORY_COLORS, L2_COLORS } from '@/lib/constants';
 import { getLocalizedName } from '@/lib/utils';
 import { TeamDashboardContent } from '@/components/dashboard/TeamDashboardContent';
@@ -78,8 +80,19 @@ const getDynamicDateRanges = (referenceDate: Date, mode: ViewMode) => {
 // TeamDashboardContent component extracted to @/components/dashboard/TeamDashboardContent.tsx
 
 export const DashboardPage: React.FC = () => {
-    const { data, isLoading, error } = useDashboard();
     const { user } = useAuth();
+    const [selectedUserId, setSelectedUserId] = useState<string | undefined>(undefined);
+    const activeUserId = selectedUserId || user?.id;
+
+    // Fetch org users (same department) for user filter dropdown
+    const { data: orgUsers = [] } = useQuery({
+        queryKey: ['org-users', user?.department_id],
+        queryFn: () => getUsers(user?.department_id ?? undefined),
+        enabled: !!user?.department_id,
+        staleTime: 10 * 60 * 1000,
+    });
+
+    const { data, isLoading, error } = useDashboard(activeUserId);
     const { t, i18n } = useTranslation('dashboard');
     const { data: categoryTree = [] } = useWorkTypeCategories();
     const [viewMode, setViewMode] = useState<ViewMode>('weekly');
@@ -119,7 +132,7 @@ export const DashboardPage: React.FC = () => {
     const { data: currentWorklogs = [], isLoading: currentLoading } = useWorklogsTable({
         start_date: periodStart,
         end_date: periodEnd,
-        user_id: user?.id,
+        user_id: activeUserId,
         limit: viewMode === 'yearly' ? 2000 : viewMode === 'quarterly' ? 500 : 200,
         enabled: true,
     });
@@ -128,7 +141,7 @@ export const DashboardPage: React.FC = () => {
     const { data: last12MonthsWorklogs = [] } = useWorklogsTable({
         start_date: last12MonthsRange.start,
         end_date: last12MonthsRange.end,
-        user_id: user?.id,
+        user_id: activeUserId,
         limit: 2000,
         enabled: true, // Always load for trend chart
     });
@@ -662,6 +675,38 @@ export const DashboardPage: React.FC = () => {
                         <Button variant={viewMode === 'yearly' ? 'default' : 'outline'} onClick={() => setViewMode('yearly')} size="sm">
                             {t('viewMode.yearly')}
                         </Button>
+
+                        {/* User Filter */}
+                        {orgUsers.length > 1 && (
+                            <>
+                                <div className="w-px h-6 bg-border mx-1" />
+                                <div className="flex items-center gap-1.5">
+                                    <Users className="w-4 h-4 text-muted-foreground" />
+                                    <Select
+                                        value={activeUserId}
+                                        onValueChange={(value) => setSelectedUserId(value === user?.id ? undefined : value)}
+                                    >
+                                        <SelectTrigger className="w-[160px] h-8 text-sm">
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {orgUsers
+                                                .sort((a, b) => {
+                                                    if (a.id === user?.id) return -1;
+                                                    if (b.id === user?.id) return 1;
+                                                    return (a.korean_name || a.name).localeCompare(b.korean_name || b.name);
+                                                })
+                                                .map((u) => (
+                                                    <SelectItem key={u.id} value={u.id}>
+                                                        {u.korean_name || u.name}
+                                                        {u.id === user?.id ? ' (나)' : ''}
+                                                    </SelectItem>
+                                                ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                            </>
+                        )}
                     </div>
 
                     {/* Stats Cards */}
@@ -977,6 +1022,7 @@ export const DashboardPage: React.FC = () => {
                         <MyFTECard
                             year={currentDate.getFullYear()}
                             month={currentDate.getMonth() + 1}
+                            userId={activeUserId}
                         />
                     )}
                 </TabsContent>

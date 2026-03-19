@@ -37,6 +37,7 @@ def _get_last_completed_month_range(today: date) -> tuple[date, date]:
 async def get_my_fte(
     year: int = Query(..., description="Year (e.g., 2026)"),
     month: int = Query(..., ge=1, le=12, description="Month (1-12)"),
+    user_id: Optional[str] = Query(None, description="Target user ID (default: current user)"),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -53,23 +54,26 @@ async def get_my_fte(
     FTE calculation: hours / 160 (standard working hours per month)
     """
     service = DashboardService(db)
-    return service.get_my_fte(str(current_user.id), year, month)
+    target_id = user_id or str(current_user.id)
+    return service.get_my_fte(target_id, year, month)
 
 
 @router.get("/my-summary")
 async def get_my_dashboard(
+    user_id: Optional[str] = Query(None, description="Target user ID (default: current user)"),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     """
-    Get personal dashboard summary for the current user.
+    Get personal dashboard summary for a user.
     Includes:
     - Weekly worklog summary
     - Current month resource allocation
     - Active projects with milestones
     """
     service = DashboardService(db)
-    return service.get_my_dashboard(current_user.id)
+    target_id = user_id or str(current_user.id)
+    return service.get_my_dashboard(target_id)
 
 
 @router.get("/team-summary")

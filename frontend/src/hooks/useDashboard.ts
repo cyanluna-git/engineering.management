@@ -13,10 +13,10 @@ import {
     MyFTEResponse,
 } from '@/api/client';
 
-export function useDashboard() {
+export function useDashboard(userId?: string) {
     return useQuery<DashboardData, Error>({
-        queryKey: ['dashboard', 'my-summary'],
-        queryFn: getMyDashboard,
+        queryKey: ['dashboard', 'my-summary', userId],
+        queryFn: () => getMyDashboard(userId),
     });
 }
 
@@ -34,10 +34,10 @@ export function useTeamDashboard(
     });
 }
 
-export function useMyFTE(year: number, month: number, enabled: boolean = true) {
+export function useMyFTE(year: number, month: number, enabled: boolean = true, userId?: string) {
     return useQuery<MyFTEResponse, Error>({
-        queryKey: ['dashboard', 'my-fte', year, month],
-        queryFn: () => getMyFTE(year, month),
+        queryKey: ['dashboard', 'my-fte', year, month, userId],
+        queryFn: () => getMyFTE(year, month, userId),
         enabled: enabled && !!year && !!month,
     });
 }

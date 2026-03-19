@@ -425,8 +425,9 @@ export interface DashboardData {
   }>;
 }
 
-export const getMyDashboard = async (): Promise<DashboardData> => {
-  const response = await apiClient.get('/dashboard/my-summary');
+export const getMyDashboard = async (userId?: string): Promise<DashboardData> => {
+  const params = userId ? `?user_id=${userId}` : '';
+  const response = await apiClient.get(`/dashboard/my-summary${params}`);
   return response.data;
 };
 
@@ -541,8 +542,9 @@ export interface MyFTEResponse {
   support: MyFTEProjectItem[];
 }
 
-export const getMyFTE = async (year: number, month: number): Promise<MyFTEResponse> => {
-  const response = await apiClient.get(`/dashboard/my-fte?year=${year}&month=${month}`);
+export const getMyFTE = async (year: number, month: number, userId?: string): Promise<MyFTEResponse> => {
+  const userParam = userId ? `&user_id=${userId}` : '';
+  const response = await apiClient.get(`/dashboard/my-fte?year=${year}&month=${month}${userParam}`);
   return response.data;
 };
 

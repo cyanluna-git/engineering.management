@@ -7,6 +7,7 @@ import type { MyFTEProjectItem } from '@/api/client';
 interface MyFTECardProps {
   year: number;
   month: number;
+  userId?: string;
 }
 
 // Category badge colors
@@ -132,9 +133,9 @@ function FTESimpleRow({ item }: { item: MyFTEProjectItem }) {
   );
 }
 
-export function MyFTECard({ year, month }: MyFTECardProps) {
+export function MyFTECard({ year, month, userId }: MyFTECardProps) {
   const { t } = useTranslation('dashboard');
-  const { data, isLoading, error } = useMyFTE(year, month);
+  const { data, isLoading, error } = useMyFTE(year, month, true, userId);
 
   if (isLoading) {
     return (
