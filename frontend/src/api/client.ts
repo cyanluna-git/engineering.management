@@ -1284,6 +1284,27 @@ export const getTeamAISummaryHistory = async (
   return response.data;
 };
 
+export const getProjectAISummary = async (
+  projectId: string,
+  period: 'weekly' | 'monthly' = 'weekly',
+  forceRegenerate: boolean = false
+): Promise<TeamAISummary> => {
+  const response = await apiClient.get(
+    `/dashboard/ai-summary/project/${projectId}?period=${period}&force_regenerate=${forceRegenerate}`
+  );
+  return response.data;
+};
+
+export const getProjectAISummaryHistory = async (
+  projectId: string,
+  limit: number = 5
+): Promise<AISummaryHistoryItem[]> => {
+  const response = await apiClient.get(
+    `/dashboard/ai-summary/project/${projectId}/history?limit=${limit}`
+  );
+  return response.data;
+};
+
 // ============ Weekly Report API ============
 
 export type WeeklyReportScope = 'user' | 'team';
