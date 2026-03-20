@@ -165,11 +165,11 @@ def test_team_ai_summary_endpoint_uses_last_completed_week_and_passes_dashboard_
 
     captured = {}
 
-    async def fake_generate_team_summary(
-        self, team_id, team_type, start_date, end_date, force_regenerate, dashboard_context=None
+    async def fake_generate_group_summary(
+        self, group_type, group_id, start_date, end_date, force_regenerate, dashboard_context=None
     ):
-        captured["team_id"] = team_id
-        captured["team_type"] = team_type
+        captured["group_id"] = group_id
+        captured["group_type"] = group_type
         captured["start_date"] = start_date
         captured["end_date"] = end_date
         captured["dashboard_context"] = dashboard_context
@@ -185,8 +185,8 @@ def test_team_ai_summary_endpoint_uses_last_completed_week_and_passes_dashboard_
     )
     monkeypatch.setattr(
         dashboard_endpoint.SummaryService,
-        "generate_team_summary",
-        fake_generate_team_summary,
+        "generate_group_summary",
+        fake_generate_group_summary,
     )
 
     client = _make_test_client(db_session)
@@ -197,8 +197,8 @@ def test_team_ai_summary_endpoint_uses_last_completed_week_and_passes_dashboard_
         _clear(client)
 
     assert response.status_code == 200
-    assert captured["team_id"] == "DEPT_A"
-    assert captured["team_type"] == "department"
+    assert captured["group_id"] == "DEPT_A"
+    assert captured["group_type"] == "department"
     assert captured["start_date"] == date(2026, 3, 2)
     assert captured["end_date"] == date(2026, 3, 8)
     assert captured["dashboard_context"] == {"team_info": {"name": "Dept A", "member_count": 3}}
@@ -244,15 +244,15 @@ def test_generate_user_summary_reuses_cache_and_returns_sectioned_fields(db_sess
     assert regenerated["from_cache"] is False
 
 
-def test_generate_team_summary_returns_legacy_and_new_fields(db_session: Session):
+def test_generate_group_summary_returns_legacy_and_new_fields(db_session: Session):
     _seed_summary_entities(db_session)
     fake_client = FakeSummaryClient()
     service = SummaryService(db_session, client=fake_client)
 
     result = _run_async(
-        service.generate_team_summary(
-            team_id="DEPT_A",
-            team_type="department",
+        service.generate_group_summary(
+            group_type="department",
+            group_id="DEPT_A",
             start_date=date(2026, 2, 1),
             end_date=date(2026, 2, 28),
             dashboard_context={

@@ -300,10 +300,10 @@ class SummaryService:
                 **self._build_period_metadata(start_date, end_date),
             }
 
-    async def generate_team_summary(
+    async def generate_group_summary(
         self,
-        team_id: str,
-        team_type: str,  # 'sub_team', 'department', 'business_unit'
+        group_type: str,  # 'sub_team', 'department', 'business_unit', 'project'
+        group_id: str,
         start_date: date,
         end_date: date,
         force_regenerate: bool = False,
@@ -311,20 +311,34 @@ class SummaryService:
     ) -> Dict[str, Any]:
         """Generate weekly summary for a team"""
 
+        if group_type == "project" and not group_id:
+            return {
+                "project_summary": [],
+                "member_summary": [],
+                "issues": ["No project specified."],
+                "analysis": [],
+                "workload_observations": [],
+                "risk_signals": [],
+                "coverage_gaps": [],
+                "record_quality_notes": [],
+                "generated_at": date.today().isoformat(),
+                **self._build_period_metadata(start_date, end_date),
+            }
+
         is_current = self._is_current_week(start_date, end_date)
-        scope_id = team_id or "all"
+        scope_id = group_id or "all"
 
         # Check cache (skip for current week or forced regeneration)
         if not force_regenerate and not is_current:
             cached = self._get_cached_summary(
-                "team", scope_id, start_date, end_date, team_type
+                "team", scope_id, start_date, end_date, group_type
             )
             if cached:
                 cached["from_cache"] = True
                 return cached
 
         # Get team members based on team type
-        user_filter = self._get_team_user_filter(team_id, team_type)
+        user_filter = self._get_group_filter(group_type, group_id)
 
         # Fetch worklogs for the period with eager loading
         worklogs = (
@@ -356,10 +370,11 @@ class SummaryService:
         summary_data = self._aggregate_team_data(worklogs)
 
         # Build prompt and generate summary
-        prompt = self._build_team_prompt(
+        prompt = self._build_group_prompt(
             summary_data,
             start_date,
             end_date,
+            group_type=group_type,
             dashboard_context=dashboard_context,
         )
         system_prompt = self.TEAM_SUMMARY_SYSTEM_PROMPT
@@ -376,7 +391,7 @@ class SummaryService:
             # Save to cache (only for past weeks)
             if not is_current:
                 self._save_cached_summary(
-                    "team", scope_id, start_date, end_date, response, team_type
+                    "team", scope_id, start_date, end_date, response, group_type
                 )
 
             return response
@@ -548,11 +563,12 @@ class SummaryService:
 
         return "\n".join(lines)
 
-    def _build_team_prompt(
+    def _build_group_prompt(
         self,
         data: Dict[str, Any],
         start_date: date,
         end_date: date,
+        group_type: str = "department",
         dashboard_context: Optional[Dict[str, Any]] = None,
     ) -> str:
         """Build prompt for team summary"""
@@ -569,8 +585,9 @@ class SummaryService:
             pct = (hours / data["total_hours"] * 100) if data["total_hours"] > 0 else 0
             lines.append(f"- {proj}: {hours:.1f}h ({pct:.0f}%)")
 
+        contributions_label = "[Contributors]" if group_type == "project" else "[Member Contributions]"
         lines.append("")
-        lines.append("[Member Contributions]")
+        lines.append(contributions_label)
         for member_name, member_data in data.get("members", []):
             top_proj = (
                 max(member_data["projects"].items(), key=lambda x: x[1])[0]
@@ -675,14 +692,16 @@ class SummaryService:
             for h in history
         ]
 
-    def _get_team_user_filter(self, team_id: str, team_type: str):
+    def _get_group_filter(self, group_type: str, group_id: str):
         """Get SQLAlchemy filter for team users"""
-        if team_type == "sub_team":
-            return WorkLog.user.has(User.sub_team_id == team_id)
-        elif team_type == "department":
-            return WorkLog.user.has(User.department_id == team_id)
-        elif team_type == "business_unit":
-            return WorkLog.user.has(User.business_unit_id == team_id)
+        if group_type == "sub_team":
+            return WorkLog.user.has(User.sub_team_id == group_id)
+        elif group_type == "department":
+            return WorkLog.user.has(User.department_id == group_id)
+        elif group_type == "business_unit":
+            return WorkLog.user.has(User.business_unit_id == group_id)
+        elif group_type == "project":
+            return WorkLog.project_id == group_id
         else:
             # All users
             return True

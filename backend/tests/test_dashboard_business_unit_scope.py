@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.core.security import get_current_user
 from app.main import app
+from app.services.summary_service import SummaryService
 
 
 def _make_test_client(db_session: Session) -> TestClient:
@@ -39,16 +40,16 @@ def test_team_ai_summary_uses_primary_business_unit_id(db_session: Session, monk
 
     captured = {}
 
-    async def fake_generate_team_summary(
-        self, team_id, team_type, start_date, end_date, force_regenerate, dashboard_context=None
+    async def fake_generate_group_summary(
+        self, group_type, group_id, start_date, end_date, force_regenerate, dashboard_context=None
     ):
-        captured["team_id"] = team_id
-        captured["team_type"] = team_type
+        captured["group_id"] = group_id
+        captured["group_type"] = group_type
         captured["dashboard_context"] = dashboard_context
         return {"ok": True}
 
     monkeypatch.setattr(
-        dashboard_endpoint.SummaryService, "generate_team_summary", fake_generate_team_summary
+        dashboard_endpoint.SummaryService, "generate_group_summary", fake_generate_group_summary
     )
 
     client = _make_test_client(db_session)
@@ -59,8 +60,8 @@ def test_team_ai_summary_uses_primary_business_unit_id(db_session: Session, monk
         _clear(client)
 
     assert response.status_code == 200
-    assert captured["team_id"] == "BU_MAIN"
-    assert captured["team_type"] == "business_unit"
+    assert captured["group_id"] == "BU_MAIN"
+    assert captured["group_type"] == "business_unit"
     assert captured["dashboard_context"] is not None
 
 
@@ -92,3 +93,20 @@ def test_team_ai_summary_history_uses_primary_business_unit_id(
     assert captured["scope"] == "team"
     assert captured["scope_id"] == "BU_MAIN"
     assert captured["team_type"] == "business_unit"
+
+
+def test_get_group_filter_project(db_session: Session):
+    from app.models.resource import WorkLog
+
+    service = SummaryService(db_session)
+    f = service._get_group_filter("project", "proj-123")
+    compiled = f.compile(compile_kwargs={"literal_binds": True})
+    sql = str(compiled)
+    assert "project_id" in sql
+    assert "proj-123" in sql
+
+
+def test_get_group_filter_all(db_session: Session):
+    service = SummaryService(db_session)
+    result = service._get_group_filter("all", "")
+    assert result is True

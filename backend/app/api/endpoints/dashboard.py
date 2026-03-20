@@ -207,9 +207,9 @@ async def get_team_ai_summary(
         end_date,
     )
 
-    return await summary_service.generate_team_summary(
-        team_id=team_id,
-        team_type=scope,
+    return await summary_service.generate_group_summary(
+        group_type=scope,
+        group_id=team_id,
         start_date=start_date,
         end_date=end_date,
         force_regenerate=force_regenerate,
