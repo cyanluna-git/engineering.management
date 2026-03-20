@@ -207,6 +207,7 @@
     "saveFailedTitle": "Failed to save weekly report",
     "teamEmptyTitle": "No team weekly report for this week yet.",
     "teamScopeDepartment": "Department",
+    "teamScopeProject": "Project",
     "teamScopeSubTeam": "Sub-Team",
     "teamUnsupportedTitle": "Weekly reports are not available for this scope",
     "teamUnsupportedBody": "Team weekly reports currently support department and sub-team views only.",

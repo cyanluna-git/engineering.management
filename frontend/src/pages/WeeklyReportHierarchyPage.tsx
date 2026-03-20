@@ -40,6 +40,7 @@ import type {
 } from '@/api/client';
 import type { Project } from '@/types';
 import { WeeklyReportMarkdown } from '@/components/dashboard/weekly-report-markdown';
+import { TeamWeeklyReportCard } from '@/components/dashboard/TeamWeeklyReportCard';
 
 function getMonday(d: Date): Date {
   return startOfWeek(d, { weekStartsOn: 1 });
@@ -490,6 +491,15 @@ export function WeeklyReportHierarchyPage() {
                     </CardContent>
                   )}
                 </Card>
+
+                {/* Project Report Editor */}
+                <TeamWeeklyReportCard
+                  teamScope="department"
+                  scopeTypeOverride="project"
+                  scopeIdOverride={selectedProjectId}
+                  referenceDate={referenceDate}
+                  teamName={projectData.project.name}
+                />
 
                 {/* Members — planned first, then worklog fallback */}
                 {(() => {

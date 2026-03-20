@@ -47,6 +47,8 @@ interface TeamWeeklyReportCardProps {
   selectedOrgId?: string;
   referenceDate: Date;
   teamName: string;
+  scopeTypeOverride?: string;
+  scopeIdOverride?: string;
 }
 
 function getReferenceDateKey(referenceDate: Date) {
@@ -88,6 +90,8 @@ export function TeamWeeklyReportCard({
   selectedOrgId,
   referenceDate,
   teamName,
+  scopeTypeOverride,
+  scopeIdOverride,
 }: TeamWeeklyReportCardProps) {
   const { t } = useTranslation("dashboard");
   const { user } = useAuth();
@@ -100,11 +104,12 @@ export function TeamWeeklyReportCard({
 
   const isReadOnly = user?.role === "GUEST" || user?.role === "VIEWER";
 
-  const teamScopeType = getScopeType(teamScope);
+  const teamScopeType = scopeTypeOverride || getScopeType(teamScope);
+  const scopeId = scopeIdOverride || selectedOrgId;
   const isSupportedScope = teamScopeType !== null;
   const referenceDateKey = getReferenceDateKey(referenceDate);
-  const currentQueryKey = ["weekly-report", "team", teamScope, selectedOrgId ?? "self", referenceDateKey];
-  const historyQueryKey = ["weekly-report", "team", "history", teamScope, selectedOrgId ?? "self"];
+  const currentQueryKey = ["weekly-report", "team", teamScope, scopeId ?? "self", referenceDateKey];
+  const historyQueryKey = ["weekly-report", "team", "history", teamScope, scopeId ?? "self"];
 
   const currentQuery = useQuery({
     queryKey: currentQueryKey,
@@ -112,7 +117,7 @@ export function TeamWeeklyReportCard({
       getCurrentWeeklyReport({
         scope: "team",
         team_scope_type: teamScopeType ?? undefined,
-        scope_id: selectedOrgId,
+        scope_id: scopeId,
         reference_date: referenceDateKey,
       }),
     enabled: isSupportedScope,
@@ -124,7 +129,7 @@ export function TeamWeeklyReportCard({
       getWeeklyReportHistory({
         scope: "team",
         team_scope_type: teamScopeType ?? undefined,
-        scope_id: selectedOrgId,
+        scope_id: scopeId,
         limit: 4,
       }),
     enabled: isSupportedScope,
@@ -135,7 +140,7 @@ export function TeamWeeklyReportCard({
       upsertWeeklyReport({
         scope: "team",
         team_scope_type: teamScopeType ?? undefined,
-        scope_id: selectedOrgId,
+        scope_id: scopeId,
         reference_date: referenceDateKey,
         markdown_body: draftBody,
         status: "published",
@@ -153,7 +158,7 @@ export function TeamWeeklyReportCard({
     mutationFn: () =>
       generateWeeklyReportLLMSummary({
         team_scope_type: teamScopeType ?? "department",
-        scope_id: selectedOrgId ?? "",
+        scope_id: scopeId ?? "",
         week_start: referenceDateKey,
         save_intermediate: true,
       }),
@@ -176,12 +181,12 @@ export function TeamWeeklyReportCard({
   const historyItems = historyQuery.data ?? [];
   const previousReport = historyItems.find((item) => !currentData || item.week_start < currentData.week_start);
   const saveErrorMessage = saveMutation.error ? getApiError(saveMutation.error).message : null;
-  const scopeLabel = teamScopeType
-    ? t(
-        teamScopeType === "department"
-          ? "weeklyReport.teamScopeDepartment"
-          : "weeklyReport.teamScopeSubTeam"
-      )
+  const scopeLabel = teamScopeType === "project"
+    ? t("weeklyReport.teamScopeProject", "Project")
+    : teamScopeType === "department"
+    ? t("weeklyReport.teamScopeDepartment")
+    : teamScopeType === "sub_team"
+    ? t("weeklyReport.teamScopeSubTeam")
     : null;
 
   const handleOpenEditor = () => {
@@ -358,7 +363,7 @@ export function TeamWeeklyReportCard({
                         setLlmMissingWarning(null);
                         llmSummaryMutation.mutate();
                       }}
-                      disabled={isReadOnly || llmSummaryMutation.isPending || !teamScopeType || !selectedOrgId}
+                      disabled={isReadOnly || llmSummaryMutation.isPending || !teamScopeType || !scopeId}
                     >
                       <Sparkles className="h-3.5 w-3.5" />
                       {llmSummaryMutation.isPending

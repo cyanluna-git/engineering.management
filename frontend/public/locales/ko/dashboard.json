@@ -207,6 +207,7 @@
     "saveFailedTitle": "주간 보고서 저장 실패",
     "teamEmptyTitle": "이번 주 팀 주간 보고서가 아직 없습니다.",
     "teamScopeDepartment": "부서",
+    "teamScopeProject": "프로젝트",
     "teamScopeSubTeam": "Sub-Team",
     "teamUnsupportedTitle": "이 범위에서는 주간 보고서를 지원하지 않습니다",
     "teamUnsupportedBody": "팀 주간 보고서는 현재 부서와 Sub-Team 범위에서만 지원됩니다.",
