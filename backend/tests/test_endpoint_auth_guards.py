@@ -84,6 +84,7 @@ UNAUTHENTICATED_CASES = [
     ("POST", "/api/hiring-plans/plan-1/fill?user_id=user-1", None),
     ("GET", "/api/dashboard/ai-summary/project/PROJ_TEST", None),
     ("GET", "/api/dashboard/ai-summary/project/PROJ_TEST/history", None),
+    ("GET", "/api/weekly-reports/hierarchy/project?project_id=PROJ_TEST", None),
 ]
 
 
