@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 
 from app.core.security import READ_ONLY_ROLES
 from app.models.organization import Department, SubTeam
+from app.models.project import Project
 from app.models.user import User
 from app.models.weekly_report import WeeklyReport
 
@@ -93,10 +94,30 @@ class WeeklyReportService:
                 detail="scope must be either 'user' or 'team'",
             )
 
-        if team_scope_type not in {"department", "sub_team"}:
+        if team_scope_type not in {"department", "sub_team", "project"}:
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail="team_scope_type must be 'department' or 'sub_team' for team reports",
+                detail="team_scope_type must be 'department', 'sub_team', or 'project' for team reports",
+            )
+
+        if team_scope_type == "project":
+            if not scope_id:
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail="scope_id is required for project weekly reports",
+                )
+            project = self.db.query(Project).filter(Project.id == scope_id).first()
+            if not project:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Target project not found",
+                )
+            return ResolvedWeeklyReportTarget(
+                scope="team",
+                team_scope_type="project",
+                scope_id=scope_id,
+                target_key=f"project:{scope_id}",
+                owner_user_id=None,
             )
 
         if team_scope_type == "department":

@@ -3,6 +3,7 @@ Service layer for LLM-powered weekly report summarization.
 
 Provides hierarchical summarization:
 - personal reports → sub-team summary
+- personal reports → project summary (members derived from worklogs)
 - sub-team summaries → department summary
 """
 
@@ -13,6 +14,8 @@ from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.models.organization import Department, SubTeam
+from app.models.project import Project
+from app.models.resource import WorkLog
 from app.models.user import User
 from app.models.weekly_report import WeeklyReport
 from app.prompts.weekly_report_summary import (
@@ -54,7 +57,7 @@ class WeeklyReportSummaryService:
         Generate an LLM summary for the given team scope.
 
         Args:
-            team_scope_type: "department" or "sub_team"
+            team_scope_type: "department", "sub_team", or "project"
             scope_id: ID of the department or sub-team
             week_start: Monday of the target week; defaults to current week if None
             current_user: Authenticated user (for permission checks)
@@ -66,10 +69,10 @@ class WeeklyReportSummaryService:
                 personal_report_count, missing_members, scope_description
         """
         # Validate scope type
-        if team_scope_type not in {"department", "sub_team"}:
+        if team_scope_type not in {"department", "sub_team", "project"}:
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail="team_scope_type must be 'department' or 'sub_team'",
+                detail="team_scope_type must be 'department', 'sub_team', or 'project'",
             )
 
         # Permission check using resolve_target
@@ -82,6 +85,14 @@ class WeeklyReportSummaryService:
 
         # Determine target week (normalize to Monday)
         resolved_week_start = _monday_of_week(week_start) if week_start else _monday_of_week(date.today())
+
+        if team_scope_type == "project":
+            return await self._summarize_project(
+                project_id=scope_id,
+                week_start=resolved_week_start,
+                save_back=save_intermediate,
+                current_user=current_user,
+            )
 
         if team_scope_type == "sub_team":
             return await self._summarize_sub_team(
@@ -154,6 +165,104 @@ class WeeklyReportSummaryService:
             "personal_report_count": len(personal_reports),
             "missing_members": missing_members,
             "scope_description": f"{sub_team.name} (Sub-Team)",
+        }
+
+    async def _summarize_project(
+        self,
+        project_id: str,
+        week_start: date,
+        save_back: bool = True,
+        current_user: Optional[User] = None,
+    ) -> dict:
+        """Summarize a project from personal reports of members who logged work."""
+        project = self.db.query(Project).filter(Project.id == project_id).first()
+        if not project:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Project not found",
+            )
+
+        sunday = week_start + timedelta(days=6)
+
+        # Resolve project members: users who logged work to this project in the target week
+        member_ids = [
+            r[0]
+            for r in self.db.query(WorkLog.user_id)
+            .filter(
+                WorkLog.project_id == project_id,
+                WorkLog.date >= week_start,
+                WorkLog.date <= sunday,
+            )
+            .distinct()
+            .all()
+        ]
+        members = (
+            self.db.query(User).filter(User.id.in_(member_ids)).all()
+            if member_ids
+            else []
+        )
+        user_map = {u.id: u for u in members}
+
+        # Fetch personal reports for these members
+        reports_db = (
+            self.db.query(WeeklyReport)
+            .filter(
+                WeeklyReport.scope == "user",
+                WeeklyReport.week_start == week_start,
+                WeeklyReport.owner_user_id.in_(member_ids),
+            )
+            .all()
+            if member_ids
+            else []
+        )
+
+        reported_user_ids = {r.owner_user_id for r in reports_db}
+        missing_members = [
+            user_map[uid].name
+            for uid in member_ids
+            if uid not in reported_user_ids and uid in user_map
+        ]
+
+        personal_reports: list[dict] = []
+        for report in reports_db:
+            user = user_map.get(report.owner_user_id)
+            user_name = user.name if user else report.owner_user_id
+            content = (report.markdown_body or "").strip()
+            if len(content) > _REPORT_CONTENT_MAX_CHARS:
+                content = content[:_REPORT_CONTENT_MAX_CHARS] + "\n... (이하 생략)"
+            if content:
+                personal_reports.append({"user_name": user_name, "content": content})
+
+        existing_body = self._get_existing_team_report_body(
+            target_key=f"project:{project_id}",
+            week_start=week_start,
+        )
+
+        summary_markdown = await self._call_llm_personal_to_group(
+            reports=personal_reports,
+            group_name=project.name,
+            existing_body=existing_body,
+        )
+
+        if save_back and summary_markdown and current_user is not None:
+            self.report_service.upsert(
+                current_user=current_user,
+                scope="team",
+                team_scope_type="project",
+                scope_id=project.id,
+                week_start=week_start,
+                reference_date=None,
+                status_value="published",
+                title=None,
+                markdown_body=summary_markdown,
+            )
+
+        return {
+            "team_summary_markdown": summary_markdown,
+            "sub_team_summaries": None,
+            "personal_report_count": len(personal_reports),
+            "missing_members": missing_members,
+            "scope_description": f"Project: {project.name}",
         }
 
     async def _summarize_department(
