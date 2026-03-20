@@ -4,11 +4,12 @@ Dashboard API endpoints
 
 from datetime import date, timedelta
 from typing import Optional
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.core.security import get_current_user
+from app.models.project import Project
 from app.models.user import User
 from app.services.dashboard_service import DashboardService
 from app.services.summary_service import SummaryService
@@ -127,7 +128,6 @@ async def get_team_dashboard(
         import traceback
         print(f"[ERROR] get_team_dashboard failed: {str(e)}")
         print(traceback.format_exc())
-        from fastapi import HTTPException, status
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to get team dashboard: {str(e)}"
@@ -264,4 +264,53 @@ async def get_team_ai_summary_history(
         scope_id=team_id or "all",
         limit=limit,
         team_type=scope,
+    )
+
+
+@router.get("/ai-summary/project/{project_id}")
+async def get_project_ai_summary(
+    project_id: str,
+    period: str = Query("weekly", description="기간: weekly, monthly"),
+    force_regenerate: bool = Query(False, description="캐시 무시하고 재생성"),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """AI-powered summary for a specific project."""
+    project = db.query(Project).filter(Project.id == project_id).first()
+    if not project:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Project with id {project_id} not found",
+        )
+
+    today = date.today()
+    if period == "monthly":
+        start_date, end_date = _get_last_completed_month_range(today)
+    else:
+        start_date, end_date = _get_last_completed_week_range(today)
+
+    service = SummaryService(db)
+    return await service.generate_group_summary(
+        group_type="project",
+        group_id=project_id,
+        start_date=start_date,
+        end_date=end_date,
+        force_regenerate=force_regenerate,
+    )
+
+
+@router.get("/ai-summary/project/{project_id}/history")
+async def get_project_ai_summary_history(
+    project_id: str,
+    limit: int = Query(5, description="조회 개수"),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Get history of AI-generated project summaries."""
+    service = SummaryService(db)
+    return service.get_summary_history(
+        scope="team",
+        scope_id=project_id,
+        limit=limit,
+        team_type="project",
     )
