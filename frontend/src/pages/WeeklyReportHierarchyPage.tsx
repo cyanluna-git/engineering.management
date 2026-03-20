@@ -13,11 +13,32 @@ import {
   Printer,
   Copy,
   Check,
+  FolderKanban,
 } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle, Button, Badge } from '@/components/ui';
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  Button,
+  Badge,
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from '@/components/ui';
 import { useAuth } from '@/hooks/useAuth';
-import { getWeeklyReportHierarchy } from '@/api/client';
-import type { WeeklyReportHierarchy, WeeklyReportHierarchySubTeam } from '@/api/client';
+import {
+  getWeeklyReportHierarchy,
+  getProjectWeeklyReportHierarchy,
+  getProjects,
+} from '@/api/client';
+import type {
+  WeeklyReportHierarchy,
+  WeeklyReportHierarchySubTeam,
+  ProjectWeeklyReportHierarchy,
+} from '@/api/client';
+import type { Project } from '@/types';
 import { WeeklyReportMarkdown } from '@/components/dashboard/weekly-report-markdown';
 
 function getMonday(d: Date): Date {
@@ -149,16 +170,34 @@ export function WeeklyReportHierarchyPage() {
   const [referenceDate, setReferenceDate] = useState<Date>(new Date());
   const [expandedSubTeams, setExpandedSubTeams] = useState<Set<string>>(new Set());
   const [expandedMembers, setExpandedMembers] = useState<Set<string>>(new Set());
+  const [activeTab, setActiveTab] = useState<string>('team');
+  const [selectedProjectId, setSelectedProjectId] = useState<string>('');
+  const [expandedProjectMembers, setExpandedProjectMembers] = useState<Set<string>>(new Set());
 
   const monday = useMemo(() => getMonday(referenceDate), [referenceDate]);
   const dateKey = format(monday, 'yyyy-MM-dd');
 
   const departmentId = user?.department_id;
 
+  // Team tab query
   const { data, isLoading, error } = useQuery<WeeklyReportHierarchy>({
     queryKey: ['weekly-report-hierarchy', departmentId, dateKey],
     queryFn: () => getWeeklyReportHierarchy(departmentId!, dateKey),
     enabled: !!departmentId,
+  });
+
+  // Project list query
+  const { data: projects } = useQuery<Project[]>({
+    queryKey: ['projects-list'],
+    queryFn: () => getProjects(),
+    enabled: activeTab === 'project',
+  });
+
+  // Project hierarchy query
+  const { data: projectData, isLoading: projectLoading } = useQuery<ProjectWeeklyReportHierarchy>({
+    queryKey: ['weekly-report-hierarchy-project', selectedProjectId, dateKey],
+    queryFn: () => getProjectWeeklyReportHierarchy(selectedProjectId, dateKey),
+    enabled: !!selectedProjectId && activeTab === 'project',
   });
 
   // Auto-expand all sub-teams when data loads
@@ -187,58 +226,119 @@ export function WeeklyReportHierarchyPage() {
     });
   };
 
+  const toggleProjectMember = (userId: string) => {
+    setExpandedProjectMembers((prev) => {
+      const next = new Set(prev);
+      if (next.has(userId)) next.delete(userId);
+      else next.add(userId);
+      return next;
+    });
+  };
+
   const toggleAll = () => {
-    if (!data) return;
-    const allSubTeamIds = data.sub_teams.map((st) => st.id ?? 'unassigned');
-    const allMemberIds = data.sub_teams.flatMap((st) => st.members.map((m) => m.user_id));
-    const allExpanded = allSubTeamIds.every((id) => expandedSubTeams.has(id));
-    if (allExpanded) {
-      setExpandedSubTeams(new Set());
-      setExpandedMembers(new Set());
+    if (activeTab === 'team') {
+      if (!data) return;
+      const allSubTeamIds = data.sub_teams.map((st) => st.id ?? 'unassigned');
+      const allMemberIds = data.sub_teams.flatMap((st) => st.members.map((m) => m.user_id));
+      const allExpanded = allSubTeamIds.every((id) => expandedSubTeams.has(id));
+      if (allExpanded) {
+        setExpandedSubTeams(new Set());
+        setExpandedMembers(new Set());
+      } else {
+        setExpandedSubTeams(new Set(allSubTeamIds));
+        setExpandedMembers(new Set(allMemberIds));
+      }
     } else {
-      setExpandedSubTeams(new Set(allSubTeamIds));
-      setExpandedMembers(new Set(allMemberIds));
+      if (!projectData) return;
+      const allMemberIds = projectData.members.map((m) => m.user_id);
+      const allExpanded = allMemberIds.every((id) => expandedProjectMembers.has(id));
+      if (allExpanded) {
+        setExpandedProjectMembers(new Set());
+      } else {
+        setExpandedProjectMembers(new Set(allMemberIds));
+      }
     }
   };
 
   const [copied, setCopied] = useState(false);
 
   const handlePrint = () => {
-    if (!data) return;
-    // Expand all before printing
-    const allSubTeamIds = data.sub_teams.map((st) => st.id ?? 'unassigned');
-    const allMemberIds = data.sub_teams.flatMap((st) => st.members.map((m) => m.user_id));
-    setExpandedSubTeams(new Set(allSubTeamIds));
-    setExpandedMembers(new Set(allMemberIds));
+    if (activeTab === 'team') {
+      if (!data) return;
+      const allSubTeamIds = data.sub_teams.map((st) => st.id ?? 'unassigned');
+      const allMemberIds = data.sub_teams.flatMap((st) => st.members.map((m) => m.user_id));
+      setExpandedSubTeams(new Set(allSubTeamIds));
+      setExpandedMembers(new Set(allMemberIds));
+    } else {
+      if (!projectData) return;
+      const allMemberIds = projectData.members.map((m) => m.user_id);
+      setExpandedProjectMembers(new Set(allMemberIds));
+    }
     setTimeout(() => window.print(), 300);
   };
 
   const handleCopyMarkdown = () => {
-    if (!data) return;
-    const lines: string[] = [];
-    lines.push(`# ${data.department.name} 주간 보고서 (${data.week_start} ~ ${data.week_end})`);
-    if (data.department_report?.markdown_body?.trim()) {
-      lines.push('', data.department_report.markdown_body.trim());
-    }
-    for (const st of data.sub_teams) {
-      lines.push('', `## ${st.name} (${st.submitted_count}/${st.total_count}명 제출)`);
-      if (st.report?.markdown_body?.trim()) {
-        lines.push('', st.report.markdown_body.trim());
+    if (activeTab === 'team') {
+      if (!data) return;
+      const lines: string[] = [];
+      lines.push(`# ${data.department.name} 주간 보고서 (${data.week_start} ~ ${data.week_end})`);
+      if (data.department_report?.markdown_body?.trim()) {
+        lines.push('', data.department_report.markdown_body.trim());
       }
-      for (const m of st.members) {
-        const name = m.korean_name || m.name;
-        if (m.report?.markdown_body?.trim()) {
-          lines.push('', `### ${name}`, '', m.report.markdown_body.trim());
-        } else {
-          lines.push('', `### ${name}`, '', '*미작성*');
+      for (const st of data.sub_teams) {
+        lines.push('', `## ${st.name} (${st.submitted_count}/${st.total_count}명 제출)`);
+        if (st.report?.markdown_body?.trim()) {
+          lines.push('', st.report.markdown_body.trim());
+        }
+        for (const m of st.members) {
+          const name = m.korean_name || m.name;
+          if (m.report?.markdown_body?.trim()) {
+            lines.push('', `### ${name}`, '', m.report.markdown_body.trim());
+          } else {
+            lines.push('', `### ${name}`, '', '*미작성*');
+          }
         }
       }
+      navigator.clipboard.writeText(lines.join('\n')).then(() => {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      });
+    } else {
+      if (!projectData) return;
+      const lines: string[] = [];
+      const pmName = projectData.project.pm
+        ? (projectData.project.pm.korean_name || projectData.project.pm.name)
+        : '';
+      lines.push(`# ${projectData.project.name} 주간 보고서 (${projectData.week_start} ~ ${projectData.week_end})`);
+      if (pmName) lines.push(`PM: ${pmName}`);
+      if (projectData.project_report?.markdown_body?.trim()) {
+        lines.push('', projectData.project_report.markdown_body.trim());
+      }
+      for (const m of projectData.members) {
+        const name = m.korean_name || m.name;
+        if (m.report?.markdown_body?.trim()) {
+          lines.push('', `## ${name}`, '', m.report.markdown_body.trim());
+        } else {
+          lines.push('', `## ${name}`, '', '*미작성*');
+        }
+      }
+      navigator.clipboard.writeText(lines.join('\n')).then(() => {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      });
     }
-    navigator.clipboard.writeText(lines.join('\n')).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    });
   };
+
+  // Week display info from whichever data is available
+  const weekDisplay = useMemo(() => {
+    if (activeTab === 'team' && data) {
+      return { range: `${data.week_start} ~ ${data.week_end}`, weekKey: data.week_key };
+    }
+    if (activeTab === 'project' && projectData) {
+      return { range: `${projectData.week_start} ~ ${projectData.week_end}`, weekKey: projectData.week_key };
+    }
+    return null;
+  }, [activeTab, data, projectData]);
 
   if (!departmentId) {
     return (
@@ -257,8 +357,8 @@ export function WeeklyReportHierarchyPage() {
         </Button>
         <div className="flex items-center gap-2 text-sm font-medium text-slate-700">
           <CalendarDays className="h-4 w-4" />
-          {data ? `${data.week_start} ~ ${data.week_end}` : dateKey}
-          {data && <Badge variant="secondary" className="text-xs">{data.week_key}</Badge>}
+          {weekDisplay ? weekDisplay.range : dateKey}
+          {weekDisplay && <Badge variant="secondary" className="text-xs">{weekDisplay.weekKey}</Badge>}
         </div>
         <Button variant="outline" size="sm" onClick={() => setReferenceDate(addWeeks(referenceDate, 1))}>
           →
@@ -283,50 +383,143 @@ export function WeeklyReportHierarchyPage() {
         </Button>
       </div>
 
-      {isLoading && <div className="text-center py-12 text-slate-500">로딩 중...</div>}
-      {error && <div className="text-center py-12 text-red-500">데이터를 불러올 수 없습니다.</div>}
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="team">
+            <Building2 className="h-4 w-4 mr-1.5" />
+            팀 주간 보고
+          </TabsTrigger>
+          <TabsTrigger value="project">
+            <FolderKanban className="h-4 w-4 mr-1.5" />
+            프로젝트 주간 보고
+          </TabsTrigger>
+        </TabsList>
 
-      {data && (
-        <>
-          {/* Department Report */}
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <Building2 className="h-5 w-5 text-indigo-500" />
-                {data.department.name}
-              </CardTitle>
-            </CardHeader>
-            {data.department_report && data.department_report.markdown_body?.trim() ? (
-              <CardContent>
-                <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
-                  <WeeklyReportMarkdown value={data.department_report.markdown_body} emptyMessage="" compact />
-                </div>
-              </CardContent>
-            ) : (
-              <CardContent>
-                <div className="text-sm text-slate-400">부서 보고서가 아직 작성되지 않았습니다.</div>
-              </CardContent>
+        <TabsContent value="team">
+          {isLoading && <div className="text-center py-12 text-slate-500">로딩 중...</div>}
+          {error && <div className="text-center py-12 text-red-500">데이터를 불러올 수 없습니다.</div>}
+
+          {data && (
+            <>
+              {/* Department Report */}
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="flex items-center gap-2 text-lg">
+                    <Building2 className="h-5 w-5 text-indigo-500" />
+                    {data.department.name}
+                  </CardTitle>
+                </CardHeader>
+                {data.department_report && data.department_report.markdown_body?.trim() ? (
+                  <CardContent>
+                    <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
+                      <WeeklyReportMarkdown value={data.department_report.markdown_body} emptyMessage="" compact />
+                    </div>
+                  </CardContent>
+                ) : (
+                  <CardContent>
+                    <div className="text-sm text-slate-400">부서 보고서가 아직 작성되지 않았습니다.</div>
+                  </CardContent>
+                )}
+              </Card>
+
+              {/* Sub-Team Sections */}
+              <div className="space-y-3 mt-4">
+                {data.sub_teams.map((subTeam) => {
+                  const key = subTeam.id ?? 'unassigned';
+                  return (
+                    <SubTeamSection
+                      key={key}
+                      subTeam={subTeam}
+                      isExpanded={expandedSubTeams.has(key)}
+                      onToggle={() => toggleSubTeam(key)}
+                      expandedMembers={expandedMembers}
+                      onToggleMember={toggleMember}
+                    />
+                  );
+                })}
+              </div>
+            </>
+          )}
+        </TabsContent>
+
+        <TabsContent value="project">
+          <div className="space-y-4">
+            <select
+              className="text-sm border rounded px-3 py-2 bg-background w-full max-w-md"
+              value={selectedProjectId}
+              onChange={(e) => {
+                setSelectedProjectId(e.target.value);
+                setExpandedProjectMembers(new Set());
+              }}
+            >
+              <option value="">프로젝트 선택</option>
+              {projects
+                ?.filter((p: Project) => p.status === 'InProgress' || p.status === 'Planned')
+                .map((p: Project) => (
+                  <option key={p.id} value={p.id}>{p.name}</option>
+                ))}
+            </select>
+
+            {projectLoading && <div className="text-center py-8 text-slate-500">로딩 중...</div>}
+
+            {projectData && (
+              <>
+                {/* Project Header */}
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="flex items-center gap-2 text-lg">
+                      <FolderKanban className="h-5 w-5 text-blue-500" />
+                      {projectData.project.name}
+                      <SubmissionBadge submitted={projectData.submitted_count} total={projectData.total_count} />
+                    </CardTitle>
+                    {projectData.project.pm && (
+                      <p className="text-sm text-slate-500">
+                        PM: {projectData.project.pm.korean_name || projectData.project.pm.name}
+                      </p>
+                    )}
+                  </CardHeader>
+                  {projectData.project_report?.markdown_body?.trim() ? (
+                    <CardContent>
+                      <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
+                        <WeeklyReportMarkdown value={projectData.project_report.markdown_body} emptyMessage="" compact />
+                      </div>
+                    </CardContent>
+                  ) : (
+                    <CardContent>
+                      <div className="text-sm text-slate-400">프로젝트 보고서가 아직 작성되지 않았습니다.</div>
+                    </CardContent>
+                  )}
+                </Card>
+
+                {/* Members */}
+                <Card>
+                  <div>
+                    {projectData.members.map((member) => (
+                      <MemberRow
+                        key={member.user_id}
+                        name={member.name}
+                        koreanName={member.korean_name}
+                        report={member.report as { markdown_body: string; updated_at: string; status: string } | null}
+                        isExpanded={expandedProjectMembers.has(member.user_id)}
+                        onToggle={() => toggleProjectMember(member.user_id)}
+                      />
+                    ))}
+                    {projectData.members.length === 0 && (
+                      <div className="text-center py-6 text-sm text-slate-400">
+                        이번 주에 워크로그를 기록한 멤버가 없습니다.
+                      </div>
+                    )}
+                  </div>
+                </Card>
+              </>
             )}
-          </Card>
 
-          {/* Sub-Team Sections */}
-          <div className="space-y-3">
-            {data.sub_teams.map((subTeam) => {
-              const key = subTeam.id ?? 'unassigned';
-              return (
-                <SubTeamSection
-                  key={key}
-                  subTeam={subTeam}
-                  isExpanded={expandedSubTeams.has(key)}
-                  onToggle={() => toggleSubTeam(key)}
-                  expandedMembers={expandedMembers}
-                  onToggleMember={toggleMember}
-                />
-              );
-            })}
+            {!selectedProjectId && (
+              <div className="text-center py-12 text-slate-400">프로젝트를 선택하세요</div>
+            )}
           </div>
-        </>
-      )}
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

@@ -1454,6 +1454,33 @@ export const getWeeklyReportHierarchy = async (
   return response.data;
 };
 
+// Weekly Report Hierarchy (Project view)
+export interface ProjectWeeklyReportHierarchy {
+  project: {
+    id: string;
+    name: string;
+    category: string;
+    pm: { id: string; name: string; korean_name: string | null } | null;
+  };
+  week_start: string;
+  week_end: string;
+  week_key: string;
+  project_report: WeeklyReport | null;
+  members: WeeklyReportHierarchyMember[];
+  submitted_count: number;
+  total_count: number;
+}
+
+export const getProjectWeeklyReportHierarchy = async (
+  projectId: string,
+  referenceDate?: string,
+): Promise<ProjectWeeklyReportHierarchy> => {
+  const params: Record<string, string> = { project_id: projectId };
+  if (referenceDate) params.reference_date = referenceDate;
+  const response = await apiClient.get('/weekly-reports/hierarchy/project', { params });
+  return response.data;
+};
+
 // ============ Resource Matrix Drill-down ============
 
 export interface WorklogDetail {
