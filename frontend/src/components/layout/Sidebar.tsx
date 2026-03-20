@@ -10,7 +10,6 @@ import {
   Clock,
   Calendar,
   BarChart3,
-  Settings,
   Building2,
   LogOut,
   Shield,
@@ -31,32 +30,30 @@ interface NavItem {
   icon: any;
 }
 
-// Monitoring - View/Analysis
-const monitoringNavigation: NavItem[] = [
+// Overview - View/Analysis
+const overviewNavigation: NavItem[] = [
   { nameKey: "main.dashboard", href: "/dashboard", icon: LayoutDashboard },
   { nameKey: "main.resourceMatrix", href: "/resource-matrix", icon: Grid3x3 },
   { nameKey: "main.reports", href: "/reports", icon: BarChart3 },
   { nameKey: "main.weeklyReports", href: "/reports/weekly", icon: FileText },
 ];
 
-// Entry - Data Input
-const entryNavigation: NavItem[] = [
+// Work Management - Data Input
+const workNavigation: NavItem[] = [
   { nameKey: "main.worklogs", href: "/worklogs", icon: Clock },
   { nameKey: "main.resourcePlans", href: "/resource-plans", icon: Calendar },
 ];
 
-// Admin settings (requires special permissions)
-const adminNavigation: NavItem[] = [
+// Projects
+const projectNavigation: NavItem[] = [
   { nameKey: "main.projects", href: "/projects", icon: FolderKanban },
-  { nameKey: "main.organization", href: "/organization", icon: Building2 },
-  { nameKey: "main.settings", href: "/settings", icon: Settings },
 ];
 
-const requestBoardLink: NavItem = {
-  nameKey: "main.requestBoard",
-  href: "/requests",
-  icon: MessageSquare,
-};
+// Administration
+const adminNavigation: NavItem[] = [
+  { nameKey: "main.organization", href: "/organization", icon: Building2 },
+  { nameKey: "main.requestBoard", href: "/requests", icon: MessageSquare },
+];
 
 interface SidebarProps {
   isCollapsed: boolean;
@@ -196,14 +193,17 @@ export function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
 
       {/* Navigation */}
       <nav className="flex-1 space-y-1 px-2 py-3 overflow-y-auto">
-        {/* Monitoring Section */}
-        {renderSection(t("sections.monitoring"), Eye, monitoringNavigation)}
+        {/* Overview Section */}
+        {renderSection(t("sections.overview"), Eye, overviewNavigation)}
 
-        {/* Entry Section */}
-        {renderSection(t("sections.entry"), PenSquare, entryNavigation, true)}
+        {/* Work Management Section */}
+        {renderSection(t("sections.workManagement"), PenSquare, workNavigation, true)}
 
-        {/* Admin Settings Section */}
-        {renderSection(t("sections.adminSettings"), Shield, adminNavigation, true)}
+        {/* Projects Section */}
+        {renderSection(t("sections.projects"), FolderKanban, projectNavigation, true)}
+
+        {/* Administration Section */}
+        {renderSection(t("sections.administration"), Shield, adminNavigation, true)}
       </nav>
 
       <div className={cn("px-2 pb-3", isCollapsed && "pb-2")}>
@@ -219,7 +219,6 @@ export function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
             >
               <Grid3x3 className="h-5 w-5 flex-shrink-0" />
             </Link>
-            {renderNavItem(requestBoardLink)}
             <Link
               to="/updates"
               title={t("sidebar.updateHistory")}
@@ -242,16 +241,6 @@ export function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
               )}
             >
               <Grid3x3 className="h-4.5 w-4.5" />
-            </Link>
-            <Link
-              to={requestBoardLink.href}
-              title={t(requestBoardLink.nameKey)}
-              className={cn(
-                "flex h-10 w-10 items-center justify-center rounded-lg text-slate-300 transition-colors hover:bg-slate-800 hover:text-white",
-                location.pathname === requestBoardLink.href && "bg-slate-800 text-white",
-              )}
-            >
-              <MessageSquare className="h-4.5 w-4.5" />
             </Link>
             <Link
               to="/updates"

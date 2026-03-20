@@ -8,14 +8,14 @@
     "weeklyReports": "Weekly Reports",
     "projects": "Projects",
     "organization": "Organization",
-    "settings": "Settings",
     "profile": "Profile",
     "requestBoard": "Request Board"
   },
   "sections": {
-    "monitoring": "Monitoring",
-    "entry": "Entry",
-    "adminSettings": "Admin Settings"
+    "overview": "Overview",
+    "workManagement": "Work Management",
+    "projects": "Projects",
+    "administration": "Administration"
   },
   "sidebar": {
     "welcome": "Welcome,",

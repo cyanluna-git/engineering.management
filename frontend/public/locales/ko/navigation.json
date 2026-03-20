@@ -8,14 +8,14 @@
     "weeklyReports": "주간 보고서",
     "projects": "프로젝트",
     "organization": "조직 관리",
-    "settings": "설정",
     "profile": "프로필",
     "requestBoard": "요청 게시판"
   },
   "sections": {
-    "monitoring": "모니터링",
-    "entry": "입력",
-    "adminSettings": "관리 설정"
+    "overview": "개요",
+    "workManagement": "업무 관리",
+    "projects": "프로젝트",
+    "administration": "관리"
   },
   "sidebar": {
     "welcome": "환영합니다,",
