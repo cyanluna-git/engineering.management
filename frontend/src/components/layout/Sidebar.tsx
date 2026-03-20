@@ -72,7 +72,8 @@ export function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
   };
 
   const renderNavItem = (item: NavItem) => {
-    const isActive = location.pathname === item.href;
+    const isActive = location.pathname === item.href
+      || (item.href === "/worklogs" && location.pathname === "/worklogs-table");
     const name = t(item.nameKey);
     return (
       <Link

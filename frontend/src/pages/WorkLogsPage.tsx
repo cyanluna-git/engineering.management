@@ -4,6 +4,7 @@
  * Now with tabs: Entry (calendar view) and Table (list view)
  */
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { format, startOfWeek, addWeeks, subWeeks } from 'date-fns';
 import { useTranslation } from 'react-i18next';
 import { useApiError } from '@/hooks/useApiError';
@@ -187,11 +188,19 @@ export function WorkLogsPage() {
 
             {/* Tabs */}
             <Tabs value={activeTab} onValueChange={setActiveTab}>
-                <TabsList>
-                    <TabsTrigger value="entry">📅 {t('tabs.entry')}</TabsTrigger>
-                    <TabsTrigger value="monthly-rate">📈 {t('tabs.monthlyRate')}</TabsTrigger>
-                    <TabsTrigger value="table">📊 {t('tabs.table')}</TabsTrigger>
-                </TabsList>
+                <div className="flex items-center gap-3">
+                    <TabsList>
+                        <TabsTrigger value="entry">📅 {t('tabs.entry')}</TabsTrigger>
+                        <TabsTrigger value="monthly-rate">📈 {t('tabs.monthlyRate')}</TabsTrigger>
+                        <TabsTrigger value="table">📊 {t('tabs.table')}</TabsTrigger>
+                    </TabsList>
+                    <Link
+                        to="/worklogs-table"
+                        className="text-sm font-medium text-blue-600 hover:text-blue-800 transition-colors"
+                    >
+                        📋 {t('tabs.advancedTable', 'Advanced Table')}
+                    </Link>
+                </div>
 
                 {/* Entry Tab - Calendar View */}
                 <TabsContent value="entry" className="space-y-4 mt-4">

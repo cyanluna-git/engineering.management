@@ -9,6 +9,7 @@
  * - 조직(Department/SubTeam/User) 기준은 별도로 필터 (인력 종속)
  */
 import { useState, useMemo, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { format, subDays } from 'date-fns';
 import { useTranslation } from 'react-i18next';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -130,10 +131,18 @@ export function WorkLogTablePage() {
         <div className="w-full px-2 py-2 space-y-2">
             {/* Header */}
             <div className="flex items-center justify-between">
-                <h1 className="text-2xl font-bold">
-                    📊 WorkLog Table
-                    {!isAdmin && <span className="text-sm font-normal text-muted-foreground ml-2">(My Logs Only)</span>}
-                </h1>
+                <div className="flex items-center gap-3">
+                    <Link
+                        to="/worklogs"
+                        className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                        ← WorkLogs
+                    </Link>
+                    <h1 className="text-2xl font-bold">
+                        📊 WorkLog Table
+                        {!isAdmin && <span className="text-sm font-normal text-muted-foreground ml-2">(My Logs Only)</span>}
+                    </h1>
+                </div>
                 <div className="text-sm text-muted-foreground">
                     Total: <span className="font-bold text-primary">{totalHours.toFixed(1)}h</span>
                     {' · '}
