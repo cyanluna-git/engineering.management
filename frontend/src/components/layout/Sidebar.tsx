@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
+import { usePermissions } from "@/hooks/usePermissions";
 import { LanguageToggle } from "@/components/LanguageToggle";
 import {
   LayoutDashboard,
@@ -64,6 +65,7 @@ export function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, logout } = useAuth();
+  const { canManageProjects, canManageOrganization } = usePermissions();
   const { t } = useTranslation("navigation");
 
   const handleLogout = () => {
@@ -200,11 +202,11 @@ export function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
         {/* Work Management Section */}
         {renderSection(t("sections.workManagement"), PenSquare, workNavigation, true)}
 
-        {/* Projects Section */}
-        {renderSection(t("sections.projects"), FolderKanban, projectNavigation, true)}
+        {/* Projects Section - ADMIN, PM only */}
+        {canManageProjects && renderSection(t("sections.projects"), FolderKanban, projectNavigation, true)}
 
-        {/* Administration Section */}
-        {renderSection(t("sections.administration"), Shield, adminNavigation, true)}
+        {/* Administration Section - ADMIN only */}
+        {canManageOrganization && renderSection(t("sections.administration"), Shield, adminNavigation, true)}
       </nav>
 
       <div className={cn("px-2 pb-3", isCollapsed && "pb-2")}>
