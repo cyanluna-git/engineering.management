@@ -82,6 +82,8 @@ UNAUTHENTICATED_CASES = [
     ),
     ("PUT", "/api/work-types/1", {"name": "Category Updated"}),
     ("POST", "/api/hiring-plans/plan-1/fill?user_id=user-1", None),
+    ("GET", "/api/dashboard/ai-summary/project/PROJ_TEST", None),
+    ("GET", "/api/dashboard/ai-summary/project/PROJ_TEST/history", None),
 ]
 
 
