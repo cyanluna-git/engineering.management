@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
 import { useTeamDashboard } from '@/hooks/useDashboard';
@@ -40,6 +40,7 @@ export const TeamDashboardContent: React.FC<TeamDashboardContentProps> = ({
 }) => {
     void _setTeamViewMode; // Reserved for future use
     const { t } = useTranslation('dashboard');
+    const [selectedProjectId, setSelectedProjectId] = useState<string>('');
     const { data: teamData, isLoading: teamLoading, error: teamError } = useTeamDashboard(teamScope, teamViewMode, dateRange, true, selectedOrgId);
 
     // Fetch org lists for the picker
@@ -204,6 +205,29 @@ export const TeamDashboardContent: React.FC<TeamDashboardContentProps> = ({
                 scope={teamScope}
                 period={teamViewMode}
             />
+
+            {/* Project AI Summary */}
+            <div className="space-y-2">
+                <select
+                    className="text-sm border rounded px-2 py-1.5 bg-background"
+                    value={selectedProjectId}
+                    onChange={(e) => setSelectedProjectId(e.target.value)}
+                >
+                    <option value="">{t('summary.selectProject', 'Select a project')}</option>
+                    {teamData?.team_worklogs?.by_project?.map((p: { project_id: string; project_name: string }) => (
+                        <option key={p.project_id} value={p.project_id}>
+                            {p.project_name}
+                        </option>
+                    ))}
+                </select>
+                {selectedProjectId && (
+                    <WeeklySummaryCard
+                        mode="project"
+                        projectId={selectedProjectId}
+                        period={teamViewMode}
+                    />
+                )}
+            </div>
 
             <TeamWeeklyReportCard
                 teamScope={teamScope}

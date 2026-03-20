@@ -24,6 +24,8 @@ import {
 import {
   getUserAISummary,
   getTeamAISummary,
+  getProjectAISummary,
+  getProjectAISummaryHistory,
   TeamDashboardScope,
   getUserAISummaryHistory,
   getTeamAISummaryHistory,
@@ -33,10 +35,11 @@ import { useAIHealth } from "@/hooks/useAIWorklog";
 import { useAuth } from "@/hooks/useAuth";
 
 interface WeeklySummaryCardProps {
-  mode: "user" | "team";
+  mode: "user" | "team" | "project";
   scope?: TeamDashboardScope;
   period?: "weekly" | "monthly" | "quarterly" | "halfYear" | "yearly";
   userId?: string;
+  projectId?: string;
 }
 
 type SupportedSummaryPeriod = "weekly" | "monthly";
@@ -72,6 +75,7 @@ export const WeeklySummaryCard: React.FC<WeeklySummaryCardProps> = ({
   scope = "department",
   period = "weekly",
   userId,
+  projectId,
 }) => {
   const { t } = useTranslation('dashboard');
   const { user } = useAuth();
@@ -106,20 +110,31 @@ export const WeeklySummaryCard: React.FC<WeeklySummaryCardProps> = ({
     refetchOnWindowFocus: false,
   });
 
+  // Project Summary Query
+  const projectQuery = useQuery({
+    queryKey: ["ai-summary", "project", projectId, period],
+    queryFn: () => getProjectAISummary(projectId!, isSupportedPeriod ? period : "weekly", false),
+    enabled: mode === "project" && !!projectId && !selectedHistory && isAIAvailable && isSupportedPeriod,
+    staleTime: 10 * 60 * 1000,
+    refetchOnWindowFocus: false,
+  });
+
   // History Query
   const historyQuery = useQuery({
-    queryKey: ["ai-summary-history", mode, scope, period, userId],
+    queryKey: ["ai-summary-history", mode, mode === "project" ? projectId : (mode === "user" ? userId : scope)],
     queryFn: async () => {
       if (mode === "user") {
         return getUserAISummaryHistory(10, userId);
-      } else {
-        return getTeamAISummaryHistory(scope, 10);
       }
+      if (mode === "project" && projectId) {
+        return getProjectAISummaryHistory(projectId, 10);
+      }
+      return getTeamAISummaryHistory(scope, 10);
     },
     enabled: isHistoryOpen && isAIAvailable && isSupportedPeriod,
   });
 
-  const activeQuery = mode === "user" ? userQuery : teamQuery;
+  const activeQuery = mode === "user" ? userQuery : mode === "team" ? teamQuery : projectQuery;
   const isLoading = activeQuery.isLoading || isRegenerating;
   const hasError = activeQuery.isError || activeQuery.data?.error;
 
@@ -160,6 +175,9 @@ export const WeeklySummaryCard: React.FC<WeeklySummaryCardProps> = ({
       if (mode === "user") {
         const result = await getUserAISummary(period, true);
         queryClient.setQueryData(["ai-summary", "user", period], result);
+      } else if (mode === "project" && projectId) {
+        const result = await getProjectAISummary(projectId, period, true);
+        queryClient.setQueryData(["ai-summary", "project", projectId, period], result);
       } else {
         const result = await getTeamAISummary(scope, period, true);
         queryClient.setQueryData(["ai-summary", "team", scope, period], result);
@@ -167,7 +185,7 @@ export const WeeklySummaryCard: React.FC<WeeklySummaryCardProps> = ({
     } finally {
       setIsRegenerating(false);
     }
-  }, [isSupportedPeriod, mode, period, scope, queryClient]);
+  }, [isSupportedPeriod, mode, period, scope, projectId, queryClient]);
 
   const handleHistorySelect = (item: AISummaryHistoryItem) => {
     setSelectedHistory(item);
@@ -334,9 +352,9 @@ export const WeeklySummaryCard: React.FC<WeeklySummaryCardProps> = ({
           </div>
         ) : mode === "user" ? (
           <UserSummaryContent data={displayData} t={t} isExpanded={isExpanded} onToggleExpanded={() => setIsExpanded(prev => !prev)} />
-        ) : (
+        ) : mode === "team" || mode === "project" ? (
           <TeamSummaryContent data={displayData} t={t} isExpanded={isExpanded} onToggleExpanded={() => setIsExpanded(prev => !prev)} />
-        )}
+        ) : null}
       </CardContent>
     </Card>
   );

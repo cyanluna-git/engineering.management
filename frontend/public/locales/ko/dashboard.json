@@ -175,7 +175,8 @@
     "showLess": "접기",
     "byProject": "프로젝트별",
     "byMember": "멤버별",
-    "keyIssues": "주요 이슈"
+    "keyIssues": "주요 이슈",
+    "selectProject": "프로젝트 선택"
   },
   "weeklyReport": {
     "title": "주간 보고서",

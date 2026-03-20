@@ -175,7 +175,8 @@
     "showLess": "Show less",
     "byProject": "By Project",
     "byMember": "By Member",
-    "keyIssues": "Key Issues"
+    "keyIssues": "Key Issues",
+    "selectProject": "Select a project"
   },
   "weeklyReport": {
     "title": "Weekly Report",
