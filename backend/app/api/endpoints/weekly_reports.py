@@ -109,6 +109,18 @@ async def get_weekly_report_hierarchy(
     return service.get_hierarchy(department_id=department_id, reference_date=reference_date)
 
 
+@router.get("/hierarchy/project")
+async def get_project_weekly_report_hierarchy(
+    project_id: str = Query(..., description="Project ID"),
+    reference_date: Optional[date] = Query(None, description="Reference date for week calculation"),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Get hierarchical weekly reports for a project: project -> members."""
+    service = WeeklyReportService(db)
+    return service.get_project_hierarchy(project_id=project_id, reference_date=reference_date)
+
+
 @router.post("/llm-summary", response_model=WeeklyReportLLMSummaryResponse)
 async def generate_llm_summary(
     request: WeeklyReportLLMSummaryRequest,

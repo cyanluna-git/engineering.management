@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 from app.core.security import READ_ONLY_ROLES
 from app.models.organization import Department, SubTeam
 from app.models.project import Project
+from app.models.resource import WorkLog
 from app.models.user import User
 from app.models.weekly_report import WeeklyReport
 
@@ -450,4 +451,98 @@ class WeeklyReportService:
             "week_key": week_key,
             "department_report": self.serialize(dept_report) if dept_report else None,
             "sub_teams": sub_team_data,
+        }
+
+    def get_project_hierarchy(
+        self,
+        project_id: str,
+        reference_date: Optional[date] = None,
+    ) -> dict:
+        """Get hierarchical weekly reports for a project: project -> members."""
+        project = self.db.query(Project).filter(Project.id == project_id).first()
+        if not project:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Project not found",
+            )
+
+        # PM info
+        pm_info = None
+        if project.pm_id:
+            pm_user = self.db.query(User).filter(User.id == project.pm_id).first()
+            if pm_user:
+                pm_info = {
+                    "user_id": pm_user.id,
+                    "name": pm_user.name,
+                    "korean_name": pm_user.korean_name,
+                }
+
+        week_start, week_end, week_key = self.get_week_range(reference_date=reference_date)
+
+        # Query distinct user_ids from WorkLog for this project in the target week
+        member_ids = [
+            r[0]
+            for r in self.db.query(WorkLog.user_id)
+            .filter(
+                WorkLog.project_id == project_id,
+                WorkLog.date >= week_start,
+                WorkLog.date <= week_end,
+            )
+            .distinct()
+            .all()
+        ]
+
+        # Batch query User objects
+        users = (
+            self.db.query(User)
+            .filter(User.id.in_(member_ids))
+            .order_by(User.korean_name, User.name)
+            .all()
+            if member_ids
+            else []
+        )
+
+        # Build all target_keys to query in one batch
+        target_keys = [f"project:{project_id}"]
+        for u in users:
+            target_keys.append(f"user:{u.id}")
+
+        # Single batch query for all reports
+        reports = (
+            self.db.query(WeeklyReport)
+            .filter(
+                WeeklyReport.target_key.in_(target_keys),
+                WeeklyReport.week_start == week_start,
+            )
+            .all()
+        )
+
+        report_by_key = {r.target_key: r for r in reports}
+
+        # Assemble members
+        members = []
+        submitted_count = 0
+        for u in users:
+            u_report = report_by_key.get(f"user:{u.id}")
+            members.append({
+                "user_id": u.id,
+                "name": u.name,
+                "korean_name": u.korean_name,
+                "report": self.serialize(u_report) if u_report else None,
+            })
+            if u_report:
+                submitted_count += 1
+
+        project_report = report_by_key.get(f"project:{project_id}")
+
+        return {
+            "project": {"id": project.id, "name": project.name},
+            "pm": pm_info,
+            "week_start": str(week_start),
+            "week_end": str(week_end),
+            "week_key": week_key,
+            "project_report": self.serialize(project_report) if project_report else None,
+            "members": members,
+            "submitted_count": submitted_count,
+            "total_count": len(members),
         }
