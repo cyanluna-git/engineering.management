@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 from app.core.security import READ_ONLY_ROLES
 from app.models.organization import Department, SubTeam
 from app.models.project import Project
-from app.models.resource import WorkLog
+from app.models.resource import ResourcePlan, WorkLog
 from app.models.user import User
 from app.models.weekly_report import WeeklyReport
 
@@ -479,8 +479,24 @@ class WeeklyReportService:
 
         week_start, week_end, week_key = self.get_week_range(reference_date=reference_date)
 
-        # Query distinct user_ids from WorkLog for this project in the target week
-        member_ids = [
+        # Primary: ResourcePlan members for this project/month
+        rp_year = week_start.year
+        rp_month = week_start.month
+        planned_member_ids = set(
+            r[0]
+            for r in self.db.query(ResourcePlan.user_id)
+            .filter(
+                ResourcePlan.project_id == project_id,
+                ResourcePlan.year == rp_year,
+                ResourcePlan.month == rp_month,
+                ResourcePlan.user_id.isnot(None),
+            )
+            .distinct()
+            .all()
+        )
+
+        # Fallback: WorkLog members not in ResourcePlan
+        worklog_member_ids = set(
             r[0]
             for r in self.db.query(WorkLog.user_id)
             .filter(
@@ -490,15 +506,17 @@ class WeeklyReportService:
             )
             .distinct()
             .all()
-        ]
+        )
+        fallback_member_ids = worklog_member_ids - planned_member_ids
+        all_member_ids = planned_member_ids | worklog_member_ids
 
         # Batch query User objects
         users = (
             self.db.query(User)
-            .filter(User.id.in_(member_ids))
+            .filter(User.id.in_(all_member_ids))
             .order_by(User.korean_name, User.name)
             .all()
-            if member_ids
+            if all_member_ids
             else []
         )
 
@@ -519,16 +537,21 @@ class WeeklyReportService:
 
         report_by_key = {r.target_key: r for r in reports}
 
-        # Assemble members
+        # Assemble members (planned first, then fallback)
+        planned_users = [u for u in users if u.id in planned_member_ids]
+        fallback_users = [u for u in users if u.id in fallback_member_ids]
+
         members = []
         submitted_count = 0
-        for u in users:
+        for u in planned_users + fallback_users:
             u_report = report_by_key.get(f"user:{u.id}")
+            source = "planned" if u.id in planned_member_ids else "worklog"
             members.append({
                 "user_id": u.id,
                 "name": u.name,
                 "korean_name": u.korean_name,
                 "report": self.serialize(u_report) if u_report else None,
+                "source": source,
             })
             if u_report:
                 submitted_count += 1

@@ -491,26 +491,60 @@ export function WeeklyReportHierarchyPage() {
                   )}
                 </Card>
 
-                {/* Members */}
-                <Card>
-                  <div>
-                    {projectData.members.map((member) => (
-                      <MemberRow
-                        key={member.user_id}
-                        name={member.name}
-                        koreanName={member.korean_name}
-                        report={member.report as { markdown_body: string; updated_at: string; status: string } | null}
-                        isExpanded={expandedProjectMembers.has(member.user_id)}
-                        onToggle={() => toggleProjectMember(member.user_id)}
-                      />
-                    ))}
-                    {projectData.members.length === 0 && (
-                      <div className="text-center py-6 text-sm text-slate-400">
-                        이번 주에 워크로그를 기록한 멤버가 없습니다.
-                      </div>
-                    )}
-                  </div>
-                </Card>
+                {/* Members — planned first, then worklog fallback */}
+                {(() => {
+                  const planned = projectData.members.filter((m: any) => m.source === 'planned');
+                  const worklog = projectData.members.filter((m: any) => m.source === 'worklog');
+                  return (
+                    <>
+                      {planned.length > 0 && (
+                        <Card>
+                          <div className="px-4 py-2 bg-slate-50 border-b text-xs font-medium text-slate-500">
+                            계획 멤버 ({planned.length}명)
+                          </div>
+                          <div>
+                            {planned.map((member: any) => (
+                              <MemberRow
+                                key={member.user_id}
+                                name={member.name}
+                                koreanName={member.korean_name}
+                                report={member.report as { markdown_body: string; updated_at: string; status: string } | null}
+                                isExpanded={expandedProjectMembers.has(member.user_id)}
+                                onToggle={() => toggleProjectMember(member.user_id)}
+                              />
+                            ))}
+                          </div>
+                        </Card>
+                      )}
+                      {worklog.length > 0 && (
+                        <Card>
+                          <div className="px-4 py-2 bg-amber-50 border-b text-xs font-medium text-amber-600">
+                            계획 외 기여자 ({worklog.length}명)
+                          </div>
+                          <div>
+                            {worklog.map((member: any) => (
+                              <MemberRow
+                                key={member.user_id}
+                                name={member.name}
+                                koreanName={member.korean_name}
+                                report={member.report as { markdown_body: string; updated_at: string; status: string } | null}
+                                isExpanded={expandedProjectMembers.has(member.user_id)}
+                                onToggle={() => toggleProjectMember(member.user_id)}
+                              />
+                            ))}
+                          </div>
+                        </Card>
+                      )}
+                      {planned.length === 0 && worklog.length === 0 && (
+                        <Card>
+                          <div className="text-center py-6 text-sm text-slate-400">
+                            이번 주에 할당된 멤버 또는 워크로그를 기록한 멤버가 없습니다.
+                          </div>
+                        </Card>
+                      )}
+                    </>
+                  );
+                })()}
               </>
             )}
 
