@@ -5,7 +5,7 @@ Service layer for worklog-related business logic
 from typing import List, Optional, Dict
 from datetime import date, timedelta
 from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import func, cast, Date
+from sqlalchemy import and_, func, cast, or_, Date
 
 from app.models.resource import WorkLog
 from app.models.project import Project
@@ -77,11 +77,17 @@ class WorkLogService:
         start_date: Optional[date] = None,
         end_date: Optional[date] = None,
         work_type_category_id: Optional[int] = None,
+        historical: bool = False,
         skip: int = 0,
         limit: int = 500,
     ) -> List[WorkLog]:
-        """Retrieve worklogs with user info for table display."""
-        from app.models.user import User
+        """Retrieve worklogs with user info for table display.
+
+        When historical=True and department_id/sub_team_id is provided,
+        worklogs are filtered by the team the user belonged to at the
+        worklog date (via UserHistory), not their current team.
+        """
+        from app.models.user import User, UserHistory
 
         query = (
             self.db.query(WorkLog)
@@ -97,10 +103,39 @@ class WorkLogService:
             query = query.filter(WorkLog.user_id == user_id)
         if project_id:
             query = query.filter(WorkLog.project_id == project_id)
-        if department_id:
-            query = query.filter(User.department_id == department_id)
-        if sub_team_id:
-            query = query.filter(User.sub_team_id == sub_team_id)
+
+        if department_id or sub_team_id:
+            if historical:
+                # JOIN UserHistory: resolve team at worklog date
+                query = query.join(
+                    UserHistory,
+                    and_(
+                        UserHistory.user_id == WorkLog.user_id,
+                        UserHistory.start_date <= cast(WorkLog.date, Date),
+                        or_(
+                            UserHistory.end_date.is_(None),
+                            UserHistory.end_date > cast(WorkLog.date, Date),
+                        ),
+                        UserHistory.change_type.notin_(
+                            ["TRANSFER_OUT", "RESIGN"]
+                        ),
+                    ),
+                )
+                if department_id:
+                    query = query.filter(
+                        UserHistory.department_id == department_id
+                    )
+                if sub_team_id:
+                    query = query.filter(
+                        UserHistory.sub_team_id == sub_team_id
+                    )
+            else:
+                # Default: filter by user's current team
+                if department_id:
+                    query = query.filter(User.department_id == department_id)
+                if sub_team_id:
+                    query = query.filter(User.sub_team_id == sub_team_id)
+
         if start_date:
             query = query.filter(cast(WorkLog.date, Date) >= start_date)
         if end_date:

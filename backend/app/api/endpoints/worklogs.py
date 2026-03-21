@@ -97,6 +97,7 @@ async def list_worklogs_table(
     start_date: Optional[date] = Query(None),
     end_date: Optional[date] = Query(None),
     work_type_category_id: Optional[int] = Query(None),
+    historical: bool = Query(False, description="True=filter by team at worklog date via UserHistory"),
     skip: int = Query(0, ge=0),
     limit: int = Query(500, ge=1, le=5000),
     db: Session = Depends(get_db),
@@ -105,6 +106,8 @@ async def list_worklogs_table(
     """
     List worklogs for table view with user info.
     All authenticated users can view all worklogs.
+    When historical=true, department/sub_team filters use UserHistory
+    to resolve which team the user belonged to at the worklog date.
     """
     service = WorkLogService(db)
 
@@ -116,6 +119,7 @@ async def list_worklogs_table(
         start_date=start_date,
         end_date=end_date,
         work_type_category_id=work_type_category_id,
+        historical=historical,
         skip=skip,
         limit=limit,
     )
@@ -162,6 +166,7 @@ async def export_worklogs_csv(
     start_date: Optional[date] = Query(None),
     end_date: Optional[date] = Query(None),
     work_type_category_id: Optional[int] = Query(None),
+    historical: bool = Query(False, description="True=filter by team at worklog date via UserHistory"),
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
@@ -179,6 +184,7 @@ async def export_worklogs_csv(
         start_date=start_date,
         end_date=end_date,
         work_type_category_id=work_type_category_id,
+        historical=historical,
         skip=0,
         limit=10000,
     )
