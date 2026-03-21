@@ -11,6 +11,7 @@ import {
     Legend,
 } from 'recharts';
 import { Users, Calendar, ChevronLeft, ChevronRight, TrendingUp, UserMinus, UserPlus, AlertCircle } from 'lucide-react';
+import { AbsenceList } from '@/components/absences/AbsenceList';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -253,7 +254,7 @@ function TeamCapacityPage() {
                     <TabsList className="self-start">
                         <TabsTrigger value="overview">Capacity Overview</TabsTrigger>
                         <TabsTrigger value="members">Team Members</TabsTrigger>
-                        <TabsTrigger value="absences" disabled>Absence Management</TabsTrigger>
+                        <TabsTrigger value="absences">Absence Management</TabsTrigger>
                     </TabsList>
 
                     {/* Overview Tab */}
@@ -582,15 +583,12 @@ function TeamCapacityPage() {
                         </Card>
                     </TabsContent>
 
-                    {/* Absences Tab (placeholder) */}
-                    <TabsContent value="absences" className="flex-1">
-                        <Card className="h-full flex items-center justify-center">
-                            <CardContent className="text-center py-12">
-                                <UserMinus className="w-12 h-12 text-slate-300 mx-auto mb-4" />
-                                <p className="text-lg font-medium text-slate-500">Absence Management</p>
-                                <p className="text-sm text-slate-400 mt-1">Coming soon - manage team absences and leave</p>
-                            </CardContent>
-                        </Card>
+                    {/* Absences Tab */}
+                    <TabsContent value="absences" className="flex-1 flex flex-col gap-3 min-h-0">
+                        <AbsenceList
+                            departmentId={selectedDepartmentId}
+                            subTeamId={selectedSubTeamId || undefined}
+                        />
                     </TabsContent>
                 </Tabs>
             )}
