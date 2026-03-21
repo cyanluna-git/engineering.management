@@ -29,6 +29,7 @@ from app.schemas.scenario import (
     ScenarioComparisonResult,
     CopyScenarioRequest,
 )
+from app.schemas.absence import AbsenceCreate, AbsenceUpdate, AbsenceResponse
 
 
 __all__ = [
@@ -58,4 +59,7 @@ __all__ = [
     "ScenarioMilestoneUpdate",
     "ScenarioComparisonResult",
     "CopyScenarioRequest",
+    "AbsenceCreate",
+    "AbsenceUpdate",
+    "AbsenceResponse",
 ]

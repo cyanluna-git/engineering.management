@@ -55,6 +55,9 @@ class User(Base):
     created_resource_plans = relationship(
         "ResourcePlan", back_populates="creator", foreign_keys="ResourcePlan.created_by"
     )
+    absences = relationship(
+        "Absence", back_populates="user", foreign_keys="Absence.user_id"
+    )
 
 
 class UserHistory(Base):
