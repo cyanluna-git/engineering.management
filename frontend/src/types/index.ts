@@ -530,3 +530,74 @@ export interface AIHealthResponse {
     model: string
     message?: string
 }
+
+// ============ Team Capacity Types ============
+
+export interface TeamFTEMonth {
+    year: number
+    month: number
+    active_members: number
+    absence_impact: number
+    planned_hires: number
+    available_fte: number
+}
+
+export interface TeamMemberAbsence {
+    absence_type: string
+    start_date: string
+    end_date: string | null
+    fte_impact: number
+}
+
+export interface TeamMemberAtDate {
+    user_id: string
+    name: string
+    korean_name: string | null
+    email: string
+    sub_team_id: string | null
+    sub_team_name: string | null
+    position_id: string | null
+    position_name: string | null
+    is_absent: boolean
+    absences: TeamMemberAbsence[]
+}
+
+export type AbsenceType = 'PARENTAL_LEAVE' | 'MEDICAL_LEAVE' | 'SECONDMENT' | 'SABBATICAL' | 'OTHER'
+
+export interface Absence {
+    id: string
+    user_id: string
+    absence_type: AbsenceType
+    start_date: string
+    end_date: string | null
+    fte_impact: number
+    department_id: string
+    sub_team_id: string | null
+    remarks: string | null
+    created_by: string
+    created_at: string
+    updated_at: string
+    user_name: string | null
+    department_name: string | null
+    sub_team_name: string | null
+    creator_name: string | null
+}
+
+export interface AbsenceCreate {
+    user_id: string
+    absence_type: AbsenceType
+    start_date: string
+    end_date?: string | null
+    fte_impact?: number
+    department_id: string
+    sub_team_id?: string | null
+    remarks?: string | null
+}
+
+export interface AbsenceUpdate {
+    absence_type?: AbsenceType
+    start_date?: string
+    end_date?: string | null
+    fte_impact?: number
+    remarks?: string | null
+}

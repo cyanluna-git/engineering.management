@@ -1246,4 +1246,56 @@ export const getMatrixDetails = async (
   return response.data;
 };
 
+// ============ Team Capacity API ============
+
+import type { TeamFTEMonth, TeamMemberAtDate, Absence, AbsenceCreate, AbsenceUpdate } from '@/types';
+
+export const getTeamCapacity = async (params: {
+  department_id: string;
+  sub_team_id?: string;
+  start_year: number;
+  start_month: number;
+  end_year: number;
+  end_month: number;
+}): Promise<TeamFTEMonth[]> => {
+  const response = await apiClient.get('/team-capacity/', { params });
+  return response.data;
+};
+
+export const getTeamMembers = async (params: {
+  department_id: string;
+  sub_team_id?: string;
+  year: number;
+  month: number;
+}): Promise<TeamMemberAtDate[]> => {
+  const response = await apiClient.get('/team-capacity/members', { params });
+  return response.data;
+};
+
+// ============ Absences API ============
+
+export const getAbsences = async (params?: {
+  user_id?: string;
+  department_id?: string;
+  start_date?: string;
+  end_date?: string;
+}): Promise<Absence[]> => {
+  const response = await apiClient.get('/absences/', { params });
+  return response.data;
+};
+
+export const createAbsence = async (data: AbsenceCreate): Promise<Absence> => {
+  const response = await apiClient.post('/absences/', data);
+  return response.data;
+};
+
+export const updateAbsence = async (id: string, data: AbsenceUpdate): Promise<Absence> => {
+  const response = await apiClient.put(`/absences/${id}`, data);
+  return response.data;
+};
+
+export const deleteAbsence = async (id: string): Promise<void> => {
+  await apiClient.delete(`/absences/${id}`);
+};
+
 export default apiClient;

@@ -18,6 +18,7 @@ import {
     PenSquare,
     MessageSquare,
     Grid3x3,
+    Users,
     ChevronLeft,
     ChevronRight,
 } from 'lucide-react'
@@ -33,6 +34,7 @@ interface NavItem {
 const monitoringNavigation: NavItem[] = [
     { nameKey: 'main.dashboard', href: '/', icon: LayoutDashboard },
     { nameKey: 'main.resourceMatrix', href: '/resource-matrix', icon: Grid3x3 },
+    { nameKey: 'main.teamCapacity', href: '/team-capacity', icon: Users },
     { nameKey: 'main.reports', href: '/reports', icon: BarChart3 },
 ]
 
