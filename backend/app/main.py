@@ -33,6 +33,8 @@ from app.api.endpoints import (
     ai_worklog,
     internal_ios,
     recharge_ios,
+    team_capacity,
+    absences,
 )
 
 # Import all models to ensure they are registered with SQLAlchemy Base.metadata
@@ -149,6 +151,12 @@ app.include_router(
 )
 app.include_router(
     recharge_ios.router, prefix="/api/recharge-ios", tags=["Recharge IOs"]
+)
+app.include_router(
+    team_capacity.router, prefix="/api/team-capacity", tags=["Team Capacity"]
+)
+app.include_router(
+    absences.router, prefix="/api/absences", tags=["Absences"]
 )
 
 
