@@ -11,6 +11,7 @@ import {
   Clock,
   Calendar,
   BarChart3,
+  Users,
   Building2,
   LogOut,
   Shield,
@@ -35,6 +36,7 @@ interface NavItem {
 const overviewNavigation: NavItem[] = [
   { nameKey: "main.dashboard", href: "/dashboard", icon: LayoutDashboard },
   { nameKey: "main.resourceMatrix", href: "/resource-matrix", icon: Grid3x3 },
+  { nameKey: "main.teamCapacity", href: "/team-capacity", icon: Users },
   { nameKey: "main.reports", href: "/reports", icon: BarChart3 },
   { nameKey: "main.weeklyReports", href: "/reports/weekly", icon: FileText },
 ];

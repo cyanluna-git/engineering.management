@@ -3,10 +3,14 @@ from app.services.worklog_service import WorkLogService
 from app.services.scenario_service import ScenarioService
 from app.services.matching_service import FuzzyMatcher
 from app.services.text_preprocessor import KoreanTextPreprocessor
+from app.services.team_capacity_service import TeamCapacityService
+from app.services.absence_service import AbsenceService
 
 __all__ = [
     "WorkLogService",
     "ScenarioService",
     "FuzzyMatcher",
     "KoreanTextPreprocessor",
+    "TeamCapacityService",
+    "AbsenceService",
 ]

@@ -22,6 +22,7 @@ const ProfilePage = lazy(() => import('./pages/ProfilePage').then(m => ({ defaul
 const UpdatesPage = lazy(() => import('./pages/UpdatesPage').then(m => ({ default: m.UpdatesPage })));
 const PortalPage = lazy(() => import('./pages/PortalPage'));
 const PortalStatsPage = lazy(() => import('./pages/PortalStatsPage'));
+const TeamCapacityPage = lazy(() => import('./pages/TeamCapacityPage'));
 
 // Loading fallback for lazy-loaded routes
 const PageLoader = () => (
@@ -65,6 +66,7 @@ function App() {
               <Route path="/organization" element={<Suspense fallback={<PageLoader />}><OrganizationPage /></Suspense>} />
               <Route path="/reports" element={<Suspense fallback={<PageLoader />}><ReportsPage /></Suspense>} />
               <Route path="/reports/weekly" element={<Suspense fallback={<PageLoader />}><WeeklyReportHierarchyPage /></Suspense>} />
+              <Route path="/team-capacity" element={<Suspense fallback={<PageLoader />}><TeamCapacityPage /></Suspense>} />
               <Route path="/requests" element={<Suspense fallback={<PageLoader />}><RequestBoardPage /></Suspense>} />
               <Route path="/profile" element={<Suspense fallback={<PageLoader />}><ProfilePage /></Suspense>} />
               <Route path="/updates" element={<Suspense fallback={<PageLoader />}><UpdatesPage /></Suspense>} />
