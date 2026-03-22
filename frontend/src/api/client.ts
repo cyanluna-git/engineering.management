@@ -1308,7 +1308,7 @@ export const getProjectAISummaryHistory = async (
 // ============ Weekly Report API ============
 
 export type WeeklyReportScope = 'user' | 'team';
-export type WeeklyReportTeamScope = 'department' | 'sub_team';
+export type WeeklyReportTeamScope = 'department' | 'sub_team' | 'project';
 export type WeeklyReportStatus = 'draft' | 'published';
 
 export interface WeeklyReport {

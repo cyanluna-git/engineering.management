@@ -16,6 +16,7 @@ import {
 import {
   type TeamDashboardScope,
   type WeeklyReportLLMSummaryResponse,
+  type WeeklyReportTeamScope,
   getApiError,
   generateWeeklyReportLLMSummary,
   getCurrentWeeklyReport,
@@ -47,7 +48,7 @@ interface TeamWeeklyReportCardProps {
   selectedOrgId?: string;
   referenceDate: Date;
   teamName: string;
-  scopeTypeOverride?: string;
+  scopeTypeOverride?: WeeklyReportTeamScope;
   scopeIdOverride?: string;
 }
 
@@ -59,7 +60,7 @@ function formatWeekLabel(weekStart: string, weekEnd: string) {
   return `${weekStart} ~ ${weekEnd}`;
 }
 
-function getScopeType(teamScope: TeamDashboardScope) {
+function getScopeType(teamScope: TeamDashboardScope): WeeklyReportTeamScope | null {
   if (teamScope === "department" || teamScope === "sub_team") {
     return teamScope;
   }
