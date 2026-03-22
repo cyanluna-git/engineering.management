@@ -1,8 +1,10 @@
-import type { ReactNode } from "react";
+import type { ReactElement, ReactNode } from "react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import DashboardPage from "./DashboardPage";
+import { getUsers } from "@/api/client";
 import { useDashboard } from "@/hooks/useDashboard";
 import { useAuth } from "@/hooks/useAuth";
 import { useWorklogsTable } from "@/hooks/useWorklogs";
@@ -89,6 +91,14 @@ vi.mock("@/hooks/useWorkTypeCategories", () => ({
   useWorkTypeCategories: vi.fn(),
 }));
 
+vi.mock("@/api/client", async () => {
+  const actual = await vi.importActual<typeof import("@/api/client")>("@/api/client");
+  return {
+    ...actual,
+    getUsers: vi.fn(),
+  };
+});
+
 vi.mock("@/components/dashboard/WeeklySummaryCard", () => ({
   WeeklySummaryCard: ({ mode, period }: { mode: string; period: string }) => (
     <div data-testid={`weekly-summary-${mode}`}>{period}</div>
@@ -97,12 +107,6 @@ vi.mock("@/components/dashboard/WeeklySummaryCard", () => ({
 
 vi.mock("@/components/dashboard/MyFTECard", () => ({
   MyFTECard: () => <div data-testid="my-fte-card">my-fte</div>,
-}));
-
-vi.mock("@/components/dashboard/UserWeeklyReportCard", () => ({
-  UserWeeklyReportCard: ({ referenceDate }: { referenceDate: Date }) => (
-    <div data-testid="user-weekly-report-card">{referenceDate.toISOString().slice(0, 10)}</div>
-  ),
 }));
 
 vi.mock("@/components/dashboard/TeamDashboardContent", () => ({
@@ -119,6 +123,18 @@ const mockedUseDashboard = vi.mocked(useDashboard);
 const mockedUseAuth = vi.mocked(useAuth);
 const mockedUseWorklogsTable = vi.mocked(useWorklogsTable);
 const mockedUseWorkTypeCategories = vi.mocked(useWorkTypeCategories);
+const mockedGetUsers = vi.mocked(getUsers);
+
+function renderWithQueryClient(ui: ReactElement) {
+  const queryClient = new QueryClient({
+    defaultOptions: {
+      queries: { retry: false },
+      mutations: { retry: false },
+    },
+  });
+
+  return render(<QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>);
+}
 
 describe("DashboardPage", () => {
   beforeEach(() => {
@@ -149,17 +165,18 @@ describe("DashboardPage", () => {
     mockedUseWorkTypeCategories.mockReturnValue({
       data: [],
     } as unknown as ReturnType<typeof useWorkTypeCategories>);
+
+    mockedGetUsers.mockResolvedValue([]);
   });
 
   it("shows the personal weekly report card on the user dashboard tab", () => {
-    render(<DashboardPage />);
+    renderWithQueryClient(<DashboardPage />);
 
-    expect(screen.getByTestId("user-weekly-report-card")).not.toHaveTextContent("");
     expect(screen.getByTestId("weekly-summary-user")).toHaveTextContent("weekly");
   });
 
   it("passes the current team context into the team dashboard tab", () => {
-    render(<DashboardPage />);
+    renderWithQueryClient(<DashboardPage />);
 
     const teamTab = screen.getByRole("tab", { name: "Team" });
     fireEvent.mouseDown(teamTab);

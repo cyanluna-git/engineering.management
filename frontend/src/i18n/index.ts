@@ -3,30 +3,30 @@ import { initReactI18next } from 'react-i18next';
 import LanguageDetector from 'i18next-browser-languagedetector';
 
 // --- EN namespaces ---
-import enCommon from '../../public/locales/en/common.json';
-import enNavigation from '../../public/locales/en/navigation.json';
-import enAuth from '../../public/locales/en/auth.json';
-import enDashboard from '../../public/locales/en/dashboard.json';
-import enWorklogs from '../../public/locales/en/worklogs.json';
-import enProjects from '../../public/locales/en/projects.json';
-import enResourcePlans from '../../public/locales/en/resource-plans.json';
-import enOrganization from '../../public/locales/en/organization.json';
-import enReports from '../../public/locales/en/reports.json';
-import enErrors from '../../public/locales/en/errors.json';
-import enValidation from '../../public/locales/en/validation.json';
+import enCommon from '../locales/en/common.json';
+import enNavigation from '../locales/en/navigation.json';
+import enAuth from '../locales/en/auth.json';
+import enDashboard from '../locales/en/dashboard.json';
+import enWorklogs from '../locales/en/worklogs.json';
+import enProjects from '../locales/en/projects.json';
+import enResourcePlans from '../locales/en/resource-plans.json';
+import enOrganization from '../locales/en/organization.json';
+import enReports from '../locales/en/reports.json';
+import enErrors from '../locales/en/errors.json';
+import enValidation from '../locales/en/validation.json';
 
 // --- KO namespaces ---
-import koCommon from '../../public/locales/ko/common.json';
-import koNavigation from '../../public/locales/ko/navigation.json';
-import koAuth from '../../public/locales/ko/auth.json';
-import koDashboard from '../../public/locales/ko/dashboard.json';
-import koWorklogs from '../../public/locales/ko/worklogs.json';
-import koProjects from '../../public/locales/ko/projects.json';
-import koResourcePlans from '../../public/locales/ko/resource-plans.json';
-import koOrganization from '../../public/locales/ko/organization.json';
-import koReports from '../../public/locales/ko/reports.json';
-import koErrors from '../../public/locales/ko/errors.json';
-import koValidation from '../../public/locales/ko/validation.json';
+import koCommon from '../locales/ko/common.json';
+import koNavigation from '../locales/ko/navigation.json';
+import koAuth from '../locales/ko/auth.json';
+import koDashboard from '../locales/ko/dashboard.json';
+import koWorklogs from '../locales/ko/worklogs.json';
+import koProjects from '../locales/ko/projects.json';
+import koResourcePlans from '../locales/ko/resource-plans.json';
+import koOrganization from '../locales/ko/organization.json';
+import koReports from '../locales/ko/reports.json';
+import koErrors from '../locales/ko/errors.json';
+import koValidation from '../locales/ko/validation.json';
 
 export const supportedLanguages = ['en', 'ko'] as const;
 export type SupportedLanguage = (typeof supportedLanguages)[number];

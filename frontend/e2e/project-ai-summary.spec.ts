@@ -6,7 +6,7 @@ test.describe('Project AI Summary', () => {
     await page.fill('input[type="email"]', 'gerald.park@edwardsvacuum.com');
     await page.fill('input[type="password"]', 'password');
     await page.click('button[type="submit"]');
-    await page.waitForURL('/', { timeout: 10000 });
+    await page.waitForURL(/\/(portal|dashboard)/, { timeout: 10000 });
   });
 
   test('project summary API responds correctly', async ({ page }) => {

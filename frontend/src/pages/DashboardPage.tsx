@@ -16,7 +16,6 @@ import { getLocalizedName } from '@/lib/utils';
 import { TeamDashboardContent } from '@/components/dashboard/TeamDashboardContent';
 import { WeeklySummaryCard } from '@/components/dashboard/WeeklySummaryCard';
 import { MyFTECard } from '@/components/dashboard/MyFTECard';
-import { UserWeeklyReportCard } from '@/components/dashboard/UserWeeklyReportCard';
 
 const OTHERS_KEY = '_others';
 
@@ -749,10 +748,6 @@ export const DashboardPage: React.FC = () => {
                     {/* AI Weekly Summary Card */}
                     <div className="mb-4">
                         <WeeklySummaryCard mode="user" period={viewMode} userId={activeUserId} />
-                    </div>
-
-                    <div className="mb-4">
-                        <UserWeeklyReportCard referenceDate={currentDate} userId={activeUserId} />
                     </div>
 
                     {/* Charts Row */}

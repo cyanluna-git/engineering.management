@@ -1,0 +1,35 @@
+{
+  "main": {
+    "dashboard": "대시보드",
+    "worklogs": "WorkLog",
+    "resourcePlans": "리소스 계획",
+    "resourceMatrix": "리소스 매트릭스",
+    "teamCapacity": "팀 캐패시티",
+    "reports": "리포트",
+    "weeklyReports": "주간 보고서",
+    "projects": "프로젝트",
+    "organization": "조직 관리",
+    "profile": "프로필",
+    "requestBoard": "요청 게시판"
+  },
+  "sections": {
+    "overview": "개요",
+    "workManagement": "업무 관리",
+    "projects": "프로젝트",
+    "administration": "관리"
+  },
+  "sidebar": {
+    "welcome": "환영합니다,",
+    "guest": "게스트",
+    "logout": "로그아웃",
+    "collapse": "사이드바 접기",
+    "expand": "사이드바 열기",
+    "appName": "Edwards POB",
+    "brandAcronym": "E.O.B",
+    "brandEngineering": "Engineering",
+    "brandOperation": "Operation",
+    "brandBoard": "Board",
+    "requestFeedback": "피드백/개선/의견을 남겨주세요.",
+    "updateHistory": "업데이트 히스토리"
+  }
+}

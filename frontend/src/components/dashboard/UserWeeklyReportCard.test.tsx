@@ -10,6 +10,7 @@ import {
   getWeeklyReportHistory,
   upsertWeeklyReport,
 } from "@/api/client";
+import { useAuth } from "@/hooks/useAuth";
 
 vi.mock("react-i18next", () => ({
   useTranslation: () => ({
@@ -54,9 +55,14 @@ vi.mock("@/api/client", async () => {
   };
 });
 
+vi.mock("@/hooks/useAuth", () => ({
+  useAuth: vi.fn(),
+}));
+
 const mockedGetCurrentWeeklyReport = vi.mocked(getCurrentWeeklyReport);
 const mockedGetWeeklyReportHistory = vi.mocked(getWeeklyReportHistory);
 const mockedUpsertWeeklyReport = vi.mocked(upsertWeeklyReport);
+const mockedUseAuth = vi.mocked(useAuth);
 
 function renderWithQueryClient(ui: ReactElement) {
   const queryClient = new QueryClient({
@@ -71,6 +77,21 @@ function renderWithQueryClient(ui: ReactElement) {
 
 describe("UserWeeklyReportCard", () => {
   beforeEach(() => {
+    mockedUseAuth.mockReturnValue({
+      isAuthenticated: true,
+      isLoading: false,
+      login: vi.fn(),
+      logout: vi.fn(),
+      user: {
+        id: "user-1",
+        email: "user@example.com",
+        name: "Gerald Park",
+        position_id: "pos-1",
+        role: "USER",
+        is_active: true,
+      },
+    } as ReturnType<typeof useAuth>);
+
     mockedGetCurrentWeeklyReport.mockResolvedValue({
       scope: "user",
       team_scope_type: null,
@@ -154,14 +175,14 @@ describe("UserWeeklyReportCard", () => {
     await userEvent.click(screen.getByRole("button", { name: "Save draft" }));
 
     await waitFor(() => {
-      expect(mockedUpsertWeeklyReport).toHaveBeenCalledWith(
-        expect.objectContaining({
-          scope: "user",
-          reference_date: "2026-03-11",
-          markdown_body: "### ## Highlights",
-          status: "draft",
-        })
-      );
+        expect(mockedUpsertWeeklyReport).toHaveBeenCalledWith(
+          expect.objectContaining({
+            scope: "user",
+            reference_date: "2026-03-11",
+            markdown_body: "### ## Highlights",
+            status: "published",
+          })
+        );
     });
   });
 
@@ -173,5 +194,13 @@ describe("UserWeeklyReportCard", () => {
     await userEvent.click(screen.getByRole("button", { name: "Copy last week" }));
 
     expect(screen.getByLabelText("Edit", { selector: "textarea" })).toHaveValue("## Previous Highlights");
+  });
+
+  it("renders an inline action trigger for the current user row", async () => {
+    renderWithQueryClient(<UserWeeklyReportCard referenceDate={new Date("2026-03-11")} mode="action" />);
+
+    await userEvent.click(await screen.findByRole("button", { name: "Start report" }));
+
+    expect(screen.getByText("Edit Weekly Report")).toBeInTheDocument();
   });
 });

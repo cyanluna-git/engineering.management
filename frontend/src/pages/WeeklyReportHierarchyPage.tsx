@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
+import type { ReactNode } from 'react';
 import { format, startOfWeek, addWeeks, subWeeks } from 'date-fns';
 import { useQuery } from '@tanstack/react-query';
 import {
@@ -41,6 +42,7 @@ import type {
 import type { Project } from '@/types';
 import { WeeklyReportMarkdown } from '@/components/dashboard/weekly-report-markdown';
 import { TeamWeeklyReportCard } from '@/components/dashboard/TeamWeeklyReportCard';
+import { UserWeeklyReportCard } from '@/components/dashboard/UserWeeklyReportCard';
 
 function getMonday(d: Date): Date {
   return startOfWeek(d, { weekStartsOn: 1 });
@@ -62,30 +64,34 @@ function MemberRow({
   report,
   isExpanded,
   onToggle,
+  action,
 }: {
   name: string;
   koreanName: string | null;
   report: { markdown_body: string; updated_at: string; status: string } | null;
   isExpanded: boolean;
   onToggle: () => void;
+  action?: ReactNode;
 }) {
   const displayName = koreanName || name;
   const hasReport = report && report.markdown_body.trim().length > 0;
 
   return (
     <div className="border-t border-slate-100">
-      <button
-        onClick={onToggle}
-        disabled={!hasReport}
-        className="flex w-full items-center gap-2 px-4 py-2.5 text-sm hover:bg-slate-50 transition-colors disabled:cursor-default disabled:hover:bg-transparent"
-      >
-        {hasReport ? (
-          isExpanded ? <ChevronDown className="h-3.5 w-3.5 text-slate-400 shrink-0" /> : <ChevronRight className="h-3.5 w-3.5 text-slate-400 shrink-0" />
-        ) : (
-          <User className="h-3.5 w-3.5 text-slate-300 shrink-0" />
-        )}
-        <span className={hasReport ? 'text-slate-700' : 'text-slate-400'}>{displayName}</span>
-        <span className="ml-auto flex items-center gap-2 text-xs">
+      <div className="flex items-center gap-3 px-4 py-2.5 text-sm">
+        <button
+          onClick={onToggle}
+          disabled={!hasReport}
+          className="flex min-w-0 flex-1 items-center gap-2 text-left hover:text-slate-900 disabled:cursor-default"
+        >
+          {hasReport ? (
+            isExpanded ? <ChevronDown className="h-3.5 w-3.5 text-slate-400 shrink-0" /> : <ChevronRight className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+          ) : (
+            <User className="h-3.5 w-3.5 text-slate-300 shrink-0" />
+          )}
+          <span className={hasReport ? 'truncate text-slate-700' : 'truncate text-slate-400'}>{displayName}</span>
+        </button>
+        <div className="ml-auto flex items-center gap-2 text-xs">
           {hasReport ? (
             <>
               <Badge variant="outline" className="text-xs font-normal text-green-600 border-green-200">저장됨</Badge>
@@ -94,8 +100,9 @@ function MemberRow({
           ) : (
             <Badge variant="outline" className="text-xs font-normal text-slate-400 border-slate-200">미작성</Badge>
           )}
-        </span>
-      </button>
+          {action}
+        </div>
+      </div>
       {isExpanded && hasReport && (
         <div className="px-6 pb-3 pt-1">
           <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
@@ -113,12 +120,16 @@ function SubTeamSection({
   onToggle,
   expandedMembers,
   onToggleMember,
+  currentUserId,
+  referenceDate,
 }: {
   subTeam: WeeklyReportHierarchySubTeam;
   isExpanded: boolean;
   onToggle: () => void;
   expandedMembers: Set<string>;
   onToggleMember: (userId: string) => void;
+  currentUserId?: string;
+  referenceDate: Date;
 }) {
   const hasTeamReport = subTeam.report && subTeam.report.markdown_body?.trim().length > 0;
 
@@ -157,6 +168,7 @@ function SubTeamSection({
                 report={member.report as { markdown_body: string; updated_at: string; status: string } | null}
                 isExpanded={expandedMembers.has(member.user_id)}
                 onToggle={() => onToggleMember(member.user_id)}
+                action={member.user_id === currentUserId ? <UserWeeklyReportCard referenceDate={referenceDate} mode="action" /> : undefined}
               />
             ))}
           </div>
@@ -435,6 +447,8 @@ export function WeeklyReportHierarchyPage() {
                       onToggle={() => toggleSubTeam(key)}
                       expandedMembers={expandedMembers}
                       onToggleMember={toggleMember}
+                      currentUserId={user?.id}
+                      referenceDate={referenceDate}
                     />
                   );
                 })}
@@ -521,6 +535,7 @@ export function WeeklyReportHierarchyPage() {
                                 report={member.report as { markdown_body: string; updated_at: string; status: string } | null}
                                 isExpanded={expandedProjectMembers.has(member.user_id)}
                                 onToggle={() => toggleProjectMember(member.user_id)}
+                                action={member.user_id === user?.id ? <UserWeeklyReportCard referenceDate={referenceDate} mode="action" /> : undefined}
                               />
                             ))}
                           </div>
@@ -540,6 +555,7 @@ export function WeeklyReportHierarchyPage() {
                                 report={member.report as { markdown_body: string; updated_at: string; status: string } | null}
                                 isExpanded={expandedProjectMembers.has(member.user_id)}
                                 onToggle={() => toggleProjectMember(member.user_id)}
+                                action={member.user_id === user?.id ? <UserWeeklyReportCard referenceDate={referenceDate} mode="action" /> : undefined}
                               />
                             ))}
                           </div>

@@ -40,6 +40,7 @@ import {
 interface UserWeeklyReportCardProps {
   referenceDate: Date;
   userId?: string;
+  mode?: "card" | "action";
 }
 
 function getReferenceDateKey(referenceDate: Date) {
@@ -50,7 +51,11 @@ function formatWeekLabel(weekStart: string, weekEnd: string) {
   return `${weekStart} ~ ${weekEnd}`;
 }
 
-export function UserWeeklyReportCard({ referenceDate, userId }: UserWeeklyReportCardProps) {
+export function UserWeeklyReportCard({
+  referenceDate,
+  userId,
+  mode = "card",
+}: UserWeeklyReportCardProps) {
   const { t } = useTranslation("dashboard");
   const { user } = useAuth();
   const isOwnData = !userId || userId === user?.id;
@@ -92,8 +97,9 @@ export function UserWeeklyReportCard({ referenceDate, userId }: UserWeeklyReport
       }),
     onSuccess: async () => {
       await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ["weekly-report", "user", "current", referenceDateKey] }),
-        queryClient.invalidateQueries({ queryKey: ["weekly-report", "user", "history"] }),
+        queryClient.invalidateQueries({ queryKey: ["weekly-report", "user"] }),
+        queryClient.invalidateQueries({ queryKey: ["weekly-report-hierarchy"] }),
+        queryClient.invalidateQueries({ queryKey: ["weekly-report-hierarchy-project"] }),
       ]);
       setIsEditorOpen(false);
     },
@@ -129,6 +135,114 @@ export function UserWeeklyReportCard({ referenceDate, userId }: UserWeeklyReport
   };
 
   const saveErrorMessage = saveMutation.error ? getApiError(saveMutation.error).message : null;
+  const editorDialog = (
+    <Dialog open={isEditorOpen} onOpenChange={setIsEditorOpen}>
+      <DialogContent className="max-w-4xl">
+        <DialogHeader>
+          <DialogTitle>{t("weeklyReport.editorTitle")}</DialogTitle>
+          <DialogDescription className="sr-only">
+            {currentData
+              ? t("weeklyReport.currentWeekLabel", {
+                  range: formatWeekLabel(currentData.week_start, currentData.week_end),
+                })
+              : t("weeklyReport.loading")}
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-4">
+          <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as "edit" | "preview")}>
+            <TabsList>
+              <TabsTrigger value="edit" className="gap-2">
+                <SquarePen className="h-3.5 w-3.5" />
+                {t("weeklyReport.tabEdit")}
+              </TabsTrigger>
+              <TabsTrigger value="preview" className="gap-2">
+                <Eye className="h-3.5 w-3.5" />
+                {t("weeklyReport.tabPreview")}
+              </TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="edit" className="mt-4">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <WeeklyReportEditorToolbar onAction={handleToolbarAction} />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setDraftBody(previousReport?.markdown_body ?? "")}
+                  disabled={!previousReport}
+                >
+                  {t("weeklyReport.copyPrevious")}
+                </Button>
+              </div>
+              <label htmlFor="weekly-report-body" className="sr-only">
+                {t("weeklyReport.tabEdit")}
+              </label>
+              <Textarea
+                id="weekly-report-body"
+                ref={textareaRef}
+                value={draftBody}
+                onChange={(event) => setDraftBody(event.target.value)}
+                placeholder={t("weeklyReport.editorPlaceholder")}
+                className="mt-3 min-h-[360px] resize-y font-mono text-sm"
+              />
+            </TabsContent>
+
+            <TabsContent value="preview" className="mt-4">
+              <div className="min-h-[360px] rounded-lg border border-slate-200 bg-slate-50 p-5">
+                <WeeklyReportMarkdown value={draftBody} emptyMessage={t("weeklyReport.previewEmpty")} />
+              </div>
+            </TabsContent>
+          </Tabs>
+
+          {saveErrorMessage ? (
+            <Alert variant="destructive">
+              <AlertTitle>{t("weeklyReport.saveFailedTitle")}</AlertTitle>
+              <AlertDescription>{saveErrorMessage}</AlertDescription>
+            </Alert>
+          ) : null}
+
+          <div className="flex items-center justify-between">
+            <Button variant="outline" onClick={() => setIsEditorOpen(false)}>
+              {t("weeklyReport.cancel")}
+            </Button>
+            <Button
+              onClick={() => saveMutation.mutate()}
+              disabled={saveMutation.isPending}
+              className="gap-2"
+            >
+              <Save className="h-3.5 w-3.5" />
+              {saveMutation.isPending ? t("weeklyReport.saving") : t("weeklyReport.save")}
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+
+  if (mode === "action") {
+    if (!isOwnData) {
+      return null;
+    }
+
+    return (
+      <>
+        <Button
+          type="button"
+          size="sm"
+          variant={currentReport ? "outline" : "default"}
+          onClick={handleOpenEditor}
+          disabled={currentQuery.isLoading}
+          className="gap-1.5"
+          data-testid="self-weekly-report-action"
+        >
+          {currentReport ? <PencilLine className="h-3.5 w-3.5" /> : <SquarePen className="h-3.5 w-3.5" />}
+          {currentReport ? t("weeklyReport.edit") : t("weeklyReport.start")}
+        </Button>
+        {editorDialog}
+      </>
+    );
+  }
 
   return (
     <>
@@ -221,89 +335,7 @@ export function UserWeeklyReportCard({ referenceDate, userId }: UserWeeklyReport
           )}
         </CardContent>
       </Card>
-
-      <Dialog open={isEditorOpen} onOpenChange={setIsEditorOpen}>
-        <DialogContent className="max-w-4xl">
-          <DialogHeader>
-            <DialogTitle>{t("weeklyReport.editorTitle")}</DialogTitle>
-            <DialogDescription className="sr-only">
-              {currentData
-                ? t("weeklyReport.currentWeekLabel", {
-                    range: formatWeekLabel(currentData.week_start, currentData.week_end),
-                  })
-                : t("weeklyReport.loading")}
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-4">
-            <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as "edit" | "preview")}>
-              <TabsList>
-                <TabsTrigger value="edit" className="gap-2">
-                  <SquarePen className="h-3.5 w-3.5" />
-                  {t("weeklyReport.tabEdit")}
-                </TabsTrigger>
-                <TabsTrigger value="preview" className="gap-2">
-                  <Eye className="h-3.5 w-3.5" />
-                  {t("weeklyReport.tabPreview")}
-                </TabsTrigger>
-              </TabsList>
-
-              <TabsContent value="edit" className="mt-4">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <WeeklyReportEditorToolbar onAction={handleToolbarAction} />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setDraftBody(previousReport?.markdown_body ?? "")}
-                    disabled={!previousReport}
-                  >
-                    {t("weeklyReport.copyPrevious")}
-                  </Button>
-                </div>
-                <label htmlFor="weekly-report-body" className="sr-only">
-                  {t("weeklyReport.tabEdit")}
-                </label>
-                <Textarea
-                  id="weekly-report-body"
-                  ref={textareaRef}
-                  value={draftBody}
-                  onChange={(event) => setDraftBody(event.target.value)}
-                  placeholder={t("weeklyReport.editorPlaceholder")}
-                  className="mt-3 min-h-[360px] resize-y font-mono text-sm"
-                />
-              </TabsContent>
-
-              <TabsContent value="preview" className="mt-4">
-                <div className="min-h-[360px] rounded-lg border border-slate-200 bg-slate-50 p-5">
-                  <WeeklyReportMarkdown value={draftBody} emptyMessage={t("weeklyReport.previewEmpty")} />
-                </div>
-              </TabsContent>
-            </Tabs>
-
-            {saveErrorMessage ? (
-              <Alert variant="destructive">
-                <AlertTitle>{t("weeklyReport.saveFailedTitle")}</AlertTitle>
-                <AlertDescription>{saveErrorMessage}</AlertDescription>
-              </Alert>
-            ) : null}
-
-            <div className="flex items-center justify-between">
-              <Button variant="outline" onClick={() => setIsEditorOpen(false)}>
-                {t("weeklyReport.cancel")}
-              </Button>
-              <Button
-                onClick={() => saveMutation.mutate()}
-                disabled={saveMutation.isPending}
-                className="gap-2"
-              >
-                <Save className="h-3.5 w-3.5" />
-                {saveMutation.isPending ? t("weeklyReport.saving") : t("weeklyReport.save")}
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
+      {editorDialog}
     </>
   );
 }

@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
     AreaChart,
@@ -25,6 +25,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { getDepartments, getSubTeams } from '@/api/client';
+import { useAuth } from '@/hooks/useAuth';
 import { useTeamCapacity, useTeamMembers } from '@/hooks/useTeamCapacity';
 import type { Department, SubTeam } from '@/api/client';
 import type { TeamFTEMonth, TeamMemberAtDate } from '@/types';
@@ -36,13 +37,16 @@ function formatMonthLabel(year: number, month: number): string {
 }
 
 function TeamCapacityPage() {
+    const { user } = useAuth();
+    const userDepartmentId = user?.department_id ?? '';
+    const userSubTeamId = user?.sub_team_id ?? '';
     const today = new Date();
     const currentYear = today.getFullYear();
     const currentMonth = today.getMonth() + 1;
 
     // Filter state
-    const [selectedDepartmentId, setSelectedDepartmentId] = useState<string>('');
-    const [selectedSubTeamId, setSelectedSubTeamId] = useState<string>('');
+    const [selectedDepartmentId, setSelectedDepartmentId] = useState<string | undefined>(undefined);
+    const [selectedSubTeamId, setSelectedSubTeamId] = useState<string | undefined>(undefined);
     const [year, setYear] = useState(currentYear);
 
     // Selected month for member detail view
@@ -58,40 +62,68 @@ function TeamCapacityPage() {
     });
 
     // Fetch sub-teams when department selected
+    const defaultDepartmentId = useMemo(() => {
+        if (!userDepartmentId) {
+            return '';
+        }
+
+        return departments.some((department) => department.id === userDepartmentId)
+            ? userDepartmentId
+            : '';
+    }, [departments, userDepartmentId]);
+
+    const effectiveDepartmentId = selectedDepartmentId ?? defaultDepartmentId;
+
     const { data: subTeams = [] } = useQuery<SubTeam[], Error>({
-        queryKey: ['sub-teams', selectedDepartmentId],
-        queryFn: () => getSubTeams(selectedDepartmentId),
-        enabled: !!selectedDepartmentId,
+        queryKey: ['sub-teams', effectiveDepartmentId],
+        queryFn: () => getSubTeams(effectiveDepartmentId),
+        enabled: !!effectiveDepartmentId,
     });
+
+    const defaultSubTeamId = useMemo(() => {
+        if (
+            selectedDepartmentId !== undefined ||
+            effectiveDepartmentId !== userDepartmentId ||
+            !userSubTeamId
+        ) {
+            return '';
+        }
+
+        return subTeams.some((subTeam) => subTeam.id === userSubTeamId)
+            ? userSubTeamId
+            : '';
+    }, [effectiveDepartmentId, selectedDepartmentId, subTeams, userDepartmentId, userSubTeamId]);
+
+    const effectiveSubTeamId = selectedSubTeamId ?? defaultSubTeamId;
 
     // Fetch team capacity (12 months for selected year)
     const capacityParams = useMemo(() => ({
-        department_id: selectedDepartmentId,
-        sub_team_id: selectedSubTeamId || undefined,
+        department_id: effectiveDepartmentId,
+        sub_team_id: effectiveSubTeamId || undefined,
         start_year: year,
         start_month: 1,
         end_year: year,
         end_month: 12,
-    }), [selectedDepartmentId, selectedSubTeamId, year]);
+    }), [effectiveDepartmentId, effectiveSubTeamId, year]);
 
     const {
         data: capacityData = [],
         isLoading: isCapacityLoading,
         error: capacityError,
-    } = useTeamCapacity(capacityParams, { enabled: !!selectedDepartmentId });
+    } = useTeamCapacity(capacityParams, { enabled: !!effectiveDepartmentId });
 
     // Fetch team members for selected detail month
     const memberParams = useMemo(() => ({
-        department_id: selectedDepartmentId,
-        sub_team_id: selectedSubTeamId || undefined,
+        department_id: effectiveDepartmentId,
+        sub_team_id: effectiveSubTeamId || undefined,
         year: selectedDetailMonth.year,
         month: selectedDetailMonth.month,
-    }), [selectedDepartmentId, selectedSubTeamId, selectedDetailMonth]);
+    }), [effectiveDepartmentId, effectiveSubTeamId, selectedDetailMonth]);
 
     const {
         data: members = [],
         isLoading: isMembersLoading,
-    } = useTeamMembers(memberParams, { enabled: !!selectedDepartmentId });
+    } = useTeamMembers(memberParams, { enabled: !!effectiveDepartmentId });
 
     // Chart data
     const chartData = useMemo(() => {
@@ -182,7 +214,7 @@ function TeamCapacityPage() {
 
                 <div className="flex items-center gap-3 flex-wrap">
                     {/* Department selector */}
-                    <Select value={selectedDepartmentId} onValueChange={handleDepartmentChange}>
+                    <Select value={effectiveDepartmentId} onValueChange={handleDepartmentChange}>
                         <SelectTrigger className="w-[200px] h-9 text-sm">
                             <SelectValue placeholder="Select Department" />
                         </SelectTrigger>
@@ -197,7 +229,7 @@ function TeamCapacityPage() {
 
                     {/* Sub-team selector */}
                     {subTeams.length > 0 && (
-                        <Select value={selectedSubTeamId || '__all__'} onValueChange={handleSubTeamChange}>
+                        <Select value={effectiveSubTeamId || '__all__'} onValueChange={handleSubTeamChange}>
                             <SelectTrigger className="w-[180px] h-9 text-sm">
                                 <SelectValue placeholder="All Sub-teams" />
                             </SelectTrigger>
@@ -238,7 +270,7 @@ function TeamCapacityPage() {
             </div>
 
             {/* Prompt to select department */}
-            {!selectedDepartmentId && (
+            {!effectiveDepartmentId && (
                 <Card className="flex-1 flex items-center justify-center">
                     <CardContent className="text-center py-12">
                         <AlertCircle className="w-12 h-12 text-slate-300 mx-auto mb-4" />
@@ -249,7 +281,7 @@ function TeamCapacityPage() {
             )}
 
             {/* Main content */}
-            {selectedDepartmentId && (
+            {effectiveDepartmentId && (
                 <Tabs defaultValue="overview" className="flex-1 flex flex-col min-h-0">
                     <TabsList className="self-start">
                         <TabsTrigger value="overview">Capacity Overview</TabsTrigger>

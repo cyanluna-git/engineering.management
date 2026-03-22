@@ -7,7 +7,7 @@ test.describe('Project Hierarchy Editor', () => {
     await page.fill('input[type="email"]', 'gerald.park@edwardsvacuum.com');
     await page.fill('input[type="password"]', 'password');
     await page.click('button[type="submit"]');
-    await page.waitForURL('/', { timeout: 10000 });
+    await page.waitForURL(/\/(portal|dashboard)/, { timeout: 10000 });
 
     // Navigate to projects page
     await page.goto('/projects');
@@ -200,7 +200,7 @@ test.describe('Project Form - Owner Department', () => {
     await page.fill('input[type="email"]', 'gerald.park@edwardsvacuum.com');
     await page.fill('input[type="password"]', 'password');
     await page.click('button[type="submit"]');
-    await page.waitForURL('/', { timeout: 10000 });
+    await page.waitForURL(/\/(portal|dashboard)/, { timeout: 10000 });
   });
 
   test('should show Owner Department field for Functional projects', async ({ page }) => {

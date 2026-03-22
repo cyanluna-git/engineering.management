@@ -7,7 +7,7 @@ test.describe('AI WorkLog Input', () => {
     await page.fill('input[type="email"]', 'gerald.park@edwardsvacuum.com');
     await page.fill('input[type="password"]', 'password');
     await page.click('button[type="submit"]');
-    await page.waitForURL('/', { timeout: 10000 });
+    await page.waitForURL(/\/(portal|dashboard)/, { timeout: 10000 });
 
     // Navigate to worklogs page
     await page.goto('/worklogs');
