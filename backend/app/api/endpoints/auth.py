@@ -260,19 +260,37 @@ async def change_password(
     )
 
 
+def _validate_redirect_url(redirect_url: str | None) -> str | None:
+    """Validate redirect URL against whitelist of allowed domains."""
+    if not redirect_url:
+        return None
+    from urllib.parse import urlparse
+    parsed = urlparse(redirect_url)
+    allowed_patterns = [
+        ".10.182.252.32.sslip.io",
+        "localhost",
+    ]
+    hostname = parsed.hostname or ""
+    if any(hostname.endswith(p) or hostname == p.lstrip(".") for p in allowed_patterns):
+        return redirect_url
+    logger.warning(f"SSO redirect blocked for disallowed domain: {hostname}")
+    return None
+
+
 @router.get("/sso/login")
-async def sso_login(request: Request):
+async def sso_login(request: Request, redirect: str | None = None):
     """
     Initiate SAML SSO login process.
     Redirects user to the Identity Provider (Entra ID).
+    Optional `redirect` param: after SSO, redirect tokens to this URL instead of EOB frontend.
     """
     if not settings.SAML_ENABLED:
         raise HTTPException(status_code=400, detail="SSO is not enabled")
-    
+
     # Determine if we are using HTTPS
     # In production (not DEBUG), we should generally assume HTTPS if being accessed via the proxy
     is_https = request.url.scheme == 'https' or (not settings.DEBUG and not "localhost" in request.url.netloc)
-    
+
     request_data = {
         'https': 'on' if is_https else 'off',
         'http_host': request.url.netloc,
@@ -282,9 +300,21 @@ async def sso_login(request: Request):
         'post_data': {},
         'query_string': request.url.query
     }
-    
+
     auth = SSOService.init_saml_auth(request_data)
-    return RedirectResponse(auth.login())
+    sso_url = auth.login()
+
+    # Store validated redirect URL in RelayState so it survives the SAML round-trip
+    validated_redirect = _validate_redirect_url(redirect)
+    if validated_redirect:
+        from urllib.parse import urlencode, urlparse, parse_qs, urlunparse
+        parsed = urlparse(sso_url)
+        qs = parse_qs(parsed.query)
+        qs["RelayState"] = [validated_redirect]
+        new_query = urlencode(qs, doseq=True)
+        sso_url = urlunparse(parsed._replace(query=new_query))
+
+    return RedirectResponse(sso_url)
 
 
 @router.post("/sso/callback")
@@ -366,22 +396,27 @@ async def sso_callback(request: Request, db: Session = Depends(get_db)):
     )
     refresh_token = create_refresh_token(data={"sub": user.id, "role": user.role})
     
-    # Redirect to frontend with tokens in URL fragment
-    # Fragment is not sent to server logs or Referer headers.
-    # In production, the frontend is served on the same domain as the API
-    # In local development, the frontend usually runs on port 3004
+    # Check for cross-app redirect via RelayState (e.g., POP requesting auth)
+    relay_state = form_data.get("RelayState", "")
+    redirect_target = _validate_redirect_url(relay_state) if relay_state else None
+
+    if redirect_target:
+        # External app redirect: send tokens to the requesting app
+        redirect_url = f"{redirect_target.rstrip('/')}/#token={access_token}&refresh={refresh_token}"
+        logger.info(f"SSO Login successful for {email}, redirecting to external app: {redirect_target}")
+        return RedirectResponse(url=redirect_url, status_code=status.HTTP_302_FOUND)
+
+    # Default: redirect to EOB frontend with tokens in URL fragment
     if settings.DEBUG:
-        # Use localhost:3004 for local frontend development
         frontend_url = (
             f"http://localhost:3004/#token={access_token}&refresh={refresh_token}"
         )
     else:
-        # In production, use the current host and protocol
         scheme = "https" if request.url.scheme == "https" or not settings.DEBUG else "http"
         frontend_url = (
             f"{scheme}://{request.url.netloc}/#token={access_token}&refresh={refresh_token}"
         )
-    
+
     logger.info(f"SSO Login successful for {email}, redirecting to frontend")
     return RedirectResponse(url=frontend_url, status_code=status.HTTP_302_FOUND)
 
