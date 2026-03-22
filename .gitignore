@@ -51,6 +51,8 @@ build/
 # Testing
 .coverage
 htmlcov/
+frontend/playwright-report/
+frontend/test-results/
 
 # Database Backups
 backups/

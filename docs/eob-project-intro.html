@@ -1,0 +1,694 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Edwards Project Operation Board - Engineering Resource Management Platform</title>
+<style>
+  :root {
+    --primary: #4f46e5;
+    --primary-dark: #3730a3;
+    --accent: #06b6d4;
+    --success: #10b981;
+    --warning: #f59e0b;
+    --danger: #ef4444;
+    --bg: #f8fafc;
+    --surface: #ffffff;
+    --text: #0f172a;
+    --text-secondary: #475569;
+    --border: #e2e8f0;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+    background: var(--bg); color: var(--text); line-height: 1.7;
+  }
+
+  /* Hero */
+  .hero {
+    background: linear-gradient(135deg, #1e1b4b 0%, #312e81 40%, #4f46e5 100%);
+    color: #fff; padding: 80px 0 100px; position: relative; overflow: hidden;
+  }
+  .hero::before {
+    content: ''; position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+    background: url("data:image/svg+xml,%3Csvg width='40' height='40' viewBox='0 0 40 40' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23ffffff' fill-opacity='0.03' fill-rule='evenodd'%3E%3Cpath d='M0 38.59l2.83-2.83 1.41 1.41L1.41 40H0v-1.41zM0 20l2.83-2.83 1.41 1.41L1.41 21.41 0 20zm0-18.59L2.83-1.41l1.41 1.41L1.41 2.83 0 1.41V0zM20 18.59l2.83-2.83 1.41 1.41L21.41 20l2.83 2.83-1.41 1.41L20 21.41l-2.83 2.83-1.41-1.41L18.59 20l-2.83-2.83 1.41-1.41L20 18.59z'/%3E%3C/g%3E%3C/svg%3E");
+  }
+  .hero .container { position: relative; z-index: 1; }
+  .hero h1 { font-size: 3rem; font-weight: 800; letter-spacing: -0.02em; margin-bottom: 8px; }
+  .hero .subtitle { font-size: 1.2rem; color: #a5b4fc; margin-bottom: 32px; max-width: 700px; line-height: 1.8; }
+  .hero .badge {
+    display: inline-block; background: rgba(129,140,248,0.15); color: #a5b4fc;
+    padding: 6px 16px; border-radius: 100px; font-size: 0.85rem; font-weight: 600;
+    margin-bottom: 24px; border: 1px solid rgba(129,140,248,0.3);
+  }
+  .hero-stats { display: flex; gap: 48px; margin-top: 40px; flex-wrap: wrap; }
+  .hero-stat .num { font-size: 2.5rem; font-weight: 800; color: #818cf8; }
+  .hero-stat .label { font-size: 0.85rem; color: #a5b4fc; text-transform: uppercase; letter-spacing: 0.05em; }
+
+  .container { max-width: 1120px; margin: 0 auto; padding: 0 24px; }
+  section { padding: 80px 0; }
+  section.alt { background: #fff; }
+  .section-header { text-align: center; margin-bottom: 56px; }
+  .section-header h2 { font-size: 2rem; font-weight: 700; margin-bottom: 12px; }
+  .section-header p { font-size: 1.05rem; color: var(--text-secondary); max-width: 700px; margin: 0 auto; line-height: 1.7; }
+
+  /* Problem / Solution */
+  .ps-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; align-items: start; }
+  .ps-card { padding: 32px; border-radius: 16px; }
+  .ps-card.problem { background: #fef2f2; border: 1px solid #fecaca; }
+  .ps-card.solution { background: #ecfdf5; border: 1px solid #a7f3d0; }
+  .ps-card.problem h3 { color: #dc2626; margin-bottom: 16px; font-size: 1.2rem; }
+  .ps-card.solution h3 { color: #059669; margin-bottom: 16px; font-size: 1.2rem; }
+  .ps-card ul { list-style: none; padding: 0; }
+  .ps-card li { padding: 10px 0; padding-left: 28px; position: relative; font-size: 0.95rem; color: var(--text-secondary); line-height: 1.6; }
+  .ps-card.problem li::before { content: '\2717'; position: absolute; left: 0; color: #ef4444; font-weight: 700; }
+  .ps-card.solution li::before { content: '\2713'; position: absolute; left: 0; color: #10b981; font-weight: 700; }
+
+  /* Feature Deep-Dive */
+  .feature-deep { margin-bottom: 48px; display: grid; grid-template-columns: 72px 1fr; gap: 24px; align-items: start; }
+  .feature-deep:last-child { margin-bottom: 0; }
+  .feature-num {
+    width: 64px; height: 64px; border-radius: 16px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.5rem; font-weight: 800; flex-shrink: 0;
+  }
+  .feature-deep h3 { font-size: 1.3rem; font-weight: 700; margin-bottom: 8px; }
+  .feature-deep .purpose { font-size: 0.95rem; color: var(--text-secondary); margin-bottom: 12px; font-style: italic; }
+  .feature-deep p { font-size: 0.95rem; color: var(--text); margin-bottom: 10px; }
+  .feature-deep .detail-list { list-style: none; padding: 0; margin-top: 12px; }
+  .feature-deep .detail-list li { padding: 6px 0 6px 24px; position: relative; font-size: 0.9rem; color: var(--text-secondary); }
+  .feature-deep .detail-list li::before { content: '\25B8'; position: absolute; left: 4px; color: var(--primary); font-weight: 700; }
+
+  /* Highlight Banner */
+  .highlight-banner {
+    background: linear-gradient(135deg, #1e1b4b 0%, #312e81 100%);
+    color: #fff; padding: 80px 0; position: relative; overflow: hidden;
+  }
+  .highlight-banner::before {
+    content: ''; position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+    background: linear-gradient(90deg, rgba(129,140,248,0.06) 0%, rgba(6,182,212,0.06) 100%);
+  }
+  .highlight-banner .container { position: relative; z-index: 1; }
+  .hl-label {
+    display: inline-block; background: rgba(245,158,11,0.2); color: #fbbf24;
+    padding: 4px 14px; border-radius: 100px; font-size: 0.8rem; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 20px;
+    border: 1px solid rgba(245,158,11,0.3);
+  }
+  .highlight-banner h2 { font-size: 2rem; font-weight: 800; margin-bottom: 20px; line-height: 1.3; }
+  .highlight-banner h2 em { font-style: normal; color: #818cf8; }
+  .highlight-banner .hl-desc { font-size: 1.05rem; color: #cbd5e1; max-width: 720px; line-height: 1.8; margin-bottom: 36px; }
+  .hl-flow { display: flex; align-items: center; gap: 0; flex-wrap: wrap; margin-bottom: 36px; }
+  .hl-flow-step {
+    background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 12px; padding: 18px 22px; text-align: center; min-width: 160px;
+  }
+  .hl-flow-step .step-icon { font-size: 1.6rem; margin-bottom: 6px; }
+  .hl-flow-step .step-title { font-size: 0.85rem; font-weight: 700; color: #f1f5f9; }
+  .hl-flow-step .step-desc { font-size: 0.75rem; color: #94a3b8; margin-top: 2px; }
+  .hl-flow-arrow { color: #475569; font-size: 1.2rem; padding: 0 12px; }
+  .hl-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+  .hl-card {
+    background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 12px; padding: 24px;
+  }
+  .hl-card h4 { font-size: 0.95rem; color: #f1f5f9; margin-bottom: 8px; }
+  .hl-card p { font-size: 0.85rem; color: #94a3b8; line-height: 1.6; }
+
+  /* Architecture */
+  .arch-diagram {
+    background: #1e1b4b; border-radius: 16px; padding: 40px; color: #e2e8f0;
+    font-family: 'SF Mono','Fira Code','Consolas',monospace; font-size: 0.85rem;
+    line-height: 1.8; overflow-x: auto;
+  }
+  .arch-layer {
+    background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 10px; padding: 16px 24px; margin-bottom: 12px;
+    display: flex; align-items: center; gap: 16px;
+  }
+  .arch-layer .port {
+    background: #818cf8; color: #1e1b4b; padding: 2px 10px;
+    border-radius: 6px; font-weight: 700; font-size: 0.8rem; white-space: nowrap;
+  }
+  .arch-layer .name { font-weight: 600; color: #f1f5f9; min-width: 160px; }
+  .arch-layer .desc { color: #a5b4fc; font-size: 0.8rem; }
+  .arch-connector { text-align: center; color: #6366f1; padding: 4px 0; font-size: 0.8rem; }
+
+  /* Tech Stack */
+  .stack-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+  .stack-item {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 12px; padding: 20px; text-align: center;
+  }
+  .stack-item .tech-name { font-weight: 700; font-size: 1rem; margin-bottom: 4px; }
+  .stack-item .tech-role { font-size: 0.8rem; color: var(--text-secondary); }
+  .stack-item .tech-ver { font-size: 0.75rem; color: var(--primary); font-weight: 600; }
+
+  /* Impact */
+  .impact-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 24px; }
+  .impact-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 16px; padding: 32px; display: flex; gap: 20px; align-items: flex-start;
+  }
+  .impact-icon {
+    width: 56px; height: 56px; border-radius: 14px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.5rem; flex-shrink: 0;
+  }
+  .impact-card h3 { font-size: 1.05rem; margin-bottom: 8px; }
+  .impact-card p { font-size: 0.9rem; color: var(--text-secondary); line-height: 1.6; }
+
+  /* Users Grid */
+  .users-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
+  .user-card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 28px;
+    transition: box-shadow 0.2s;
+  }
+  .user-card:hover { box-shadow: 0 8px 30px rgba(0,0,0,0.08); }
+  .user-card h3 { font-size: 1rem; margin-bottom: 10px; }
+  .user-card p { font-size: 0.88rem; color: var(--text-secondary); line-height: 1.6; }
+
+  footer {
+    background: #1e1b4b; color: #a5b4fc; padding: 40px 0; text-align: center; font-size: 0.85rem;
+  }
+  footer .version { color: #818cf8; font-weight: 600; }
+
+  @media (max-width: 768px) {
+    .hero h1 { font-size: 2rem; }
+    .hero-stats { flex-direction: column; gap: 24px; }
+    .ps-grid, .stack-grid, .impact-grid, .users-grid, .hl-cards { grid-template-columns: 1fr; }
+    .feature-deep { grid-template-columns: 1fr; }
+    .hl-flow { flex-direction: column; }
+    .hl-flow-arrow { transform: rotate(90deg); }
+  }
+  @media print {
+    .hero { padding: 40px 0 60px; }
+    section { padding: 40px 0; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ===== HERO ===== -->
+<div class="hero">
+  <div class="container">
+    <div class="badge">Edwards Vacuum &middot; EUV Program IS</div>
+    <h1>Project Operation Board</h1>
+    <p class="subtitle">
+      An integrated engineering resource management platform that replaces fragmented SharePoint and Excel workflows
+      with a unified system for worklog tracking, resource forecasting, inter-company cost allocation,
+      and AI-powered time entry &mdash; used daily by 100+ engineers across 3 global entities.
+    </p>
+    <div class="hero-stats">
+      <div class="hero-stat">
+        <div class="num">100+</div>
+        <div class="label">Active Users</div>
+      </div>
+      <div class="hero-stat">
+        <div class="num">3</div>
+        <div class="label">Global Entities</div>
+      </div>
+      <div class="hero-stat">
+        <div class="num">95%</div>
+        <div class="label">Auto-Classification</div>
+      </div>
+      <div class="hero-stat">
+        <div class="num">15ms</div>
+        <div class="label">Matrix Query P95</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== PROBLEM / SOLUTION ===== -->
+<section class="alt">
+  <div class="container">
+    <div class="section-header">
+      <h2>The Problem We Solve</h2>
+      <p>
+        Engineering teams across the EUV Program track time, allocate resources, and reconcile inter-company costs
+        using a patchwork of disconnected tools. The result is unreliable data, wasted effort, and slow financial cycles.
+      </p>
+    </div>
+    <div class="ps-grid">
+      <div class="ps-card problem">
+        <h3>Before &mdash; Fragmented Workflow</h3>
+        <ul>
+          <li>Worklogs scattered across SharePoint lists, PCAS Excel files, and personal spreadsheets with no unified view</li>
+          <li>Resource allocation decided in meetings then maintained in email threads &mdash; no live capacity dashboard</li>
+          <li>Inter-company billing (VSS/SUN/LOCAL_KR) reconciled manually each quarter with significant error margins</li>
+          <li>Cost classification done by hand &mdash; engineers guess whether their work is CAPEX-eligible or overhead</li>
+          <li>No visibility into plan vs. actual &mdash; over-allocations discovered too late to correct</li>
+          <li>Monthly compliance: managers chase engineers for missing time entries via email for weeks</li>
+        </ul>
+      </div>
+      <div class="ps-card solution">
+        <h3>After &mdash; Operation Board</h3>
+        <ul>
+          <li>Single web application for all worklog entry, resource planning, and cost reporting across 3 entities</li>
+          <li>12-month resource matrix with real-time plan vs. actual FTE comparison and variance heatmaps</li>
+          <li>Automated inter-company recharge: billing routes determined by user BU, project type, and funding entity</li>
+          <li>30+ classification rules auto-categorize every entry into GL cost buckets with 95%+ accuracy</li>
+          <li>AI-powered worklog parser: type "3h pump design, 1h PTM" and get structured entries instantly</li>
+          <li>Monthly completion tracking with automated reminders &mdash; dashboard shows gaps in real time</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== FEATURES DEEP DIVE ===== -->
+<section>
+  <div class="container">
+    <div class="section-header">
+      <h2>Platform Capabilities</h2>
+      <p>
+        Each capability addresses a specific pain point in engineering resource management.
+        Together they form a closed loop from daily time entry through financial reporting.
+      </p>
+    </div>
+
+    <!-- Feature 1 -->
+    <div class="feature-deep">
+      <div class="feature-num" style="background: #ede9fe; color: #6366f1;">1</div>
+      <div>
+        <h3>AI-Powered Worklog Entry</h3>
+        <div class="purpose">Purpose: Reduce time-entry friction to near zero so engineers actually fill in their logs consistently and accurately.</div>
+        <p>
+          The single biggest failure mode in resource tracking is <strong>missing data</strong>. Engineers find time entry tedious,
+          so they skip days, batch-enter inaccurate estimates at month-end, or abandon the system entirely.
+          Operation Board solves this with an AI parser that accepts natural language input in English or Korean.
+        </p>
+        <p>
+          Type <em>"3h pump controller design, 1.5h PTM with Tumalo team, 0.5h code review"</em> and the system
+          extracts structured entries with project resolution, activity classification, and duration breakdown.
+          The underlying LLM (Groq Llama 3.3 or Google Gemini 2.0 Flash) handles abbreviations, Korean text,
+          and fuzzy project name matching with confidence scoring.
+        </p>
+        <ul class="detail-list">
+          <li>Natural language parsing with automatic project/activity/duration extraction</li>
+          <li>Fuzzy entity matching using Jaro-Winkler similarity (handles misspellings and aliases)</li>
+          <li>Calendar UI for visual entry with day/week/month views and bulk copy for recurring meetings</li>
+          <li>Monthly completion dashboard: shows exactly which days are missing entries per engineer</li>
+          <li>CSV export for compliance reporting and external system integration</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Feature 2 -->
+    <div class="feature-deep">
+      <div class="feature-num" style="background: #dbeafe; color: #2563eb;">2</div>
+      <div>
+        <h3>Resource Matrix &mdash; 12-Month FTE Planning Grid</h3>
+        <div class="purpose">Purpose: Give managers real-time visibility into who is working on what, and whether reality matches the plan.</div>
+        <p>
+          The Resource Matrix is a pivot table showing <strong>FTE allocation per user per project across 12 months</strong>.
+          Managers see at a glance whether teams are over-allocated, under-utilized, or balanced. The matrix supports
+          both <strong>Plan</strong> (what was budgeted) and <strong>Actual</strong> (computed from real worklogs) views,
+          with variance highlighting that turns red when actuals deviate significantly from plan.
+        </p>
+        <p>
+          Clicking any cell drills down to the underlying worklogs &mdash; the exact hours that engineer logged
+          on that project in that month. This eliminates the "the numbers don't add up" conversations that
+          plague spreadsheet-based resource tracking.
+        </p>
+        <ul class="detail-list">
+          <li>Handles hundreds of users and hundreds of projects in a single interactive view</li>
+          <li>Color-coded variance heatmap: green (on-plan), amber (minor deviation), red (significant mismatch)</li>
+          <li>Fullscreen mode for planning meetings and projector display</li>
+          <li>TBD position tracking for future hires and open headcount</li>
+          <li>Optimized queries: pivot table renders in 15-100ms even at full scale (1000x improvement over initial)</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Feature 3 -->
+    <div class="feature-deep">
+      <div class="feature-num" style="background: #fef3c7; color: #d97706;">3</div>
+      <div>
+        <h3>Automatic Cost Bucket Classification</h3>
+        <div class="purpose">Purpose: Eliminate manual cost categorization and ensure every engineering hour is correctly allocated to the right GL account.</div>
+        <p>
+          Every worklog entry is automatically classified into one of four cost buckets that map directly
+          to the company's General Ledger structure. This classification determines whether the work is
+          <strong>capitalizable</strong> (DIRECT_PRODUCT, DIRECT_PROJECT) or <strong>expensed</strong>
+          (INDIRECT, OVERHEAD) &mdash; a distinction worth millions of dollars annually across the EUV Program.
+        </p>
+        <p>
+          The classification engine uses <strong>30+ priority-ordered rules</strong> that examine user context
+          (department, role), project context (type, category, funding entity), and activity code. Each entry
+          gets a confidence score. Entries below 70% confidence are flagged for manual review by financial managers,
+          ensuring exceptions are caught without burdening the majority of straightforward cases.
+        </p>
+        <ul class="detail-list">
+          <li><strong>DIRECT_PRODUCT</strong> (GL-1000): Target 60-70% &mdash; capitalizable NPI/ETO engineering work</li>
+          <li><strong>DIRECT_PROJECT</strong> (GL-1100): Target 10-15% &mdash; capitalizable project support (CEP, functional)</li>
+          <li><strong>INDIRECT</strong> (GL-2000): Target 15-20% &mdash; non-capitalizable operational work</li>
+          <li><strong>OVERHEAD</strong> (GL-3000): Target &lt;10% &mdash; admin, training, PTO, hiring activities</li>
+          <li>15 activity codes: DESIGN, TEST, DOC, RELEASE, MEET, REVIEW, PLAN, FIELD, SALES, SUSTAIN, TRIAGE, ADMIN, TRAINING, HIRING, PTO</li>
+          <li>Triggered on every worklog INSERT and UPDATE &mdash; classification always reflects current state</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Feature 4 -->
+    <div class="feature-deep">
+      <div class="feature-num" style="background: #d1fae5; color: #059669;">4</div>
+      <div>
+        <h3>Inter-Company Recharge Automation</h3>
+        <div class="purpose">Purpose: Automate the billing of engineering hours between VSS, SUN, and LOCAL_KR entities so financial close is faster and more accurate.</div>
+        <p>
+          Edwards' EUV Program spans multiple legal entities that bill each other for shared engineering resources.
+          Previously, this reconciliation was a quarterly Excel exercise that consumed weeks of finance team effort
+          and frequently contained errors. Operation Board automates the entire flow.
+        </p>
+        <p>
+          Each project is assigned a <strong>funding entity</strong> (BILLABLE, NON_BILLABLE, or INTERNAL) and mapped
+          to specific <strong>Internal Order (IO) numbers</strong> per business unit. When an engineer in LOCAL_KR
+          logs hours on a VSS-funded project, the platform automatically routes the cost to the correct recharge IO.
+          Plan vs. Actual comparison shows billing variance in real time, not three months after the fact.
+        </p>
+        <ul class="detail-list">
+          <li>Configurable IO routing per business unit and project type</li>
+          <li>Auto-classify by project name/code patterns with manual override capability</li>
+          <li>Real-time plan vs. actual recharge comparison dashboard</li>
+          <li>Support for SHARED cost pools (cross-entity common infrastructure)</li>
+          <li>Export-ready reports for SAP GL reconciliation</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Feature 5 -->
+    <div class="feature-deep">
+      <div class="feature-num" style="background: #fce7f3; color: #db2777;">5</div>
+      <div>
+        <h3>Personal &amp; Team Dashboard with AI Summaries</h3>
+        <div class="purpose">Purpose: Give every level of the organization &mdash; from individual contributor to executive &mdash; a relevant view of resource utilization.</div>
+        <p>
+          The dashboard adapts to scope: <strong>personal</strong> (my work this week), <strong>sub-team</strong>
+          (my direct reports), <strong>department</strong> (my org), or <strong>business unit</strong> (my division).
+          Each scope shows weekly worklog summaries, FTE allocation breakdown, planned vs. actual comparison,
+          and project timeline with PCP Gate milestones (G3/G5/G6).
+        </p>
+        <p>
+          AI-generated summaries distill a week of worklog data into a narrative paragraph highlighting
+          key focus areas, anomalies, and trends. Managers who oversee 20+ engineers get a synthesized
+          view instead of scrolling through hundreds of individual entries.
+        </p>
+        <ul class="detail-list">
+          <li>Multi-scope views: Personal, Sub-Team, Department, Business Unit</li>
+          <li>Weekly/monthly FTE breakdown by project and work type</li>
+          <li>AI summary generation with caching to minimize LLM API costs</li>
+          <li>Project milestone timeline with PCP Gate tracking</li>
+          <li>Work type distribution charts (Engineering, Design, Test, Documentation, Meetings)</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Feature 6 -->
+    <div class="feature-deep">
+      <div class="feature-num" style="background: #ccfbf1; color: #0d9488;">6</div>
+      <div>
+        <h3>Organization &amp; Project Hierarchy Management</h3>
+        <div class="purpose">Purpose: Model the real organizational and project structure so that reports, permissions, and cost routing all follow the same taxonomy.</div>
+        <p>
+          The platform maintains a dual hierarchy. The <strong>organization tree</strong>
+          (Division &rarr; Department &rarr; SubTeam &rarr; JobPosition) determines reporting lines
+          and dashboard scoping. The <strong>project tree</strong>
+          (BusinessUnit &rarr; Program &rarr; Project &rarr; Milestone) determines cost routing
+          and resource allocation targets. Both hierarchies are CRUD-managed through the admin UI.
+        </p>
+        <ul class="detail-list">
+          <li>Project types: PRODUCT (NPI/ETO), FUNCTIONAL (CEP), SUPPORT (standardized per BU)</li>
+          <li>Project lifecycle: Prospective &rarr; Planned &rarr; InProgress &rarr; OnHold &rarr; Completed/Cancelled</li>
+          <li>Milestone tracking with PCP Gate checkpoints (G3/G5/G6) and date targets</li>
+          <li>Filtering by status, business unit, funding entity, and project type</li>
+          <li>Automatic BU-specific support project generation for standardized overhead categories</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== HIGHLIGHT: AI + COST AUTOMATION ===== -->
+<section class="highlight-banner">
+  <div class="container">
+    <div class="hl-label">Key Differentiator</div>
+    <h2>From Natural Language to <em>GL-Ready Cost Allocation</em><br>in Under 2 Seconds.</h2>
+    <p class="hl-desc">
+      An engineer types "3h pump design, 1h PTM" in plain English. The AI parser extracts structured entries.
+      The classification engine assigns each to the correct cost bucket. The recharge system routes the cost
+      to the right entity. No manual data entry. No quarterly reconciliation surprises. No misclassified CAPEX.
+    </p>
+
+    <div class="hl-flow">
+      <div class="hl-flow-step">
+        <div class="step-icon" style="color: #818cf8;">&#128172;</div>
+        <div class="step-title">Natural Language</div>
+        <div class="step-desc">"3h pump design,<br>1h PTM meeting"</div>
+      </div>
+      <div class="hl-flow-arrow">&rarr;</div>
+      <div class="hl-flow-step">
+        <div class="step-icon" style="color: #06b6d4;">&#129302;</div>
+        <div class="step-title">AI Parser</div>
+        <div class="step-desc">Project + activity +<br>duration extracted</div>
+      </div>
+      <div class="hl-flow-arrow">&rarr;</div>
+      <div class="hl-flow-step">
+        <div class="step-icon" style="color: #f59e0b;">&#128218;</div>
+        <div class="step-title">Cost Classification</div>
+        <div class="step-desc">30+ rules &rarr; GL bucket<br>with confidence score</div>
+      </div>
+      <div class="hl-flow-arrow">&rarr;</div>
+      <div class="hl-flow-step">
+        <div class="step-icon" style="color: #10b981;">&#128176;</div>
+        <div class="step-title">Recharge Routing</div>
+        <div class="step-desc">Auto-billed to correct<br>entity &amp; IO number</div>
+      </div>
+    </div>
+
+    <div class="hl-cards">
+      <div class="hl-card">
+        <h4>Zero-Friction Entry</h4>
+        <p>Engineers log time in natural language &mdash; English or Korean. No dropdown hunting,
+          no project code memorization. Entry takes 30 seconds instead of 5 minutes.
+          The result: actual compliance rates above 95%.</p>
+      </div>
+      <div class="hl-card">
+        <h4>Financial Accuracy</h4>
+        <p>95%+ of entries auto-classified correctly. Low-confidence entries flagged for review.
+          Quarterly recharge reconciliation that took 2 weeks is now continuous and real-time.
+          Finance teams focus on exceptions, not data entry.</p>
+      </div>
+      <div class="hl-card">
+        <h4>Instant Visibility</h4>
+        <p>Resource matrix updated as worklogs are entered. Managers see plan vs. actual deviation
+          the same day, not the next quarter. Over-allocations caught in weeks, not months.
+          Strategic decisions backed by live data.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== ARCHITECTURE ===== -->
+<section class="alt">
+  <div class="container">
+    <div class="section-header">
+      <h2>System Architecture</h2>
+      <p>
+        Clean three-tier architecture with strict layer separation.
+        Frontend &rarr; API endpoints &rarr; Service layer &rarr; ORM models &rarr; PostgreSQL.
+      </p>
+    </div>
+    <div class="arch-diagram">
+      <div class="arch-layer">
+        <span class="port">3004</span>
+        <span class="name">Frontend</span>
+        <span class="desc">React 19 + TypeScript, TanStack Query, Shadcn/UI, Recharts, i18next &mdash; lazy-loaded pages, Axios with JWT interceptor</span>
+      </div>
+      <div class="arch-connector">&darr; HTTP REST (JWT-authenticated)</div>
+      <div class="arch-layer">
+        <span class="port">8004</span>
+        <span class="name">Backend API</span>
+        <span class="desc">FastAPI 0.115, 20 endpoint modules &mdash; auth, worklogs, projects, resource-plans, reports, AI relay, SAML SSO</span>
+      </div>
+      <div class="arch-connector">&darr; SQLAlchemy 2.0 async</div>
+      <div class="arch-layer">
+        <span class="port">5434</span>
+        <span class="name">PostgreSQL 16</span>
+        <span class="desc">13 model tables, 4 strategic indexes on WorkLog, Alembic migrations, daily automated backups</span>
+      </div>
+      <div class="arch-connector">&darr; HTTP (external)</div>
+      <div class="arch-layer" style="border-color: rgba(129,140,248,0.3);">
+        <span class="port" style="background: #f59e0b;">AI</span>
+        <span class="name">LLM Providers</span>
+        <span class="desc">Groq (Llama 3.3 70B) for worklog parsing, Google Gemini (2.0 Flash) fallback, Jarvis AI relay for summaries</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== TECH STACK ===== -->
+<section>
+  <div class="container">
+    <div class="section-header">
+      <h2>Technology Stack</h2>
+      <p>Production-grade tools chosen for performance, type safety, and developer experience.</p>
+    </div>
+    <div class="stack-grid">
+      <div class="stack-item">
+        <div class="tech-name">FastAPI</div>
+        <div class="tech-role">Backend Framework</div>
+        <div class="tech-ver">v0.115</div>
+      </div>
+      <div class="stack-item">
+        <div class="tech-name">React 19</div>
+        <div class="tech-role">Frontend Framework</div>
+        <div class="tech-ver">v19.2</div>
+      </div>
+      <div class="stack-item">
+        <div class="tech-name">PostgreSQL</div>
+        <div class="tech-role">Database</div>
+        <div class="tech-ver">v16</div>
+      </div>
+      <div class="stack-item">
+        <div class="tech-name">SQLAlchemy</div>
+        <div class="tech-role">Async ORM</div>
+        <div class="tech-ver">v2.0</div>
+      </div>
+      <div class="stack-item">
+        <div class="tech-name">TanStack Query</div>
+        <div class="tech-role">Data Fetching</div>
+        <div class="tech-ver">v5.90</div>
+      </div>
+      <div class="stack-item">
+        <div class="tech-name">Shadcn/UI</div>
+        <div class="tech-role">Component Library</div>
+        <div class="tech-ver">Radix-based</div>
+      </div>
+      <div class="stack-item">
+        <div class="tech-name">Groq / Gemini</div>
+        <div class="tech-role">LLM Providers</div>
+        <div class="tech-ver">Llama 3.3 / 2.0</div>
+      </div>
+      <div class="stack-item">
+        <div class="tech-name">Docker + Traefik</div>
+        <div class="tech-role">Deploy &amp; SSL</div>
+        <div class="tech-ver">Compose</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== BUSINESS IMPACT ===== -->
+<section class="alt">
+  <div class="container">
+    <div class="section-header">
+      <h2>Business Impact</h2>
+      <p>Measurable improvements across financial accuracy, resource utilization, and engineering productivity.</p>
+    </div>
+    <div class="impact-grid">
+      <div class="impact-card">
+        <div class="impact-icon" style="background: #ede9fe; color: #6366f1;">&#128176;</div>
+        <div>
+          <h3>Millions in Correct CAPEX Classification</h3>
+          <p>Automatic cost bucket assignment ensures capitalizable engineering work is correctly categorized as DIRECT_PRODUCT. Every misclassified hour costs the company real money in lost capitalization or audit risk.</p>
+        </div>
+      </div>
+      <div class="impact-card">
+        <div class="impact-icon" style="background: #dbeafe; color: #2563eb;">&#9200;</div>
+        <div>
+          <h3>Quarterly Recharge in Real Time</h3>
+          <p>Inter-company billing that took 2+ weeks of manual reconciliation per quarter is now continuous. Finance managers see deviations as they happen, not 3 months later when corrections are expensive.</p>
+        </div>
+      </div>
+      <div class="impact-card">
+        <div class="impact-icon" style="background: #d1fae5; color: #059669;">&#128200;</div>
+        <div>
+          <h3>Over-Allocation Caught Early</h3>
+          <p>The resource matrix reveals plan vs. actual variance in real time. When an engineer is allocated 120% across projects, managers see it within the current month &mdash; not during the next planning cycle.</p>
+        </div>
+      </div>
+      <div class="impact-card">
+        <div class="impact-icon" style="background: #fef3c7; color: #d97706;">&#128202;</div>
+        <div>
+          <h3>95%+ Worklog Compliance</h3>
+          <p>AI-powered entry reduces friction from 5 minutes to 30 seconds per day. Monthly completion tracking makes gaps visible instantly. The result: consistent, reliable data for every downstream decision.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== WHO USES IT ===== -->
+<section>
+  <div class="container">
+    <div class="section-header">
+      <h2>Who Uses It</h2>
+      <p>Designed for every role in the engineering organization, from individual contributors to financial controllers.</p>
+    </div>
+    <div class="users-grid">
+      <div class="user-card" style="border-top: 3px solid #6366f1;">
+        <h3>Individual Contributors</h3>
+        <p>Log daily work via AI parser or calendar UI. View personal FTE allocation and weekly summaries. Track which projects consume their time and how it maps to the plan.</p>
+      </div>
+      <div class="user-card" style="border-top: 3px solid #2563eb;">
+        <h3>Engineering Managers</h3>
+        <p>Monitor team capacity via resource matrix. Compare plan vs. actual FTE utilization. Identify over-allocations and rebalance assignments. Review team dashboards with AI summaries.</p>
+      </div>
+      <div class="user-card" style="border-top: 3px solid #059669;">
+        <h3>Project Managers</h3>
+        <p>Track project progress against milestones. Allocate FTE across team members. View resource variance and adjust staffing. Monitor PCP Gate readiness (G3/G5/G6).</p>
+      </div>
+      <div class="user-card" style="border-top: 3px solid #d97706;">
+        <h3>Financial Managers</h3>
+        <p>Review cost bucket distribution against targets (60/15/15/10). Validate inter-company recharge accuracy. Export GL-ready reports. Investigate low-confidence classifications.</p>
+      </div>
+      <div class="user-card" style="border-top: 3px solid #db2777;">
+        <h3>Division Executives</h3>
+        <p>Portal page with high-level metrics: active projects, team utilization, capacity trends. AI-powered weekly summaries that synthesize hundreds of worklogs into actionable insights.</p>
+      </div>
+      <div class="user-card" style="border-top: 3px solid #0d9488;">
+        <h3>IT / System Admins</h3>
+        <p>User management with RBAC (Admin/PM/FM/User/Guest/Viewer). SAML 2.0 SSO configuration via Microsoft Entra ID. System health monitoring and database backup management.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== QUICK START ===== -->
+<section style="background: linear-gradient(135deg, #3730a3 0%, #1e1b4b 100%); color: #fff; text-align: center;">
+  <div class="container">
+    <h2 style="font-size: 2rem; margin-bottom: 16px;">Access the Platform</h2>
+    <p style="color: #a5b4fc; margin-bottom: 32px; font-size: 1.05rem; max-width: 520px; margin-left: auto; margin-right: auto; line-height: 1.7;">
+      The Operation Board is deployed on the internal Azure VM with SSO integration.
+      Sign in with your Edwards Microsoft account.
+    </p>
+    <div style="background: rgba(0,0,0,0.3); display: inline-block; padding: 16px 40px; border-radius: 12px; font-family: 'SF Mono','Fira Code',monospace; font-size: 1.1rem; border: 1px solid rgba(255,255,255,0.1);">
+      <span style="color: #a5b4fc;">&#128279;</span> <a href="https://eob.10.182.252.32.sslip.io" style="color: #818cf8; text-decoration: none;">eob.10.182.252.32.sslip.io</a>
+    </div>
+    <div style="margin-top: 24px; display: flex; gap: 32px; justify-content: center; font-size: 0.9rem; color: #a5b4fc; flex-wrap: wrap;">
+      <span>Dashboard &rarr; <strong style="color:#818cf8;">eob.10.182.252.32.sslip.io</strong></span>
+      <span>API Docs &rarr; <strong style="color:#818cf8;">eob.10.182.252.32.sslip.io:8004/docs</strong></span>
+    </div>
+  </div>
+</section>
+
+<!-- ===== FOOTER ===== -->
+<footer>
+  <div class="container">
+    <p>
+      <strong style="color: #e0e7ff;">Edwards Project Operation Board</strong>
+      <span class="version">v1.0.0</span>
+    </p>
+    <p style="margin-top: 8px;">
+      Edwards Vacuum &middot; EUV Program IS &middot; VSS / SUN / LOCAL_KR
+    </p>
+    <p style="margin-top: 4px; font-size: 0.75rem;">
+      Built with FastAPI, React 19, PostgreSQL 16, Groq/Gemini AI &middot; Deployed on Azure VM via Docker Compose
+    </p>
+  </div>
+</footer>
+
+</body>
+</html>
