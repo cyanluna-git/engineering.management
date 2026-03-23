@@ -2,13 +2,14 @@
  * ProjectHierarchyEditor - Hierarchical management of projects
  * Level 0 (Business Unit) > Level 1 (Product Line) > Level 2 (Project)
  */
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
     Card,
     CardContent,
     CardHeader,
     CardTitle,
+    CardDescription,
     Button,
     Dialog,
     DialogContent,
@@ -27,7 +28,15 @@ import {
     SelectValue,
     SelectContent,
     SelectItem,
+    Badge,
+    StatusBadge,
 } from '@/components/ui';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import {
     getBusinessUnits,
     createBusinessUnit,
@@ -41,10 +50,10 @@ import {
     getProductLines,
     getDepartments,
 } from '@/api/client';
-import type { ProductLine, Project } from '@/types';
+import type { BusinessUnit, ProductLine, Project, ProjectCreate, ProjectUpdate } from '@/types';
 import { useApiError } from '@/hooks/useApiError';
 import { useTranslation } from 'react-i18next';
-import { useProjectHierarchy } from '@/hooks/useProjectHierarchy';
+import { useProjectHierarchy, type HierarchyNode } from '@/hooks/useProjectHierarchy';
 import { useUsers } from '@/hooks/useUsers';
 import ProjectForm from '@/components/forms/ProjectForm';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -53,8 +62,43 @@ import { ProjectInlineTable } from './ProjectInlineTable';
 import { IOManagementTab } from './IOManagementTab';
 import { useInternalIOsList } from '@/hooks/useInternalIOs';
 import { useRechargeIOsList } from '@/hooks/useRechargeIOs';
+import { MoreHorizontal } from 'lucide-react';
 
 type HierarchyLevel = 'business_unit' | 'product_line' | 'project';
+type ProjectHierarchyTab = 'product' | 'functional' | 'all' | 'io-management';
+type ProductLineCategory = NonNullable<ProductLine['line_category']>;
+type ProjectInitialValues = Partial<ProjectCreate | ProjectUpdate>;
+
+interface ProjectHierarchyLocationState {
+    activeTab?: ProjectHierarchyTab;
+}
+
+interface ProjectHierarchyProjectNode extends HierarchyNode {
+    type: 'project';
+    status: string;
+    internal_io?: {
+        io_number?: string;
+    };
+}
+
+interface ProductLineNode extends HierarchyNode {
+    type: 'product_line';
+    code: string;
+    line_category?: ProductLineCategory;
+    description?: string;
+    children?: ProjectHierarchyProjectNode[];
+}
+
+interface BusinessUnitNode extends HierarchyNode {
+    type: 'business_unit';
+    code: string;
+    children?: ProductLineNode[];
+}
+
+interface DepartmentNode extends HierarchyNode {
+    type: 'department';
+    children?: ProjectHierarchyProjectNode[];
+}
 
 // Status priority order: InProgress first, then Prospective, then others
 const STATUS_PRIORITY: Record<string, number> = {
@@ -70,13 +114,13 @@ const STATUS_PRIORITY: Record<string, number> = {
 const ACTIVE_STATUSES = ['InProgress', 'Prospective'];
 
 // Filter projects to only active ones
-const filterActiveProjects = (projects: any[]): any[] => {
+const filterActiveProjects = <T extends { status: string }>(projects: T[]): T[] => {
     if (!projects) return [];
     return projects.filter(p => ACTIVE_STATUSES.includes(p.status));
 };
 
 // Sort projects by status priority
-const sortProjectsByStatus = (projects: any[]): any[] => {
+const sortProjectsByStatus = <T extends { status: string }>(projects: T[]): T[] => {
     if (!projects) return [];
     return [...projects].sort((a, b) => {
         const priorityA = STATUS_PRIORITY[a.status] || 99;
@@ -84,6 +128,12 @@ const sortProjectsByStatus = (projects: any[]): any[] => {
         return priorityA - priorityB;
     });
 };
+
+interface ProductLineGroup {
+    businessUnit: BusinessUnitNode;
+    productLine: ProductLineNode;
+    projects: ProjectHierarchyProjectNode[];
+}
 
 export const ProjectHierarchyEditor: React.FC = () => {
 
@@ -94,9 +144,18 @@ export const ProjectHierarchyEditor: React.FC = () => {
     const getErrorMessage = useApiError();
     const { t } = useTranslation('projects');
     const { data: hierarchy, isLoading } = useProjectHierarchy();
-    const productProjects = hierarchy?.product_projects || [];
-    const functionalProjects = hierarchy?.functional_projects || [];
-    const ungroupedProjects = hierarchy?.ungrouped_projects || [];
+    const productProjects = useMemo<BusinessUnitNode[]>(
+        () => (hierarchy?.product_projects ?? []) as BusinessUnitNode[],
+        [hierarchy?.product_projects]
+    );
+    const functionalProjects = useMemo<DepartmentNode[]>(
+        () => (hierarchy?.functional_projects ?? []) as DepartmentNode[],
+        [hierarchy?.functional_projects]
+    );
+    const ungroupedProjects = useMemo<ProjectHierarchyProjectNode[]>(
+        () => (hierarchy?.ungrouped_projects ?? []) as ProjectHierarchyProjectNode[],
+        [hierarchy?.ungrouped_projects]
+    );
 
     // Fetch Business Units for Product Line modal
     const { data: businessUnits = [] } = useQuery({
@@ -130,46 +189,41 @@ export const ProjectHierarchyEditor: React.FC = () => {
     const { data: rechargeIOs = [] } = useRechargeIOsList({ is_active: true });
 
     // State
-    const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
-    const returnTab = (location.state as any)?.activeTab;
-    const [activeTab, setActiveTab] = useState(returnTab || 'product');
-
-    // Auto-expand all hierarchy items when data loads
-    useEffect(() => {
-        if (hierarchy) {
-            const allIds = new Set<string>();
-
-            // Collect all expandable IDs from product hierarchy (BU > PL)
-            productProjects.forEach((bu: any) => {
-                allIds.add(bu.id);
-                bu.children?.forEach((pl: any) => {
-                    allIds.add(pl.id);
-                });
-            });
-
-            // Collect all expandable IDs from functional hierarchy (Department)
-            functionalProjects.forEach((dept: any) => {
-                allIds.add(dept.id);
-            });
-
-            setExpandedIds(allIds);
-        }
-    }, [hierarchy, productProjects, functionalProjects]);
+    const [collapsedFunctionalIds, setCollapsedFunctionalIds] = useState<Set<string>>(new Set());
+    const returnTab = (location.state as ProjectHierarchyLocationState | null)?.activeTab;
+    const [activeTab, setActiveTab] = useState<ProjectHierarchyTab>(returnTab || 'product');
+    const expandedIds = useMemo(() => {
+        return new Set(
+            functionalProjects
+                .map((dept) => dept.id)
+                .filter((id) => !collapsedFunctionalIds.has(id))
+        );
+    }, [collapsedFunctionalIds, functionalProjects]);
 
     // Filter for Active Projects tab - only InProgress and Prospective
     const activeUngroupedProjects = useMemo(() => {
         return filterActiveProjects(ungroupedProjects);
     }, [ungroupedProjects]);
 
-    const activeProductProjects = useMemo(() => {
-        return productProjects.map((bu: any) => ({
+    const activeProductProjects = useMemo<BusinessUnitNode[]>(() => {
+        return productProjects.map((bu) => ({
             ...bu,
-            children: bu.children?.map((pl: any) => ({
+            children: bu.children?.map((pl) => ({
                 ...pl,
                 children: filterActiveProjects(pl.children || [])
-            })).filter((pl: any) => pl.children && pl.children.length > 0) || []
-        })).filter((bu: any) => bu.children && bu.children.length > 0);
+            })).filter((pl) => pl.children && pl.children.length > 0) || []
+        })).filter((bu) => bu.children && bu.children.length > 0);
     }, [productProjects]);
+
+    const activeProductGroups = useMemo<ProductLineGroup[]>(() => {
+        return activeProductProjects.flatMap((bu) =>
+            (bu.children || []).map((pl) => ({
+                businessUnit: bu,
+                productLine: pl,
+                projects: sortProjectsByStatus(pl.children || []),
+            }))
+        );
+    }, [activeProductProjects]);
 
     // Sorting and filtering are now handled by ProjectInlineTable component
 
@@ -201,7 +255,7 @@ export const ProjectHierarchyEditor: React.FC = () => {
     // Project Modal State
     const [projectModalOpen, setProjectModalOpen] = useState(false);
     const [editingProject, setEditingProject] = useState<Project | undefined>(undefined);
-    const [projectInitialValues, setProjectInitialValues] = useState<any>({});
+    const [projectInitialValues, setProjectInitialValues] = useState<ProjectInitialValues>({});
 
     // Delete Confirmation
     const [deleteConfirm, setDeleteConfirm] = useState<{ type: HierarchyLevel; id: string; name: string } | null>(null);
@@ -210,10 +264,15 @@ export const ProjectHierarchyEditor: React.FC = () => {
     // Toggle Expansion
 
     const toggleExpand = (id: string) => {
-        const newSet = new Set(expandedIds);
-        if (newSet.has(id)) newSet.delete(id);
-        else newSet.add(id);
-        setExpandedIds(newSet);
+        setCollapsedFunctionalIds((previous) => {
+            const next = new Set(previous);
+            if (expandedIds.has(id)) {
+                next.add(id);
+            } else {
+                next.delete(id);
+            }
+            return next;
+        });
     };
 
     // --- Business Unit Mutations ---
@@ -226,7 +285,7 @@ export const ProjectHierarchyEditor: React.FC = () => {
     });
 
     const updateBuMutation = useMutation({
-        mutationFn: ({ id, data }: { id: string; data: Partial<any> }) => updateBusinessUnit(id, data),
+        mutationFn: ({ id, data }: { id: string; data: Partial<BusinessUnit> }) => updateBusinessUnit(id, data),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['project-hierarchy'] });
             setBuModalOpen(false);
@@ -297,7 +356,7 @@ export const ProjectHierarchyEditor: React.FC = () => {
         setPlModalOpen(true);
     };
 
-    const handleEditProductLine = (pl: any, parentBuId: string) => {
+    const handleEditProductLine = (pl: ProductLineNode, parentBuId: string) => {
         setPlFormData({
             id: pl.id,
             name: pl.name,
@@ -364,7 +423,7 @@ export const ProjectHierarchyEditor: React.FC = () => {
         setBuModalOpen(true);
     };
 
-    const handleEditBusinessUnit = (bu: any) => {
+    const handleEditBusinessUnit = (bu: BusinessUnitNode) => {
         setBuFormData({ id: bu.id, name: bu.name, code: bu.code, is_active: true });
         setBuModalOpen(true);
     };
@@ -396,7 +455,7 @@ export const ProjectHierarchyEditor: React.FC = () => {
                 )}
             </div>
 
-            <Tabs value={activeTab} onValueChange={setActiveTab}>
+            <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as ProjectHierarchyTab)}>
                 <TabsList>
                     <TabsTrigger value="product">{t('hierarchy.tabActive')}</TabsTrigger>
                     <TabsTrigger value="functional">{t('hierarchy.tabFunctional')}</TabsTrigger>
@@ -416,36 +475,49 @@ export const ProjectHierarchyEditor: React.FC = () => {
                             </CardHeader>
                             <CardContent>
                                 <div className="space-y-1">
-                                    {sortProjectsByStatus(activeUngroupedProjects).map((proj: any) => (
-                                        <div key={proj.id} className="flex items-center justify-between p-2 text-sm hover:bg-amber-100 border border-amber-200 rounded">
-                                            <div className="flex items-center gap-2 cursor-pointer" onClick={() => navigate(`/projects/${proj.id}`, { state: { returnTab: 'product' } })}>
-                                                <span>⚠️</span>
-                                                <span>{proj.name}</span>
-                                                <span className="text-xs text-muted-foreground">{proj.internal_io?.io_number || '-'}</span>
-                                                <span className={`text-[10px] px-1.5 py-0.5 rounded ${
-                                                    proj.status === 'InProgress' ? 'bg-green-100 text-green-700' :
-                                                    proj.status === 'Completed' ? 'bg-gray-100 text-gray-700' :
-                                                    'bg-yellow-100 text-yellow-700'
-                                                }`}>
-                                                    {proj.status}
-                                                </span>
-                                            </div>
-                                            <div className="flex gap-1">
-                                                <Button
-                                                    variant="ghost" size="sm" className="h-6 w-6 text-blue-600"
-                                                    onClick={() => navigate(`/projects/${proj.id}`, { state: { returnTab: 'product' } })}
-                                                    title={t('hierarchy.editToAssign')}
-                                                >
-                                                    ✏️
-                                                </Button>
-                                                <Button
-                                                    variant="ghost" size="sm" className="h-6 w-6 text-red-600"
-                                                    onClick={() => setDeleteConfirm({ type: 'project', id: proj.id, name: proj.name })}
-                                                    title={t('hierarchy.deleteProject')}
-                                                >
-                                                    🗑️
-                                                </Button>
-                                            </div>
+                                    {sortProjectsByStatus(activeUngroupedProjects).map((proj) => (
+                                        <div key={proj.id} className="flex items-center gap-3 rounded border border-amber-200 bg-white px-3 py-3">
+                                            <button
+                                                type="button"
+                                                className="min-w-0 flex-1 text-left"
+                                                onClick={() => navigate(`/projects/${proj.id}`, { state: { returnTab: 'product' } })}
+                                            >
+                                                <p className="text-[11px] uppercase tracking-wide text-amber-700/70">
+                                                    {t('hierarchy.ungroupedTitle')}
+                                                </p>
+                                                <div className="mt-1 flex items-center gap-2">
+                                                    <span className="truncate font-medium text-slate-900">{proj.name}</span>
+                                                    {proj.internal_io?.io_number && (
+                                                        <span className="text-xs text-muted-foreground">{proj.internal_io.io_number}</span>
+                                                    )}
+                                                </div>
+                                            </button>
+                                            <StatusBadge status={proj.status} />
+                                            {canManageProjects && (
+                                                <DropdownMenu>
+                                                    <DropdownMenuTrigger asChild>
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            className="h-8 w-8"
+                                                            aria-label={`Manage project ${proj.name}`}
+                                                        >
+                                                            <MoreHorizontal className="h-4 w-4" />
+                                                        </Button>
+                                                    </DropdownMenuTrigger>
+                                                    <DropdownMenuContent align="end">
+                                                        <DropdownMenuItem onSelect={() => navigate(`/projects/${proj.id}`, { state: { returnTab: 'product' } })}>
+                                                            {t('hierarchy.editToAssign')}
+                                                        </DropdownMenuItem>
+                                                        <DropdownMenuItem
+                                                            className="text-red-600 focus:text-red-600"
+                                                            onSelect={() => setDeleteConfirm({ type: 'project', id: proj.id, name: proj.name })}
+                                                        >
+                                                            {t('hierarchy.deleteProject')}
+                                                        </DropdownMenuItem>
+                                                    </DropdownMenuContent>
+                                                </DropdownMenu>
+                                            )}
                                         </div>
                                     ))}
                                 </div>
@@ -456,149 +528,184 @@ export const ProjectHierarchyEditor: React.FC = () => {
                     <Card>
                         <CardHeader>
                             <CardTitle>{t('hierarchy.productHierarchyTitle')}</CardTitle>
+                            <CardDescription>{t('hierarchy.productListSubtitle')}</CardDescription>
                         </CardHeader>
                         <CardContent>
-                            <div className="space-y-2">
-                                {activeProductProjects.map((bu: any) => (
-                                    <div key={bu.id} className="border rounded-lg overflow-hidden">
-                                        {/* Business Unit Row */}
-                                        <div className="flex items-center justify-between p-3 bg-slate-100 hover:bg-slate-200">
-                                            <div
-                                                className="flex items-center gap-2 cursor-pointer flex-1"
-                                                onClick={() => toggleExpand(bu.id)}
-                                            >
-                                                <span className="text-lg">{expandedIds.has(bu.id) ? '📂' : '📁'}</span>
-                                                <span className="font-semibold">{bu.name}</span>
-                                                <span className="text-xs text-muted-foreground">({bu.code})</span>
-                                            </div>
-                                            {canManageProjects && (
-                                                <div className="flex gap-1">
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="sm"
-                                                        className="h-8 w-8 text-green-600"
-                                                        onClick={(e) => { e.stopPropagation(); handleAddProductLine(bu.id); }}
-                                                        title={t('hierarchy.addProductLine')}
-                                                    >
-                                                        ➕ PL
-                                                    </Button>
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="sm"
-                                                        className="h-8 w-8 text-blue-600"
-                                                        onClick={(e) => { e.stopPropagation(); handleEditBusinessUnit(bu); }}
-                                                        title={t('hierarchy.editBusinessUnit')}
-                                                    >
-                                                        ✏️
-                                                    </Button>
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="sm"
-                                                        className="h-8 w-8 text-red-600"
-                                                        onClick={(e) => { e.stopPropagation(); setDeleteConfirm({ type: 'business_unit', id: bu.id, name: bu.name }); }}
-                                                        title={t('hierarchy.deleteBusinessUnit')}
-                                                    >
-                                                        🗑️
-                                                    </Button>
-                                                </div>
-                                            )}
-                                        </div>
+                            {activeProductProjects.length === 0 ? (
+                                <div className="rounded-lg border border-dashed border-slate-200 px-6 py-10 text-center text-sm text-muted-foreground">
+                                    {t('hierarchy.noActiveProductGroups')}
+                                </div>
+                            ) : (
+                                <div className="space-y-6">
+                                    {activeProductProjects.map((bu) => {
+                                        const businessUnitGroups = activeProductGroups.filter(
+                                            (group) => group.businessUnit.id === bu.id
+                                        );
+                                        const businessUnitProjectCount = businessUnitGroups.reduce(
+                                            (count, group) => count + group.projects.length,
+                                            0
+                                        );
 
-                                        {/* Product Lines */}
-                                        {expandedIds.has(bu.id) && (
-                                            <div className="pl-6 py-2 space-y-2 bg-white">
-                                                {bu.children?.map((pl: any) => (
-                                                    <div key={pl.id} className="border-l-2 border-slate-200 pl-4">
-                                                        <div className="flex items-center justify-between p-2 hover:bg-slate-50 rounded">
-                                                            <div
-                                                                className="flex items-center gap-2 cursor-pointer flex-1"
-                                                                onClick={() => toggleExpand(pl.id)}
-                                                            >
-                                                                <span>{expandedIds.has(pl.id) ? '▼' : '▶'}</span>
-                                                                <span className="font-medium">{pl.name}</span>
-                                                                <span className="text-xs text-muted-foreground">({pl.code})</span>
-                                                                <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-100 text-blue-700">
-                                                                    {pl.line_category || 'PRODUCT'}
-                                                                </span>
-                                                            </div>
-                                                            {canManageProjects && (
-                                                                <div className="flex gap-1">
-                                                                    <Button
-                                                                        variant="ghost" size="sm" className="h-7 w-7 text-green-600"
-                                                                        onClick={(e) => { e.stopPropagation(); handleAddProject(pl.id, 'product_line'); }}
-                                                                        title={t('hierarchy.addProject')}
-                                                                    >
-                                                                        ➕
-                                                                    </Button>
-                                                                    <Button
-                                                                        variant="ghost" size="sm" className="h-7 w-7 text-blue-600"
-                                                                        onClick={(e) => { e.stopPropagation(); handleEditProductLine(pl, bu.id); }}
-                                                                        title={t('hierarchy.editProductLine')}
-                                                                    >
-                                                                        ✏️
-                                                                    </Button>
-                                                                    <Button
-                                                                        variant="ghost" size="sm" className="h-7 w-7 text-red-600"
-                                                                        onClick={(e) => { e.stopPropagation(); setDeleteConfirm({ type: 'product_line', id: pl.id, name: pl.name }); }}
-                                                                        title={t('hierarchy.deleteProductLine')}
-                                                                    >
-                                                                        🗑️
-                                                                    </Button>
-                                                                </div>
-                                                            )}
+                                        return (
+                                            <section key={bu.id} className="space-y-3" data-testid={`business-unit-group-${bu.id}`}>
+                                                <div className="flex items-start justify-between gap-3 border-b border-slate-200 pb-3">
+                                                    <div>
+                                                        <div className="flex items-center gap-2">
+                                                            <h3 className="text-lg font-semibold text-slate-900">{bu.name}</h3>
+                                                            <span className="text-xs text-muted-foreground">({bu.code})</span>
                                                         </div>
+                                                        <p className="mt-1 text-sm text-muted-foreground">
+                                                            {t('hierarchy.groupSummary', {
+                                                                projects: businessUnitProjectCount,
+                                                                count: businessUnitGroups.length,
+                                                            })}
+                                                        </p>
+                                                    </div>
+                                                    {canManageProjects && (
+                                                        <DropdownMenu>
+                                                            <DropdownMenuTrigger asChild>
+                                                                <Button
+                                                                    variant="ghost"
+                                                                    size="sm"
+                                                                    className="h-8 w-8"
+                                                                    aria-label={`Manage business unit ${bu.name}`}
+                                                                >
+                                                                    <MoreHorizontal className="h-4 w-4" />
+                                                                </Button>
+                                                            </DropdownMenuTrigger>
+                                                            <DropdownMenuContent align="end">
+                                                                <DropdownMenuItem onSelect={() => handleAddProductLine(bu.id)}>
+                                                                    {t('hierarchy.addProductLine')}
+                                                                </DropdownMenuItem>
+                                                                <DropdownMenuItem onSelect={() => handleEditBusinessUnit(bu)}>
+                                                                    {t('hierarchy.editBusinessUnit')}
+                                                                </DropdownMenuItem>
+                                                                <DropdownMenuItem
+                                                                    className="text-red-600 focus:text-red-600"
+                                                                    onSelect={() => setDeleteConfirm({ type: 'business_unit', id: bu.id, name: bu.name })}
+                                                                >
+                                                                    {t('hierarchy.deleteBusinessUnit')}
+                                                                </DropdownMenuItem>
+                                                            </DropdownMenuContent>
+                                                        </DropdownMenu>
+                                                    )}
+                                                </div>
 
-                                                        {/* Projects - sorted by status priority */}
-                                                        {expandedIds.has(pl.id) && (
-                                                            <div className="ml-4 mt-1 space-y-1">
-                                                                {sortProjectsByStatus(pl.children).map((proj: any) => (
-                                                                    <div key={proj.id} className="flex items-center justify-between p-1.5 text-sm hover:bg-slate-50 border border-slate-100 rounded">
-                                                                        <div className="flex items-center gap-2 cursor-pointer" onClick={() => navigate(`/projects/${proj.id}`, { state: { returnTab: 'product' } })}>
-                                                                            <span>🔹</span>
-                                                                            <span>{proj.name}</span>
-                                                                            <span className="text-xs text-muted-foreground">{proj.internal_io?.io_number || '-'}</span>
-                                                                            <span className={`text-[10px] px-1.5 py-0.5 rounded ${proj.status === 'InProgress' ? 'bg-green-100 text-green-700' :
-                                                                                proj.status === 'Completed' ? 'bg-gray-100 text-gray-700' :
-                                                                                    'bg-yellow-100 text-yellow-700'
-                                                                                }`}>
-                                                                                {proj.status}
-                                                                            </span>
-                                                                        </div>
-                                                                        {canManageProjects && (
-                                                                            <div className="flex gap-1">
-                                                                                <Button
-                                                                                    variant="ghost" size="sm" className="h-6 w-6 text-blue-600"
-                                                                                    onClick={() => navigate(`/projects/${proj.id}`, { state: { returnTab: 'product' } })}
-                                                                                    title={t('hierarchy.editProjectTitle')}
-                                                                                >
-                                                                                    ✏️
-                                                                                </Button>
-                                                                                <Button
-                                                                                    variant="ghost" size="sm" className="h-6 w-6 text-red-600"
-                                                                                    onClick={() => setDeleteConfirm({ type: 'project', id: proj.id, name: proj.name })}
-                                                                                    title={t('hierarchy.deleteProject')}
-                                                                                >
-                                                                                    🗑️
-                                                                                </Button>
+                                                <div className="space-y-3">
+                                                    {businessUnitGroups.map(({ productLine: pl, projects }) => (
+                                                        <div
+                                                            key={pl.id}
+                                                            className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm"
+                                                            data-testid={`product-line-group-${pl.id}`}
+                                                        >
+                                                            <div className="flex items-start justify-between gap-3 border-b border-slate-100 bg-slate-50/80 px-4 py-3">
+                                                                <div className="min-w-0">
+                                                                    <div className="flex flex-wrap items-center gap-2">
+                                                                        <h4 className="font-medium text-slate-900">{pl.name}</h4>
+                                                                        <span className="text-xs text-muted-foreground">({pl.code})</span>
+                                                                        <Badge variant="outline">{pl.line_category || 'PRODUCT'}</Badge>
+                                                                    </div>
+                                                                    <p className="mt-1 text-xs text-muted-foreground">
+                                                                        {bu.name} / {pl.name}
+                                                                    </p>
+                                                                    <p className="mt-1 text-sm text-muted-foreground">
+                                                                        {t('hierarchy.productLineSummary', { count: projects.length })}
+                                                                    </p>
+                                                                </div>
+                                                                {canManageProjects && (
+                                                                    <DropdownMenu>
+                                                                        <DropdownMenuTrigger asChild>
+                                                                            <Button
+                                                                                variant="ghost"
+                                                                                size="sm"
+                                                                                className="h-8 w-8"
+                                                                                aria-label={`Manage product line ${pl.name}`}
+                                                                            >
+                                                                                <MoreHorizontal className="h-4 w-4" />
+                                                                            </Button>
+                                                                        </DropdownMenuTrigger>
+                                                                        <DropdownMenuContent align="end">
+                                                                            <DropdownMenuItem onSelect={() => handleAddProject(pl.id, 'product_line')}>
+                                                                                {t('hierarchy.addProject')}
+                                                                            </DropdownMenuItem>
+                                                                            <DropdownMenuItem onSelect={() => handleEditProductLine(pl, bu.id)}>
+                                                                                {t('hierarchy.editProductLine')}
+                                                                            </DropdownMenuItem>
+                                                                            <DropdownMenuItem
+                                                                                className="text-red-600 focus:text-red-600"
+                                                                                onSelect={() => setDeleteConfirm({ type: 'product_line', id: pl.id, name: pl.name })}
+                                                                            >
+                                                                                {t('hierarchy.deleteProductLine')}
+                                                                            </DropdownMenuItem>
+                                                                        </DropdownMenuContent>
+                                                                    </DropdownMenu>
+                                                                )}
+                                                            </div>
+
+                                                            <div className="divide-y divide-slate-100">
+                                                                {projects.map((proj) => (
+                                                                    <div
+                                                                        key={proj.id}
+                                                                        className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50"
+                                                                        data-testid={`product-row-${proj.id}`}
+                                                                    >
+                                                                        <button
+                                                                            type="button"
+                                                                            className="min-w-0 flex-1 text-left"
+                                                                            onClick={() => navigate(`/projects/${proj.id}`, { state: { returnTab: 'product' } })}
+                                                                        >
+                                                                            <p className="text-[11px] uppercase tracking-wide text-slate-400">
+                                                                                {bu.name} / {pl.name}
+                                                                            </p>
+                                                                            <div className="mt-1 flex flex-wrap items-center gap-2">
+                                                                                <span className="truncate font-medium text-slate-900">{proj.name}</span>
+                                                                                {proj.internal_io?.io_number && (
+                                                                                    <span className="text-xs text-muted-foreground">{proj.internal_io.io_number}</span>
+                                                                                )}
                                                                             </div>
+                                                                        </button>
+                                                                        <StatusBadge status={proj.status} />
+                                                                        {canManageProjects && (
+                                                                            <DropdownMenu>
+                                                                                <DropdownMenuTrigger asChild>
+                                                                                    <Button
+                                                                                        variant="ghost"
+                                                                                        size="sm"
+                                                                                        className="h-8 w-8"
+                                                                                        aria-label={`Manage project ${proj.name}`}
+                                                                                    >
+                                                                                        <MoreHorizontal className="h-4 w-4" />
+                                                                                    </Button>
+                                                                                </DropdownMenuTrigger>
+                                                                                <DropdownMenuContent align="end">
+                                                                                    <DropdownMenuItem onSelect={() => navigate(`/projects/${proj.id}`, { state: { returnTab: 'product' } })}>
+                                                                                        {t('hierarchy.editProjectTitle')}
+                                                                                    </DropdownMenuItem>
+                                                                                    <DropdownMenuItem
+                                                                                        className="text-red-600 focus:text-red-600"
+                                                                                        onSelect={() => setDeleteConfirm({ type: 'project', id: proj.id, name: proj.name })}
+                                                                                    >
+                                                                                        {t('hierarchy.deleteProject')}
+                                                                                    </DropdownMenuItem>
+                                                                                </DropdownMenuContent>
+                                                                            </DropdownMenu>
                                                                         )}
                                                                     </div>
                                                                 ))}
-                                                                {(!pl.children || pl.children.length === 0) && (
-                                                                    <div className="text-xs text-muted-foreground italic pl-6">{t('hierarchy.noProjects')}</div>
+                                                                {projects.length === 0 && (
+                                                                    <div className="px-4 py-6 text-sm text-muted-foreground">
+                                                                        {t('hierarchy.noProjects')}
+                                                                    </div>
                                                                 )}
                                                             </div>
-                                                        )}
-                                                    </div>
-                                                ))}
-                                                {(!bu.children || bu.children.length === 0) && (
-                                                    <div className="text-xs text-muted-foreground italic pl-4">{t('hierarchy.noProductLines')}</div>
-                                                )}
-                                            </div>
-                                        )}
-                                    </div>
-                                ))}
-                            </div>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </section>
+                                        );
+                                    })}
+                                </div>
+                            )}
                         </CardContent>
                     </Card>
                 </TabsContent>
@@ -610,7 +717,7 @@ export const ProjectHierarchyEditor: React.FC = () => {
                         </CardHeader>
                         <CardContent>
                             <div className="space-y-2">
-                                {functionalProjects.map((dept: any) => (
+                                {functionalProjects.map((dept) => (
                                     <div key={dept.id} className="border rounded-lg overflow-hidden">
                                         {/* Department Row */}
                                         <div className="flex items-center justify-between p-3 bg-slate-100 hover:bg-slate-200">
@@ -636,7 +743,7 @@ export const ProjectHierarchyEditor: React.FC = () => {
                                         {/* Projects - sorted by status priority */}
                                         {expandedIds.has(dept.id) && (
                                             <div className="pl-6 py-2 bg-white space-y-1">
-                                                {sortProjectsByStatus(dept.children).map((proj: any) => (
+                                                {sortProjectsByStatus(dept.children || []).map((proj) => (
                                                     <div key={proj.id} className="flex items-center justify-between p-1.5 text-sm hover:bg-slate-50 border border-slate-100 rounded">
                                                         <div className="flex items-center gap-2 cursor-pointer" onClick={() => navigate(`/projects/${proj.id}`, { state: { returnTab: 'functional' } })}>
                                                             <span>🔹</span>
@@ -769,7 +876,7 @@ export const ProjectHierarchyEditor: React.FC = () => {
                             <Label htmlFor="pl-category" className="text-right">{t('hierarchy.lineCategory')}</Label>
                             <Select
                                 value={plFormData.line_category}
-                                onValueChange={(v: any) => setPlFormData({ ...plFormData, line_category: v })}
+                                onValueChange={(v: ProductLineCategory) => setPlFormData({ ...plFormData, line_category: v })}
                             >
                                 <SelectTrigger className="col-span-3">
                                     <SelectValue placeholder={t('hierarchy.lineCategory')} />
