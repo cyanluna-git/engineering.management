@@ -79,8 +79,22 @@ describe("TeamCapacityPage", () => {
     } as ReturnType<typeof useAuth>);
 
     mockedGetDepartments.mockResolvedValue([
-      { id: "dept-eci", name: "Electrical, Controls & Instrumentation", code: "ECI", is_active: true },
-      { id: "dept-test", name: "Test&Validation", code: "TNV", is_active: true },
+      {
+        id: "dept-eci",
+        name: "Electrical, Controls & Instrumentation",
+        code: "ECI",
+        business_unit_id: null,
+        division_id: null,
+        is_active: true,
+      },
+      {
+        id: "dept-test",
+        name: "Test&Validation",
+        code: "TNV",
+        business_unit_id: null,
+        division_id: null,
+        is_active: true,
+      },
     ]);
 
     mockedGetSubTeams.mockImplementation(async (departmentId: string) => {

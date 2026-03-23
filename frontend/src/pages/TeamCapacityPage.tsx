@@ -618,8 +618,8 @@ function TeamCapacityPage() {
                     {/* Absences Tab */}
                     <TabsContent value="absences" className="flex-1 flex flex-col gap-3 min-h-0">
                         <AbsenceList
-                            departmentId={selectedDepartmentId}
-                            subTeamId={selectedSubTeamId || undefined}
+                            departmentId={effectiveDepartmentId}
+                            subTeamId={effectiveSubTeamId || undefined}
                         />
                     </TabsContent>
                 </Tabs>
