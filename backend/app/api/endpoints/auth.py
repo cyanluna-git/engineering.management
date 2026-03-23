@@ -302,17 +302,12 @@ async def sso_login(request: Request, redirect: str | None = None):
     }
 
     auth = SSOService.init_saml_auth(request_data)
-    sso_url = auth.login()
 
-    # Store validated redirect URL in RelayState so it survives the SAML round-trip
+    # Store validated redirect URL in RelayState so it survives the SAML round-trip.
+    # Pass explicit return_to to prevent python3-saml from defaulting RelayState
+    # to the current URL (/api/auth/sso/login), which causes an infinite redirect loop.
     validated_redirect = _validate_redirect_url(redirect)
-    if validated_redirect:
-        from urllib.parse import urlencode, urlparse, parse_qs, urlunparse
-        parsed = urlparse(sso_url)
-        qs = parse_qs(parsed.query)
-        qs["RelayState"] = [validated_redirect]
-        new_query = urlencode(qs, doseq=True)
-        sso_url = urlunparse(parsed._replace(query=new_query))
+    sso_url = auth.login(return_to=validated_redirect or "")
 
     return RedirectResponse(sso_url)
 
@@ -396,8 +391,11 @@ async def sso_callback(request: Request, db: Session = Depends(get_db)):
     )
     refresh_token = create_refresh_token(data={"sub": user.id, "role": user.role})
     
-    # Check for cross-app redirect via RelayState (e.g., POP requesting auth)
+    # Check for cross-app redirect via RelayState (e.g., POP requesting auth).
+    # Ignore RelayState that points to our own SSO endpoints to prevent redirect loops.
     relay_state = form_data.get("RelayState", "")
+    if relay_state and "/auth/sso/" in relay_state:
+        relay_state = ""
     redirect_target = _validate_redirect_url(relay_state) if relay_state else None
 
     if redirect_target:
