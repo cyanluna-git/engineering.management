@@ -1,48 +1,57 @@
 /**
  * TeamsTab - Organization Hierarchy Management (Function Axis)
- * Level 0 (Division) > Level 1 (Department) > Level 2 (SubTeam)
- * Full CRUD: Create, Read, Update, Delete
+ * Simplified as Division section > Department card > SubTeam / Direct member drop zones
  */
-import React, { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import React, { useMemo, useState } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import { MoreHorizontal } from 'lucide-react';
+
 import { useApiError } from '@/hooks/useApiError';
 import { useJobPositionsList } from '@/hooks/useJobPositionsCrud';
+import { usePermissions } from '@/hooks/usePermissions';
 import { UserEditModal } from '@/components/organization/ResourcesTab';
 import {
+    Badge,
+    Button,
     Card,
     CardContent,
+    CardDescription,
     CardHeader,
     CardTitle,
-    Button,
     Dialog,
     DialogContent,
     DialogDescription,
+    DialogFooter,
     DialogHeader,
     DialogTitle,
-    DialogFooter,
 } from '@/components/ui';
 import {
-    getDivisions,
-    createDivision,
-    updateDivision,
-    deleteDivision,
-    getDepartments,
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { cn } from '@/lib/utils';
+import {
     createDepartment,
-    updateDepartment,
-    deleteDepartment,
-    getSubTeams,
+    createDivision,
     createSubTeam,
-    updateSubTeam,
+    deleteDepartment,
+    deleteDivision,
     deleteSubTeam,
+    getDepartments,
+    getDivisions,
+    getSubTeams,
     getUsers,
-    type Division,
+    updateDepartment,
+    updateDivision,
+    updateSubTeam,
+    updateUser,
     type Department,
     type SubTeam,
     type UserDetails,
 } from '@/api/client';
-import type { JobPosition } from '@/types';
-import { usePermissions } from '@/hooks/usePermissions';
 
 type OrgLevel = 'level0' | 'level1' | 'level2';
 type ModalMode = 'create' | 'edit';
@@ -52,51 +61,174 @@ interface OrgItem {
     id: string;
     name: string;
     code: string;
-    parentId?: string; // For L1 (Dept->Div) or L2 (Sub->Dept)
+    parentId?: string;
 }
+
+interface OrganizationSection {
+    id: string;
+    name: string;
+    code?: string;
+    departments: Department[];
+    isUnassigned?: boolean;
+}
+
+interface UserDropTarget {
+    departmentId: string;
+    subTeamId: string | null;
+    divisionId: string | null;
+    key: string;
+}
+
+const buildDropTargetKey = (departmentId: string, subTeamId: string | null) =>
+    `${departmentId}:${subTeamId ?? 'direct'}`;
 
 export const TeamsTab: React.FC = () => {
     const queryClient = useQueryClient();
-    const { canManageOrganization } = usePermissions();
+    const { canManageOrganization, canManageUsers } = usePermissions();
     const { t } = useTranslation('organization');
     const getErrorMessage = useApiError();
-    const [expandedL0, setExpandedL0] = useState<Set<string>>(new Set());
-    const [expandedL1, setExpandedL1] = useState<Set<string>>(new Set());
 
-    // Modal state
     const [modalOpen, setModalOpen] = useState(false);
     const [modalMode, setModalMode] = useState<ModalMode>('create');
     const [editingItem, setEditingItem] = useState<OrgItem | null>(null);
     const [formData, setFormData] = useState({ name: '', code: '', parentId: '', targetLevel: '' as OrgLevel | '' });
     const [modalError, setModalError] = useState<string | null>(null);
 
-    // Delete confirmation
     const [deleteConfirm, setDeleteConfirm] = useState<OrgItem | null>(null);
     const [deleteError, setDeleteError] = useState<string | null>(null);
 
-    // Queries
-    // Level 0: Divisions
-    const { data: level0Items = [], isLoading: loadingL0 } = useQuery({
+    const [draggedUserId, setDraggedUserId] = useState<string | null>(null);
+    const [activeDropTarget, setActiveDropTarget] = useState<string | null>(null);
+    const [moveError, setMoveError] = useState<string | null>(null);
+    const [editingMember, setEditingMember] = useState<UserDetails | null>(null);
+
+    const { data: divisions = [], isLoading: loadingDivisions } = useQuery({
         queryKey: ['divisions'],
         queryFn: getDivisions,
     });
 
-    // Level 1: Departments (Fetch all and filter client-side)
     const { data: allDepartments = [] } = useQuery({
         queryKey: ['departments'],
         queryFn: () => getDepartments(undefined, true),
     });
 
-    // Fetch all users for member counts
     const { data: allUsers = [] } = useQuery({
         queryKey: ['users-all'],
         queryFn: () => getUsers(undefined, true),
     });
 
-    // Fetch positions for member editing
     const { data: positions = [] } = useJobPositionsList();
 
-    // Mutations - Level 0 (Division)
+    const departmentIds = useMemo(
+        () => allDepartments.map((department) => department.id).sort(),
+        [allDepartments]
+    );
+
+    const { data: allSubTeams = [] } = useQuery({
+        queryKey: ['all-sub-teams', departmentIds],
+        queryFn: async () => {
+            const results = await Promise.all(
+                departmentIds.map((departmentId) => getSubTeams(departmentId))
+            );
+            return results.flat();
+        },
+        enabled: departmentIds.length > 0,
+    });
+
+    const departmentsByDivision = useMemo(() => {
+        const mapping = new Map<string, Department[]>();
+
+        divisions.forEach((division) => {
+            mapping.set(division.id, []);
+        });
+
+        allDepartments.forEach((department) => {
+            if (!department.division_id) {
+                return;
+            }
+
+            const existing = mapping.get(department.division_id) ?? [];
+            existing.push(department);
+            mapping.set(department.division_id, existing);
+        });
+
+        for (const departments of mapping.values()) {
+            departments.sort((left, right) => left.name.localeCompare(right.name));
+        }
+
+        return mapping;
+    }, [allDepartments, divisions]);
+
+    const orphanedDepartments = useMemo(
+        () => allDepartments.filter((department) => !department.division_id).sort((left, right) => left.name.localeCompare(right.name)),
+        [allDepartments]
+    );
+
+    const subTeamsByDepartment = useMemo(() => {
+        const mapping = new Map<string, SubTeam[]>();
+
+        allSubTeams.forEach((subTeam) => {
+            const existing = mapping.get(subTeam.department_id) ?? [];
+            existing.push(subTeam);
+            mapping.set(subTeam.department_id, existing);
+        });
+
+        for (const subTeams of mapping.values()) {
+            subTeams.sort((left, right) => left.name.localeCompare(right.name));
+        }
+
+        return mapping;
+    }, [allSubTeams]);
+
+    const usersByDepartment = useMemo(() => {
+        const mapping = new Map<string, UserDetails[]>();
+
+        allUsers.forEach((user) => {
+            if (!user.department_id) {
+                return;
+            }
+
+            const existing = mapping.get(user.department_id) ?? [];
+            existing.push(user);
+            mapping.set(user.department_id, existing);
+        });
+
+        for (const users of mapping.values()) {
+            users.sort((left, right) => {
+                const leftName = left.korean_name || left.name;
+                const rightName = right.korean_name || right.name;
+                return leftName.localeCompare(rightName);
+            });
+        }
+
+        return mapping;
+    }, [allUsers]);
+
+    const positionsById = useMemo(
+        () => new Map(positions.map((position) => [position.id, position.name])),
+        [positions]
+    );
+
+    const organizationSections = useMemo<OrganizationSection[]>(() => {
+        const sections: OrganizationSection[] = divisions.map((division) => ({
+            id: division.id,
+            name: division.name,
+            code: division.code,
+            departments: departmentsByDivision.get(division.id) ?? [],
+        }));
+
+        if (orphanedDepartments.length > 0) {
+            sections.push({
+                id: 'unassigned',
+                name: t('teams.unassignedDepts'),
+                departments: orphanedDepartments,
+                isUnassigned: true,
+            });
+        }
+
+        return sections;
+    }, [departmentsByDivision, divisions, orphanedDepartments, t]);
+
     const createL0 = useMutation({
         mutationFn: (data: { name: string; code: string }) =>
             createDivision({ name: data.name, code: data.code, is_active: true }),
@@ -132,14 +264,13 @@ export const TeamsTab: React.FC = () => {
         },
     });
 
-    // Mutations - Level 1 (Department)
     const createL1 = useMutation({
         mutationFn: (data: { name: string; code: string; parentId: string }) =>
             createDepartment({
                 name: data.name,
                 code: data.code,
-                division_id: data.parentId,
-                business_unit_id: null, // Required field, nullable
+                division_id: data.parentId || null,
+                business_unit_id: null,
                 is_active: true
             }),
         onSuccess: () => {
@@ -175,12 +306,11 @@ export const TeamsTab: React.FC = () => {
         },
     });
 
-    // Mutations - Level 2 (SubTeam)
     const createL2 = useMutation({
         mutationFn: (data: { name: string; code: string; parentId: string }) =>
             createSubTeam(data.parentId, { name: data.name, code: data.code, is_active: true }),
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['sub-teams'] });
+            queryClient.invalidateQueries({ queryKey: ['all-sub-teams'] });
             closeModal();
         },
         onError: (error: unknown) => {
@@ -191,7 +321,7 @@ export const TeamsTab: React.FC = () => {
     const updateL2 = useMutation({
         mutationFn: ({ id, name }: { id: string; name: string }) => updateSubTeam(id, { name }),
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['sub-teams'] });
+            queryClient.invalidateQueries({ queryKey: ['all-sub-teams'] });
             closeModal();
         },
         onError: (error: unknown) => {
@@ -202,7 +332,7 @@ export const TeamsTab: React.FC = () => {
     const deleteL2 = useMutation({
         mutationFn: deleteSubTeam,
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['sub-teams'] });
+            queryClient.invalidateQueries({ queryKey: ['all-sub-teams'] });
             setDeleteConfirm(null);
             setDeleteError(null);
         },
@@ -211,20 +341,26 @@ export const TeamsTab: React.FC = () => {
         },
     });
 
-    // Handlers
-    const toggleL0 = (id: string) => {
-        const newSet = new Set(expandedL0);
-        if (newSet.has(id)) newSet.delete(id);
-        else newSet.add(id);
-        setExpandedL0(newSet);
-    };
-
-    const toggleL1 = (id: string) => {
-        const newSet = new Set(expandedL1);
-        if (newSet.has(id)) newSet.delete(id);
-        else newSet.add(id);
-        setExpandedL1(newSet);
-    };
+    const moveUserMutation = useMutation({
+        mutationFn: ({ user, target }: { user: UserDetails; target: UserDropTarget }) =>
+            updateUser(user.id, {
+                division_id: target.divisionId,
+                department_id: target.departmentId,
+                sub_team_id: target.subTeamId,
+            }),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['users-all'] });
+            queryClient.invalidateQueries({ queryKey: ['users'] });
+            setMoveError(null);
+        },
+        onError: (error: unknown) => {
+            setMoveError(getErrorMessage(error));
+        },
+        onSettled: () => {
+            setDraggedUserId(null);
+            setActiveDropTarget(null);
+        },
+    });
 
     const openCreateModal = (type: OrgLevel, parentId?: string) => {
         setModalMode('create');
@@ -253,8 +389,6 @@ export const TeamsTab: React.FC = () => {
         setModalError(null);
         if (!formData.name.trim()) return;
 
-        // In create mode, always generate code from name if not provided
-        // In edit mode, keep existing code
         const code = formData.code.trim() || formData.name.toUpperCase().replace(/\s+/g, '_').slice(0, 10);
 
         if (modalMode === 'create') {
@@ -283,79 +417,195 @@ export const TeamsTab: React.FC = () => {
         else if (deleteConfirm.type === 'level2') deleteL2.mutate(deleteConfirm.id);
     };
 
-    if (loadingL0) return <div className="text-center py-8">{t('common:status.loading')}</div>;
+    const handleDrop = (target: UserDropTarget) => {
+        if (!canManageUsers || !draggedUserId) {
+            return;
+        }
 
-    // Filter "Orphaned" Departments (No Division)
-    const orphanedDepartments = allDepartments.filter(d => !d.division_id);
+        const draggedUser = allUsers.find((user) => user.id === draggedUserId);
+        if (!draggedUser) {
+            return;
+        }
+
+        const isSameAssignment =
+            draggedUser.department_id === target.departmentId &&
+            (draggedUser.sub_team_id ?? null) === target.subTeamId &&
+            (draggedUser.division_id ?? null) === target.divisionId;
+
+        if (isSameAssignment) {
+            setDraggedUserId(null);
+            setActiveDropTarget(null);
+            return;
+        }
+
+        moveUserMutation.mutate({ user: draggedUser, target });
+    };
+
+    if (loadingDivisions) return <div className="py-8 text-center">{t('common:status.loading')}</div>;
 
     return (
         <>
             <Card>
-                <CardHeader className="flex flex-row items-center justify-between">
-                    <CardTitle>Organization Hierarchy (Division &gt; Dept &gt; SubTeam)</CardTitle>
+                <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="space-y-1">
+                        <CardTitle>{t('teams.hierarchy')}</CardTitle>
+                        <CardDescription>{t('teams.listSubtitle')}</CardDescription>
+                    </div>
                     {canManageOrganization && (
                         <Button onClick={() => openCreateModal('level0')}>{t('teams.addDivision')}</Button>
                     )}
                 </CardHeader>
-                <CardContent>
-                    <div className="space-y-4">
-                        {/* Divisions */}
-                        {level0Items.map((div) => {
-                            const divDepts = allDepartments.filter(d => d.division_id === div.id);
-                            return (
-                                <DivisionRow
-                                    key={div.id}
-                                    item={div}
-                                    departments={divDepts}
-                                    allUsers={allUsers}
-                                    positions={positions}
-                                    isExpanded={expandedL0.has(div.id)}
-                                    expandedL1={expandedL1}
-                                    canManageOrganization={canManageOrganization}
-                                    onToggle={() => toggleL0(div.id)}
-                                    onToggleL1={toggleL1}
-                                    onEdit={() => openEditModal({ type: 'level0', id: div.id, name: div.name, code: div.code })}
-                                    onDelete={() => setDeleteConfirm({ type: 'level0', id: div.id, name: div.name, code: div.code })}
-                                    onAddChild={() => openCreateModal('level1', div.id)}
-                                    onEditChildL1={(dept) => openEditModal({ type: 'level1', id: dept.id, name: dept.name, code: dept.code, parentId: div.id })}
-                                    onDeleteChildL1={(dept) => setDeleteConfirm({ type: 'level1', id: dept.id, name: dept.name, code: dept.code })}
-                                    onAddChildL2={(deptId) => openCreateModal('level2', deptId)}
-                                    onEditChildL2={(st, deptId) => openEditModal({ type: 'level2', id: st.id, name: st.name, code: st.code, parentId: deptId })}
-                                    onDeleteChildL2={(st) => setDeleteConfirm({ type: 'level2', id: st.id, name: st.name, code: st.code })}
-                                    queryClient={queryClient}
-                                />
-                            );
-                        })}
+                <CardContent className="space-y-4">
+                    {moveError && (
+                        <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                            {moveError}
+                        </div>
+                    )}
 
-                        {/* Orphaned Departments */}
-                        {orphanedDepartments.length > 0 && (
-                            <div className="border rounded-lg bg-gray-50 border-dashed border-gray-300">
-                                <div className="p-3 font-medium text-gray-500">{t('teams.unassignedDepts')}</div>
-                                <div className="p-3 pt-0 space-y-2">
-                                    {orphanedDepartments.map(dept => (
-                                        <DepartmentRow
-                                            key={dept.id}
-                                            item={dept}
-                                            allUsers={allUsers}
-                                            positions={positions}
-                                            isExpanded={expandedL1.has(dept.id)}
-                                            onToggle={() => toggleL1(dept.id)}
-                                            onEdit={() => openEditModal({ type: 'level1', id: dept.id, name: dept.name, code: dept.code })}
-                                            onDelete={() => setDeleteConfirm({ type: 'level1', id: dept.id, name: dept.name, code: dept.code })}
-                                            onAddChild={() => openCreateModal('level2', dept.id)}
-                                            onEditChild={(st) => openEditModal({ type: 'level2', id: st.id, name: st.name, code: st.code, parentId: dept.id })}
-                                            onDeleteChild={(st) => setDeleteConfirm({ type: 'level2', id: st.id, name: st.name, code: st.code })}
-                                            queryClient={queryClient}
-                                        />
-                                    ))}
+                    {organizationSections.map((section) => {
+                        const sectionMemberCount = section.departments.reduce(
+                            (count, department) => count + (usersByDepartment.get(department.id)?.length ?? 0),
+                            0
+                        );
+
+                        return (
+                            <section
+                                key={section.id}
+                                className="space-y-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
+                                data-testid={`division-section-${section.id}`}
+                            >
+                                <div className="flex items-start justify-between gap-3 border-b border-slate-200 pb-3">
+                                    <div className="space-y-1">
+                                        <div className="flex flex-wrap items-center gap-2">
+                                            <h3 className="text-lg font-semibold text-slate-900">{section.name}</h3>
+                                            {section.code && (
+                                                <span className="text-xs text-muted-foreground">({section.code})</span>
+                                            )}
+                                        </div>
+                                        <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+                                            <Badge variant="outline">
+                                                {t('teams.departmentsSummary', { count: section.departments.length })}
+                                            </Badge>
+                                            <Badge variant="outline">
+                                                {t('teams.membersSummary', { count: sectionMemberCount })}
+                                            </Badge>
+                                        </div>
+                                    </div>
+
+                                    {canManageOrganization && (
+                                        <div className="flex items-center gap-2">
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={() => openCreateModal('level1', section.isUnassigned ? undefined : section.id)}
+                                            >
+                                                {t('teams.addDept')}
+                                            </Button>
+                                            {!section.isUnassigned && (
+                                                <DropdownMenu>
+                                                    <DropdownMenuTrigger asChild>
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            className="h-8 w-8"
+                                                            aria-label={`Manage division ${section.name}`}
+                                                        >
+                                                            <MoreHorizontal className="h-4 w-4" />
+                                                        </Button>
+                                                    </DropdownMenuTrigger>
+                                                    <DropdownMenuContent align="end">
+                                                        <DropdownMenuItem
+                                                            onSelect={() => openEditModal({
+                                                                type: 'level0',
+                                                                id: section.id,
+                                                                name: section.name,
+                                                                code: section.code || '',
+                                                            })}
+                                                        >
+                                                            {t('teams.editOrg')}
+                                                        </DropdownMenuItem>
+                                                        <DropdownMenuItem
+                                                            className="text-red-600 focus:text-red-600"
+                                                            onSelect={() => setDeleteConfirm({
+                                                                type: 'level0',
+                                                                id: section.id,
+                                                                name: section.name,
+                                                                code: section.code || '',
+                                                            })}
+                                                        >
+                                                            {t('common:buttons.delete')}
+                                                        </DropdownMenuItem>
+                                                    </DropdownMenuContent>
+                                                </DropdownMenu>
+                                            )}
+                                        </div>
+                                    )}
                                 </div>
-                            </div>
-                        )}
-                    </div>
+
+                                {section.departments.length === 0 ? (
+                                    <div className="rounded-lg border border-dashed border-slate-200 px-4 py-8 text-center text-sm text-muted-foreground">
+                                        {t('teams.noDepartments')}
+                                    </div>
+                                ) : (
+                                    <div className="grid gap-4 xl:grid-cols-2">
+                                        {section.departments.map((department) => (
+                                            <DepartmentCard
+                                                key={department.id}
+                                                department={department}
+                                                divisionId={department.division_id}
+                                                members={usersByDepartment.get(department.id) ?? []}
+                                                subTeams={subTeamsByDepartment.get(department.id) ?? []}
+                                                positionsById={positionsById}
+                                                canManageOrganization={canManageOrganization}
+                                                canManageUsers={canManageUsers}
+                                                draggedUserId={draggedUserId}
+                                                activeDropTarget={activeDropTarget}
+                                                onDragStart={setDraggedUserId}
+                                                onDragEnd={() => {
+                                                    setDraggedUserId(null);
+                                                    setActiveDropTarget(null);
+                                                }}
+                                                onDragEnter={setActiveDropTarget}
+                                                onDragLeave={() => setActiveDropTarget(null)}
+                                                onDrop={handleDrop}
+                                                onEditDepartment={() => openEditModal({
+                                                    type: 'level1',
+                                                    id: department.id,
+                                                    name: department.name,
+                                                    code: department.code,
+                                                    parentId: department.division_id || undefined,
+                                                })}
+                                                onDeleteDepartment={() => setDeleteConfirm({
+                                                    type: 'level1',
+                                                    id: department.id,
+                                                    name: department.name,
+                                                    code: department.code,
+                                                })}
+                                                onAddSubTeam={() => openCreateModal('level2', department.id)}
+                                                onEditSubTeam={(subTeam) => openEditModal({
+                                                    type: 'level2',
+                                                    id: subTeam.id,
+                                                    name: subTeam.name,
+                                                    code: subTeam.code,
+                                                    parentId: department.id,
+                                                })}
+                                                onDeleteSubTeam={(subTeam) => setDeleteConfirm({
+                                                    type: 'level2',
+                                                    id: subTeam.id,
+                                                    name: subTeam.name,
+                                                    code: subTeam.code,
+                                                })}
+                                                onEditMember={setEditingMember}
+                                            />
+                                        ))}
+                                    </div>
+                                )}
+                            </section>
+                        );
+                    })}
                 </CardContent>
             </Card>
 
-            {/* Create/Edit Modal */}
             <Dialog open={modalOpen} onOpenChange={closeModal}>
                 <DialogContent>
                     <DialogHeader>
@@ -366,61 +616,57 @@ export const TeamsTab: React.FC = () => {
                     </DialogHeader>
 
                     {modalError && (
-                        <div className="p-3 bg-red-50 border border-red-200 rounded text-red-600 text-sm">
-                            ⚠️ {modalError}
+                        <div className="rounded border border-red-200 bg-red-50 p-3 text-sm text-red-600">
+                            {modalError}
                         </div>
                     )}
 
                     <div className="space-y-4 py-4">
-                        {/* Level Selection (readonly) */}
                         <div>
-                            <label className="block text-sm font-medium mb-1">{t('teams.level')}</label>
-                            <div className="text-sm font-medium px-3 py-2 rounded bg-slate-100">
+                            <label className="mb-1 block text-sm font-medium">{t('teams.level')}</label>
+                            <div className="rounded bg-slate-100 px-3 py-2 text-sm font-medium">
                                 {formData.targetLevel === 'level0' ? 'Level 0 (Division)' :
                                     formData.targetLevel === 'level1' ? 'Level 1 (Department)' : 'Level 2 (SubTeam)'}
                             </div>
                         </div>
 
-                        {/* Name */}
                         <div>
-                            <label className="block text-sm font-medium mb-1">{t('teams.nameRequired')}</label>
+                            <label className="mb-1 block text-sm font-medium">{t('teams.nameRequired')}</label>
                             <input
                                 type="text"
-                                className="w-full border rounded px-3 py-2"
+                                className="w-full rounded border px-3 py-2"
                                 value={formData.name}
-                                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                                onChange={(event) => setFormData({ ...formData, name: event.target.value })}
                                 placeholder={t('teams.orgNamePlaceholder')}
                             />
                         </div>
 
-                        {/* Division Selection (For Level 1) */}
                         {formData.targetLevel === 'level1' && (
                             <div>
-                                <label className="block text-sm font-medium mb-1">{t('teams.parentDivision')}</label>
+                                <label className="mb-1 block text-sm font-medium">{t('teams.parentDivision')}</label>
                                 <select
-                                    className="w-full border rounded px-3 py-2"
+                                    className="w-full rounded border px-3 py-2"
                                     value={formData.parentId}
-                                    onChange={(e) => setFormData({ ...formData, parentId: e.target.value })}
+                                    onChange={(event) => setFormData({ ...formData, parentId: event.target.value })}
                                 >
                                     <option value="">{t('teams.noParent')}</option>
-                                    {level0Items.map(div => (
-                                        <option key={div.id} value={div.id}>
-                                            {div.name}
+                                    {divisions.map((division) => (
+                                        <option key={division.id} value={division.id}>
+                                            {division.name}
                                         </option>
                                     ))}
                                 </select>
                             </div>
                         )}
 
-                        {/* Code (create only) */}
                         {modalMode === 'create' && (
                             <div>
-                                <label className="block text-sm font-medium mb-1">{t('teams.code')}</label>
+                                <label className="mb-1 block text-sm font-medium">{t('teams.code')}</label>
                                 <input
                                     type="text"
-                                    className="w-full border rounded px-3 py-2"
+                                    className="w-full rounded border px-3 py-2"
                                     value={formData.code}
-                                    onChange={(e) => setFormData({ ...formData, code: e.target.value })}
+                                    onChange={(event) => setFormData({ ...formData, code: event.target.value })}
                                     placeholder={t('teams.codeAutoGenerated')}
                                 />
                             </div>
@@ -435,7 +681,6 @@ export const TeamsTab: React.FC = () => {
                 </DialogContent>
             </Dialog>
 
-            {/* Delete Confirmation Modal */}
             <Dialog open={!!deleteConfirm} onOpenChange={() => { setDeleteConfirm(null); setDeleteError(null); }}>
                 <DialogContent>
                     <DialogHeader>
@@ -445,8 +690,8 @@ export const TeamsTab: React.FC = () => {
                         </DialogDescription>
                     </DialogHeader>
                     {deleteError && (
-                        <div className="p-3 bg-red-50 border border-red-200 rounded text-red-700 text-sm">
-                            ⚠️ {deleteError}
+                        <div className="rounded border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+                            {deleteError}
                         </div>
                     )}
                     <DialogFooter>
@@ -455,198 +700,7 @@ export const TeamsTab: React.FC = () => {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
-        </>
-    );
-};
 
-// Division Row (Level 0)
-const DivisionRow: React.FC<{
-    item: Division;
-    departments: Department[];
-    allUsers: UserDetails[];
-    positions: JobPosition[];
-    isExpanded: boolean;
-    expandedL1: Set<string>;
-    canManageOrganization: boolean;
-    onToggle: () => void;
-    onToggleL1: (id: string) => void;
-    onEdit: () => void;
-    onDelete: () => void;
-    onAddChild: () => void;
-    onEditChildL1: (dept: Department) => void;
-    onDeleteChildL1: (dept: Department) => void;
-    onAddChildL2: (deptId: string) => void;
-    onEditChildL2: (st: SubTeam, deptId: string) => void;
-    onDeleteChildL2: (st: SubTeam) => void;
-    queryClient: ReturnType<typeof useQueryClient>;
-}> = ({ item, departments, allUsers, positions, isExpanded, expandedL1, canManageOrganization, onToggle, onToggleL1, onEdit, onDelete, onAddChild, onEditChildL1, onDeleteChildL1, onAddChildL2, onEditChildL2, onDeleteChildL2, queryClient }) => {
-
-    return (
-        <div className="border rounded-lg bg-white overflow-hidden shadow-sm">
-            <div className="flex items-center justify-between p-4 bg-slate-50 hover:bg-slate-100 border-b">
-                <div className="flex items-center gap-3 cursor-pointer flex-1" onClick={onToggle}>
-                    <span className="text-xl transform transition-transform duration-200" style={{ transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)' }}>▶</span>
-                    <div>
-                        <div className="font-bold text-lg">{item.name}</div>
-                    </div>
-                </div>
-                {canManageOrganization && (
-                    <div className="flex gap-2">
-                        <Button variant="outline" size="sm" className="h-8 text-xs" onClick={(e) => { e.stopPropagation(); onAddChild(); }}>+ Dept</Button>
-                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={(e) => { e.stopPropagation(); onEdit(); }}>✏️</Button>
-                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-red-500 hover:text-red-700 hover:bg-red-50" onClick={(e) => { e.stopPropagation(); onDelete(); }}>🗑️</Button>
-                    </div>
-                )}
-            </div>
-
-            {isExpanded && (
-                <div className="p-4 space-y-3 bg-white">
-                    {departments.length === 0 ? (
-                        <div className="text-sm text-gray-400 italic pl-4">No Departments</div>
-                    ) : (
-                        departments.map(dept => (
-                            <DepartmentRow
-                                key={dept.id}
-                                item={dept}
-                                allUsers={allUsers}
-                                positions={positions}
-                                isExpanded={expandedL1.has(dept.id)}
-                                onToggle={() => onToggleL1(dept.id)}
-                                onEdit={() => onEditChildL1(dept)}
-                                onDelete={() => onDeleteChildL1(dept)}
-                                onAddChild={() => onAddChildL2(dept.id)}
-                                onEditChild={(st) => onEditChildL2(st, dept.id)}
-                                onDeleteChild={onDeleteChildL2}
-                                queryClient={queryClient}
-                            />
-                        ))
-                    )}
-                </div>
-            )}
-        </div>
-    );
-};
-
-// Department Row (Level 1)
-const DepartmentRow: React.FC<{
-    item: Department;
-    allUsers: UserDetails[];
-    positions: JobPosition[];
-    isExpanded: boolean;
-    onToggle: () => void;
-    onEdit: () => void;
-    onDelete: () => void;
-    onAddChild: () => void;
-    onEditChild: (st: SubTeam) => void;
-    onDeleteChild: (st: SubTeam) => void;
-    queryClient: ReturnType<typeof useQueryClient>;
-}> = ({ item, allUsers, positions, isExpanded, onToggle, onEdit, onDelete, onAddChild, onEditChild, onDeleteChild, queryClient }) => {
-    const [editingMember, setEditingMember] = useState<UserDetails | null>(null);
-
-    const { data: subTeams = [] } = useQuery({
-        queryKey: ['sub-teams', item.id],
-        queryFn: () => getSubTeams(item.id),
-        enabled: isExpanded,
-    });
-
-    const deptMembers = allUsers.filter(u => u.department_id === item.id);
-
-    return (
-        <div className="border rounded bg-white">
-            <div className="flex items-center justify-between p-2 pl-3 hover:bg-gray-50">
-                <div className="flex items-center gap-2 cursor-pointer flex-1" onClick={onToggle}>
-                    <span className="text-sm text-gray-500">{isExpanded ? '📂' : '📁'}</span>
-                    <span className="font-semibold text-sm">{item.name}</span>
-                    <span className="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full">
-                        {deptMembers.length}
-                    </span>
-                </div>
-                <div className="flex gap-1 opacity-60 hover:opacity-100 transition-opacity">
-                    <button className="text-green-600 hover:bg-green-50 text-xs px-2 py-1 rounded" onClick={(e) => { e.stopPropagation(); onAddChild(); }}>+Team</button>
-                    <button className="text-blue-600 hover:bg-blue-50 text-xs px-1 py-1 rounded" onClick={(e) => { e.stopPropagation(); onEdit(); }}>✏️</button>
-                    <button className="text-red-600 hover:bg-red-50 text-xs px-1 py-1 rounded" onClick={(e) => { e.stopPropagation(); onDelete(); }}>🗑️</button>
-                </div>
-            </div>
-
-            {isExpanded && (
-                <div className="pl-6 py-2 space-y-2 border-t border-gray-100">
-                    {/* Sub-Teams */}
-                    {subTeams.map((st) => {
-                        const stMembers = allUsers.filter(u => u.sub_team_id === st.id);
-                        return (
-                            <div key={st.id} className="border-l-2 border-gray-200 pl-2">
-                                <div className="flex items-center justify-between gap-2 p-1 text-sm hover:bg-slate-50 rounded">
-                                    <div className="flex items-center gap-2">
-                                        <span>👥</span>
-                                        <span>{st.name}</span>
-                                        <span className="text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded">
-                                            {stMembers.length}
-                                        </span>
-                                    </div>
-                                    <div className="flex gap-1">
-                                        <button className="text-blue-600 hover:bg-blue-50 text-xs px-1 rounded" onClick={() => onEditChild(st)}>✏️</button>
-                                        <button className="text-red-600 hover:bg-red-50 text-xs px-1 rounded" onClick={() => onDeleteChild(st)}>🗑️</button>
-                                    </div>
-                                </div>
-                                {/* SubTeam Members */}
-                                {stMembers.length > 0 && (
-                                    <div className="ml-4 mt-1 space-y-0.5">
-                                        {stMembers.map(member => (
-                                            <div key={member.id} className="flex items-center justify-between text-xs p-1 hover:bg-slate-100 rounded group">
-                                                <div className="flex items-center gap-2">
-                                                    <span className="w-5 h-5 bg-blue-500 text-white rounded-full flex items-center justify-center text-[10px]">
-                                                        {(member.name || member.korean_name || 'U').charAt(0).toUpperCase()}
-                                                    </span>
-                                                    <span>{member.korean_name || member.name}</span>
-                                                    {member.korean_name && member.name && (
-                                                        <span className="text-slate-400">({member.name})</span>
-                                                    )}
-                                                    {positions.find(p => p.id === member.position_id)?.name && (
-                                                        <span className="text-slate-400">· {positions.find(p => p.id === member.position_id)?.name}</span>
-                                                    )}
-                                                </div>
-                                                <button
-                                                    className="text-blue-600 hover:bg-blue-50 px-1 rounded opacity-0 group-hover:opacity-100 transition-opacity"
-                                                    onClick={() => setEditingMember(member)}
-                                                >✏️</button>
-                                            </div>
-                                        ))}
-                                    </div>
-                                )}
-                            </div>
-                        );
-                    })}
-                    {/* Members without SubTeam */}
-                    {deptMembers.filter(m => !m.sub_team_id).length > 0 && (
-                        <div className="border-l-2 border-gray-300 pl-2 mt-2">
-                            <div className="text-xs text-muted-foreground mb-1">Direct Members:</div>
-                            <div className="ml-2 space-y-0.5">
-                                {deptMembers.filter(m => !m.sub_team_id).map(member => (
-                                    <div key={member.id} className="flex items-center justify-between text-xs p-1 hover:bg-slate-100 rounded group">
-                                        <div className="flex items-center gap-2">
-                                            <span className="w-5 h-5 bg-gray-500 text-white rounded-full flex items-center justify-center text-[10px]">
-                                                {(member.name || member.korean_name || 'U').charAt(0).toUpperCase()}
-                                            </span>
-                                            <span>{member.korean_name || member.name}</span>
-                                            {member.korean_name && member.name && (
-                                                <span className="text-slate-400">({member.name})</span>
-                                            )}
-                                            {positions.find(p => p.id === member.position_id)?.name && (
-                                                <span className="text-slate-400">· {positions.find(p => p.id === member.position_id)?.name}</span>
-                                            )}
-                                        </div>
-                                        <button
-                                            className="text-blue-600 hover:bg-blue-50 px-1 rounded opacity-0 group-hover:opacity-100 transition-opacity"
-                                            onClick={() => setEditingMember(member)}
-                                        >✏️</button>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    )}
-                </div>
-            )}
-            {/* Member Edit Modal */}
             {editingMember && (
                 <UserEditModal
                     user={editingMember}
@@ -655,9 +709,365 @@ const DepartmentRow: React.FC<{
                     onSuccess={() => {
                         setEditingMember(null);
                         queryClient.invalidateQueries({ queryKey: ['users-all'] });
+                        queryClient.invalidateQueries({ queryKey: ['users'] });
                     }}
                 />
+            )}
+        </>
+    );
+};
+
+const DepartmentCard: React.FC<{
+    department: Department;
+    divisionId: string | null;
+    members: UserDetails[];
+    subTeams: SubTeam[];
+    positionsById: Map<string, string>;
+    canManageOrganization: boolean;
+    canManageUsers: boolean;
+    draggedUserId: string | null;
+    activeDropTarget: string | null;
+    onDragStart: (userId: string) => void;
+    onDragEnd: () => void;
+    onDragEnter: (targetKey: string) => void;
+    onDragLeave: () => void;
+    onDrop: (target: UserDropTarget) => void;
+    onEditDepartment: () => void;
+    onDeleteDepartment: () => void;
+    onAddSubTeam: () => void;
+    onEditSubTeam: (subTeam: SubTeam) => void;
+    onDeleteSubTeam: (subTeam: SubTeam) => void;
+    onEditMember: (member: UserDetails) => void;
+}> = ({
+    department,
+    divisionId,
+    members,
+    subTeams,
+    positionsById,
+    canManageOrganization,
+    canManageUsers,
+    draggedUserId,
+    activeDropTarget,
+    onDragStart,
+    onDragEnd,
+    onDragEnter,
+    onDragLeave,
+    onDrop,
+    onEditDepartment,
+    onDeleteDepartment,
+    onAddSubTeam,
+    onEditSubTeam,
+    onDeleteSubTeam,
+    onEditMember,
+}) => {
+    const { t } = useTranslation('organization');
+    const directMembers = members.filter((member) => !member.sub_team_id);
+
+    return (
+        <div
+            className="rounded-2xl border border-slate-200 bg-slate-50/60 p-4 shadow-sm"
+            data-testid={`department-card-${department.id}`}
+        >
+            <div className="flex items-start justify-between gap-3 border-b border-slate-200 pb-3">
+                <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                        <h4 className="font-semibold text-slate-900">{department.name}</h4>
+                        <span className="text-xs text-muted-foreground">({department.code})</span>
+                    </div>
+                    <div className="mt-2 flex flex-wrap gap-2 text-xs text-muted-foreground">
+                        <Badge variant="outline">{t('teams.teamsSummary', { count: subTeams.length })}</Badge>
+                        <Badge variant="outline">{t('teams.membersSummary', { count: members.length })}</Badge>
+                    </div>
+                </div>
+
+                {canManageOrganization && (
+                    <div className="flex items-center gap-2">
+                        <Button variant="outline" size="sm" onClick={onAddSubTeam}>
+                            {t('teams.addTeam')}
+                        </Button>
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-8 w-8"
+                                    aria-label={`Manage department ${department.name}`}
+                                >
+                                    <MoreHorizontal className="h-4 w-4" />
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                                <DropdownMenuItem onSelect={onEditDepartment}>
+                                    {t('teams.editOrg')}
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                    className="text-red-600 focus:text-red-600"
+                                    onSelect={onDeleteDepartment}
+                                >
+                                    {t('common:buttons.delete')}
+                                </DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+                    </div>
+                )}
+            </div>
+
+            <div className="mt-4 space-y-3">
+                {subTeams.map((subTeam) => (
+                    <MemberDropZone
+                        key={subTeam.id}
+                        title={subTeam.name}
+                        badgeLabel={t('teams.teamBadge')}
+                        members={members.filter((member) => member.sub_team_id === subTeam.id)}
+                        target={{
+                            departmentId: department.id,
+                            subTeamId: subTeam.id,
+                            divisionId,
+                            key: buildDropTargetKey(department.id, subTeam.id),
+                        }}
+                        positionsById={positionsById}
+                        canManageOrganization={canManageOrganization}
+                        canManageUsers={canManageUsers}
+                        draggedUserId={draggedUserId}
+                        activeDropTarget={activeDropTarget}
+                        onDragStart={onDragStart}
+                        onDragEnd={onDragEnd}
+                        onDragEnter={onDragEnter}
+                        onDragLeave={onDragLeave}
+                        onDrop={onDrop}
+                        onEdit={() => onEditSubTeam(subTeam)}
+                        onDelete={() => onDeleteSubTeam(subTeam)}
+                        onEditMember={onEditMember}
+                        dataTestId={`subteam-zone-${subTeam.id}`}
+                    />
+                ))}
+
+                <MemberDropZone
+                    title={t('teams.directMembers')}
+                    badgeLabel={t('teams.directBadge')}
+                    members={directMembers}
+                    target={{
+                        departmentId: department.id,
+                        subTeamId: null,
+                        divisionId,
+                        key: buildDropTargetKey(department.id, null),
+                    }}
+                    positionsById={positionsById}
+                    canManageOrganization={false}
+                    canManageUsers={canManageUsers}
+                    draggedUserId={draggedUserId}
+                    activeDropTarget={activeDropTarget}
+                    onDragStart={onDragStart}
+                    onDragEnd={onDragEnd}
+                    onDragEnter={onDragEnter}
+                    onDragLeave={onDragLeave}
+                    onDrop={onDrop}
+                    onEditMember={onEditMember}
+                    emptyHint={t('teams.directDropHint')}
+                    dataTestId={`direct-zone-${department.id}`}
+                />
+            </div>
+        </div>
+    );
+};
+
+const MemberDropZone: React.FC<{
+    title: string;
+    badgeLabel: string;
+    members: UserDetails[];
+    target: UserDropTarget;
+    positionsById: Map<string, string>;
+    canManageOrganization: boolean;
+    canManageUsers: boolean;
+    draggedUserId: string | null;
+    activeDropTarget: string | null;
+    onDragStart: (userId: string) => void;
+    onDragEnd: () => void;
+    onDragEnter: (targetKey: string) => void;
+    onDragLeave: () => void;
+    onDrop: (target: UserDropTarget) => void;
+    onEdit?: () => void;
+    onDelete?: () => void;
+    onEditMember: (member: UserDetails) => void;
+    emptyHint?: string;
+    dataTestId: string;
+}> = ({
+    title,
+    badgeLabel,
+    members,
+    target,
+    positionsById,
+    canManageOrganization,
+    canManageUsers,
+    draggedUserId,
+    activeDropTarget,
+    onDragStart,
+    onDragEnd,
+    onDragEnter,
+    onDragLeave,
+    onDrop,
+    onEdit,
+    onDelete,
+    onEditMember,
+    emptyHint,
+    dataTestId,
+}) => {
+    const { t } = useTranslation('organization');
+    const isActiveTarget = activeDropTarget === target.key;
+
+    return (
+        <div
+            className={cn(
+                'rounded-xl border border-slate-200 bg-white p-3 transition-colors',
+                isActiveTarget && 'border-blue-400 bg-blue-50/70 shadow-sm'
+            )}
+            data-testid={dataTestId}
+            onDragOver={(event) => {
+                if (!canManageUsers) {
+                    return;
+                }
+                event.preventDefault();
+                event.dataTransfer.dropEffect = 'move';
+            }}
+            onDragEnter={(event) => {
+                if (!canManageUsers) {
+                    return;
+                }
+                event.preventDefault();
+                onDragEnter(target.key);
+            }}
+            onDragLeave={(event) => {
+                if (event.currentTarget.contains(event.relatedTarget as Node | null)) {
+                    return;
+                }
+                onDragLeave();
+            }}
+            onDrop={(event) => {
+                if (!canManageUsers) {
+                    return;
+                }
+                event.preventDefault();
+                onDrop(target);
+            }}
+        >
+            <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                        <h5 className="font-medium text-slate-900">{title}</h5>
+                        <Badge variant="outline">{badgeLabel}</Badge>
+                        <span className="text-xs text-muted-foreground">
+                            {t('teams.membersSummary', { count: members.length })}
+                        </span>
+                    </div>
+                    {canManageUsers && draggedUserId && (
+                        <p className="mt-1 text-xs text-muted-foreground">
+                            {isActiveTarget ? t('teams.dropReady') : t('teams.dragHint')}
+                        </p>
+                    )}
+                </div>
+
+                {canManageOrganization && (onEdit || onDelete) && (
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-8 w-8"
+                                aria-label={`Manage ${title}`}
+                            >
+                                <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                            {onEdit && (
+                                <DropdownMenuItem onSelect={onEdit}>
+                                    {t('teams.editOrg')}
+                                </DropdownMenuItem>
+                            )}
+                            {onDelete && (
+                                <DropdownMenuItem className="text-red-600 focus:text-red-600" onSelect={onDelete}>
+                                    {t('common:buttons.delete')}
+                                </DropdownMenuItem>
+                            )}
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                )}
+            </div>
+
+            <div className="mt-3 space-y-2">
+                {members.length === 0 ? (
+                    <div className="rounded-lg border border-dashed border-slate-200 px-3 py-4 text-sm text-muted-foreground">
+                        {emptyHint || t('teams.emptyDropZone')}
+                    </div>
+                ) : (
+                    members.map((member) => (
+                        <MemberCard
+                            key={member.id}
+                            member={member}
+                            positionName={positionsById.get(member.position_id)}
+                            canManageUsers={canManageUsers}
+                            isDragging={draggedUserId === member.id}
+                            onDragStart={onDragStart}
+                            onDragEnd={onDragEnd}
+                            onEdit={() => onEditMember(member)}
+                        />
+                    ))
+                )}
+            </div>
+        </div>
+    );
+};
+
+const MemberCard: React.FC<{
+    member: UserDetails;
+    positionName?: string;
+    canManageUsers: boolean;
+    isDragging: boolean;
+    onDragStart: (userId: string) => void;
+    onDragEnd: () => void;
+    onEdit: () => void;
+}> = ({ member, positionName, canManageUsers, isDragging, onDragStart, onDragEnd, onEdit }) => {
+    const displayName = member.korean_name || member.name;
+
+    return (
+        <div
+            className={cn(
+                'flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm',
+                canManageUsers && 'cursor-grab',
+                isDragging && 'opacity-50'
+            )}
+            draggable={canManageUsers}
+            data-testid={`member-card-${member.id}`}
+            onDragStart={(event) => {
+                if (!canManageUsers) {
+                    event.preventDefault();
+                    return;
+                }
+                event.dataTransfer.setData('text/plain', member.id);
+                event.dataTransfer.effectAllowed = 'move';
+                onDragStart(member.id);
+            }}
+            onDragEnd={onDragEnd}
+        >
+            <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                    <span className="font-medium text-slate-900">{displayName}</span>
+                    {member.korean_name && member.name && member.korean_name !== member.name && (
+                        <span className="text-xs text-muted-foreground">({member.name})</span>
+                    )}
+                </div>
+                {positionName && (
+                    <p className="mt-1 text-xs text-muted-foreground">{positionName}</p>
+                )}
+            </div>
+
+            {canManageUsers && (
+                <Button variant="ghost" size="sm" className="h-8 w-8" onClick={onEdit} aria-label={`Edit member ${displayName}`}>
+                    <MoreHorizontal className="h-4 w-4" />
+                </Button>
             )}
         </div>
     );
 };
+
+export default TeamsTab;
