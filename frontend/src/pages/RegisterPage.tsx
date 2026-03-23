@@ -6,6 +6,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useApiError } from '@/hooks/useApiError';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { OrganizationSelect } from '@/components/OrganizationSelect';
 import {
   Select,
   SelectContent,
@@ -13,8 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { ssoRegister, getDepartments, getJobPositionsList } from '@/api/client';
-import type { Department } from '@/api/client';
+import { ssoRegister, getJobPositionsList } from '@/api/client';
 import type { JobPosition } from '@/types';
 import { BarChart3, Loader2, AlertCircle, UserPlus } from 'lucide-react';
 
@@ -47,7 +47,6 @@ export function RegisterPage() {
   const [departmentId, setDepartmentId] = useState('');
   const [positionId, setPositionId] = useState('');
 
-  const [departments, setDepartments] = useState<Department[]>([]);
   const [positions, setPositions] = useState<JobPosition[]>([]);
   const [isLoadingData, setIsLoadingData] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -64,15 +63,11 @@ export function RegisterPage() {
     }
   }, [token]);
 
-  // Fetch departments and positions
+  // Fetch positions for the registration form. Organization data is loaded by OrganizationSelect.
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [depts, pos] = await Promise.all([
-          getDepartments(),
-          getJobPositionsList(),
-        ]);
-        setDepartments(depts.filter((d) => d.is_active));
+        const pos = await getJobPositionsList();
         setPositions(pos.filter((p) => p.is_active));
       } catch {
         setError(t('ssoErrors.loadFormFailed'));
@@ -150,7 +145,7 @@ export function RegisterPage() {
     <div className="min-h-screen flex flex-col bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
       <div className="flex-1 flex items-center justify-center p-4">
         <div className="w-full max-w-md">
-          <div className="bg-white rounded-2xl shadow-xl border border-slate-200/60 overflow-hidden">
+          <div className="bg-white rounded-2xl shadow-xl border border-slate-200/60">
             {/* Header */}
             <div className="pt-10 pb-6 px-8 text-center">
               <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 mb-6 shadow-lg shadow-blue-500/30">
@@ -216,25 +211,15 @@ export function RegisterPage() {
                   <label className="text-sm font-medium text-slate-700">
                     {t('register.department')} <span className="text-red-500">*</span>
                   </label>
-                  {isLoadingData ? (
-                    <div className="h-12 bg-slate-100 rounded-md border border-slate-200 flex items-center px-3">
-                      <Loader2 className="w-4 h-4 animate-spin text-slate-400" />
-                      <span className="ml-2 text-sm text-slate-400">{t('common:status.loading')}</span>
-                    </div>
-                  ) : (
-                    <Select value={departmentId} onValueChange={setDepartmentId} required>
-                      <SelectTrigger className="h-12 bg-slate-50 border-slate-200 focus:bg-white focus:border-blue-500 focus:ring-blue-500">
-                        <SelectValue placeholder={t('register.departmentPlaceholder')} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {departments.map((dept) => (
-                          <SelectItem key={dept.id} value={dept.id}>
-                            {dept.name} ({dept.code})
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  )}
+                  <OrganizationSelect
+                    departmentId={departmentId || null}
+                    onChange={(_divisionId, nextDepartmentId) => {
+                      setDepartmentId(nextDepartmentId || '');
+                    }}
+                    placeholder={t('register.departmentPlaceholder')}
+                    className="w-full"
+                    triggerTestId="register-organization-select"
+                  />
                 </div>
 
                 {/* Position */}

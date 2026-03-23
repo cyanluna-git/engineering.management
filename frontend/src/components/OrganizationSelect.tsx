@@ -15,17 +15,19 @@ interface OrganizationSelectProps {
     onChange: (divisionId: string | null, departmentId: string | null, subTeamId: string | null, displayName: string) => void;
     placeholder?: string;
     className?: string;
+    triggerTestId?: string;
 }
 
 interface OrgTree {
     id: string;
     name: string;
     code: string;
+    kind: 'division' | 'group';
     children: {
         id: string;
         name: string;
         code: string;
-        divisionId: string;
+        divisionId: string | null;
         children: SubTeam[];
     }[];
 }
@@ -37,6 +39,7 @@ export function OrganizationSelect({
     onChange,
     placeholder,
     className = '',
+    triggerTestId,
 }: OrganizationSelectProps) {
     const { t } = useTranslation('common');
     const [isOpen, setIsOpen] = useState(false);
@@ -57,10 +60,11 @@ export function OrganizationSelect({
 
     // Build organization tree: Division > Department > SubTeam
     const orgTree = useMemo((): OrgTree[] => {
-        return divisions.map(div => ({
+        const tree: OrgTree[] = divisions.map(div => ({
             id: div.id,
             name: div.name,
             code: div.code,
+            kind: 'division' as const,
             children: departments
                 .filter(d => d.division_id === div.id)
                 .map(dept => ({
@@ -71,7 +75,29 @@ export function OrganizationSelect({
                     children: [] as SubTeam[], // Will be loaded on expand
                 })),
         }));
-    }, [divisions, departments]);
+
+        const unassignedDepartments = departments
+            .filter((dept) => !dept.division_id)
+            .map((dept) => ({
+                id: dept.id,
+                name: dept.name,
+                code: dept.code,
+                divisionId: null,
+                children: [] as SubTeam[],
+            }));
+
+        if (unassignedDepartments.length > 0) {
+            tree.push({
+                id: '__unassigned__',
+                name: t('select.unassigned'),
+                code: '',
+                kind: 'group',
+                children: unassignedDepartments,
+            });
+        }
+
+        return tree;
+    }, [divisions, departments, t]);
 
     // Fetch sub-teams for display name resolution
     const { data: allSubTeams = [] } = useQuery({
@@ -134,18 +160,19 @@ export function OrganizationSelect({
         setSearchTerm('');
     };
 
-    const handleSelectDept = (divId: string, deptId: string, deptName: string) => {
-        const div = divisions.find(d => d.id === divId);
+    const handleSelectDept = (divId: string | null, deptId: string, deptName: string) => {
+        const div = divId ? divisions.find(d => d.id === divId) : null;
         const displayName = div ? `${div.name} > ${deptName}` : deptName;
         onChange(divId, deptId, null, displayName);
         setIsOpen(false);
         setSearchTerm('');
     };
 
-    const handleSelectSubTeam = (divId: string, deptId: string, stId: string, stName: string) => {
-        const div = divisions.find(d => d.id === divId);
+    const handleSelectSubTeam = (divId: string | null, deptId: string, stId: string, stName: string) => {
+        const div = divId ? divisions.find(d => d.id === divId) : null;
         const dept = departments.find(d => d.id === deptId);
-        const displayName = `${div?.name || ''} > ${dept?.name || ''} > ${stName}`.replace(/^ > /, '');
+        const displaySegments = [div?.name, dept?.name, stName].filter(Boolean);
+        const displayName = displaySegments.join(' > ');
         onChange(divId, deptId, stId, displayName);
         setIsOpen(false);
         setSearchTerm('');
@@ -157,6 +184,9 @@ export function OrganizationSelect({
             <button
                 type="button"
                 onClick={() => setIsOpen(!isOpen)}
+                data-testid={triggerTestId}
+                aria-haspopup="tree"
+                aria-expanded={isOpen}
                 className="w-full flex items-center justify-between p-2 border rounded-md bg-background hover:bg-slate-50 text-left"
             >
                 <span className={selectedDisplay ? 'text-foreground' : 'text-muted-foreground'}>
@@ -231,13 +261,13 @@ const L0Item: React.FC<{
     onToggle: () => void;
     onToggleL1: (l1Id: string) => void;
     onSelectDiv: (divId: string, divName: string) => void;
-    onSelectDept: (divId: string, deptId: string, deptName: string) => void;
-    onSelectSubTeam: (divId: string, deptId: string, stId: string, stName: string) => void;
+    onSelectDept: (divId: string | null, deptId: string, deptName: string) => void;
+    onSelectSubTeam: (divId: string | null, deptId: string, stId: string, stName: string) => void;
     selectedDivId?: string | null;
     selectedDeptId?: string | null;
     selectedSubTeamId?: string | null;
 }> = ({ item, isExpanded, expandedL1, onToggle, onToggleL1, onSelectDiv, onSelectDept, onSelectSubTeam, selectedDivId, selectedDeptId, selectedSubTeamId }) => {
-    const isSelected = selectedDivId === item.id && !selectedDeptId && !selectedSubTeamId;
+    const isSelected = item.kind === 'division' && selectedDivId === item.id && !selectedDeptId && !selectedSubTeamId;
 
     return (
         <div>
@@ -247,6 +277,7 @@ const L0Item: React.FC<{
                 <button
                     type="button"
                     onClick={onToggle}
+                    aria-label={`${isExpanded ? 'Collapse' : 'Expand'} ${item.name}`}
                     className="pl-3 pr-1 py-2"
                 >
                     {isExpanded ? (
@@ -256,14 +287,21 @@ const L0Item: React.FC<{
                     )}
                 </button>
                 {/* Selectable Division Header */}
-                <button
-                    type="button"
-                    onClick={() => onSelectDiv(item.id, item.name)}
-                    className={`flex-1 py-2 text-sm font-semibold text-left ${isSelected ? 'text-blue-700' : 'text-slate-800'}`}
-                >
-                    <span>{item.name}</span>
-                    <span className="text-[10px] text-muted-foreground ml-2 font-normal">{item.children.length} depts</span>
-                </button>
+                {item.kind === 'division' ? (
+                    <button
+                        type="button"
+                        onClick={() => onSelectDiv(item.id, item.name)}
+                        className={`flex-1 py-2 text-sm font-semibold text-left ${isSelected ? 'text-blue-700' : 'text-slate-800'}`}
+                    >
+                        <span>{item.name}</span>
+                        <span className="text-[10px] text-muted-foreground ml-2 font-normal">{item.children.length} depts</span>
+                    </button>
+                ) : (
+                    <div className="flex-1 py-2 text-sm font-semibold text-left text-slate-800">
+                        <span>{item.name}</span>
+                        <span className="text-[10px] text-muted-foreground ml-2 font-normal">{item.children.length} depts</span>
+                    </div>
+                )}
             </div>
 
             {/* L1 Items */}
@@ -290,12 +328,12 @@ const L0Item: React.FC<{
 
 // L1 Item Component (Department with lazy-loaded sub-teams)
 const L1Item: React.FC<{
-    divId: string;
+    divId: string | null;
     item: OrgTree['children'][0];
     isExpanded: boolean;
     onToggle: () => void;
-    onSelectDept: (divId: string, deptId: string, deptName: string) => void;
-    onSelectSubTeam: (divId: string, deptId: string, stId: string, stName: string) => void;
+    onSelectDept: (divId: string | null, deptId: string, deptName: string) => void;
+    onSelectSubTeam: (divId: string | null, deptId: string, stId: string, stName: string) => void;
     selectedDeptId?: string | null;
     selectedSubTeamId?: string | null;
 }> = ({ divId, item, isExpanded, onToggle, onSelectDept, onSelectSubTeam, selectedDeptId, selectedSubTeamId }) => {
@@ -316,6 +354,7 @@ const L1Item: React.FC<{
                 <button
                     type="button"
                     onClick={(e) => { e.stopPropagation(); onToggle(); }}
+                    aria-label={`${isExpanded ? 'Collapse' : 'Expand'} ${item.name}`}
                     className="pl-6 pr-1 py-2 hover:bg-slate-50"
                 >
                     {isExpanded ? (
