@@ -115,7 +115,7 @@ tbody.virtualized {
 /* Print styles for weekly report hierarchy page */
 @media print {
   /* Hide sidebar, header, nav elements */
-  nav, aside, header, .print\\:hidden {
+  nav, aside, header, [class~="print:hidden"] {
     display: none !important;
   }
 
