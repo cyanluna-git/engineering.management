@@ -260,16 +260,14 @@ async function mockProjectHierarchyWorkspace(page: import("@playwright/test").Pa
 }
 
 test.describe("Simplified product hierarchy list view", () => {
-  test("shows grouped project rows with slash-separated hierarchy paths and supports detail navigation", async ({ page }) => {
+  test("shows grouped project rows with minimal labels and supports detail navigation", async ({ page }) => {
     await mockProjectHierarchyWorkspace(page, "PM");
 
     await page.goto("/projects");
 
     await expect(page.getByTestId("business-unit-group-bu-abate")).toBeVisible();
     await expect(page.getByTestId("product-line-group-pl-proteus")).toBeVisible();
-    await expect(page.getByTestId("product-row-proj-h2")).toContainText("Abatement / Proteus");
     await expect(page.getByTestId("product-row-proj-h2")).toContainText("Proteus H2 Injection Kit");
-    await expect(page.getByTestId("product-row-proj-h2")).toContainText("407112");
 
     await page.getByTestId("product-row-proj-h2").locator("button").first().click();
     await page.waitForURL(/\/projects\/proj-h2$/);
@@ -292,7 +290,7 @@ test.describe("Simplified product hierarchy list view", () => {
     await page.goto("/projects");
 
     await expect(page.getByTestId("product-line-group-pl-proteus")).toBeVisible();
-    await expect(page.getByTestId("product-row-proj-h2")).toContainText("Abatement / Proteus");
+    await expect(page.getByTestId("product-row-proj-h2")).toContainText("Proteus H2 Injection Kit");
     await expect(page.getByRole("button", { name: "+ New Business Unit" })).toHaveCount(0);
     await expect(page.getByRole("button", { name: "Manage product line Proteus" })).toHaveCount(0);
     await expect(page.getByRole("button", { name: "Manage project Proteus H2 Injection Kit" })).toHaveCount(0);

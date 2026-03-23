@@ -485,11 +485,8 @@ export const ProjectHierarchyEditor: React.FC = () => {
                                                 <p className="text-[11px] uppercase tracking-wide text-amber-700/70">
                                                     {t('hierarchy.ungroupedTitle')}
                                                 </p>
-                                                <div className="mt-1 flex items-center gap-2">
+                                                <div className="mt-1">
                                                     <span className="truncate font-medium text-slate-900">{proj.name}</span>
-                                                    {proj.internal_io?.io_number && (
-                                                        <span className="text-xs text-muted-foreground">{proj.internal_io.io_number}</span>
-                                                    )}
                                                 </div>
                                             </button>
                                             <StatusBadge status={proj.status} />
@@ -605,9 +602,6 @@ export const ProjectHierarchyEditor: React.FC = () => {
                                                                         <span className="text-xs text-muted-foreground">({pl.code})</span>
                                                                         <Badge variant="outline">{pl.line_category || 'PRODUCT'}</Badge>
                                                                     </div>
-                                                                    <p className="mt-1 text-xs text-muted-foreground">
-                                                                        {bu.name} / {pl.name}
-                                                                    </p>
                                                                     <p className="mt-1 text-sm text-muted-foreground">
                                                                         {t('hierarchy.productLineSummary', { count: projects.length })}
                                                                     </p>
@@ -654,14 +648,8 @@ export const ProjectHierarchyEditor: React.FC = () => {
                                                                             className="min-w-0 flex-1 text-left"
                                                                             onClick={() => navigate(`/projects/${proj.id}`, { state: { returnTab: 'product' } })}
                                                                         >
-                                                                            <p className="text-[11px] uppercase tracking-wide text-slate-400">
-                                                                                {bu.name} / {pl.name}
-                                                                            </p>
-                                                                            <div className="mt-1 flex flex-wrap items-center gap-2">
+                                                                            <div className="mt-1">
                                                                                 <span className="truncate font-medium text-slate-900">{proj.name}</span>
-                                                                                {proj.internal_io?.io_number && (
-                                                                                    <span className="text-xs text-muted-foreground">{proj.internal_io.io_number}</span>
-                                                                                )}
                                                                             </div>
                                                                         </button>
                                                                         <StatusBadge status={proj.status} />
