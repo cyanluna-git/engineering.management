@@ -84,8 +84,19 @@ deploy_service() {
   local build_args=""
   if [[ "$service" == "frontend" ]]; then
     build_args="--target production"
+    # Copy root .env to frontend dir so Vite picks up VITE_* vars at build time
+    # (Vite reads .env from the project root during build)
+    local copied_env=false
+    if [[ -f "$PROJECT_ROOT/.env" && ! -f "$dockerfile_dir/.env" ]]; then
+      cp "$PROJECT_ROOT/.env" "$dockerfile_dir/.env"
+      copied_env=true
+    fi
   fi
   docker build $NO_CACHE $build_args -t "$image:latest" "$dockerfile_dir" 2>&1 | tail -5
+  # Clean up copied .env (don't leave secrets in frontend dir)
+  if [[ "${copied_env:-false}" == true ]]; then
+    rm -f "$dockerfile_dir/.env"
+  fi
 
   info "[EXPORT] $image → $tar_name"
   docker save "$image:latest" | gzip > "/tmp/$tar_name"

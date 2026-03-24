@@ -52,7 +52,7 @@ export const PORTAL_SERVICES: PortalService[] = [
     id: 'testrig',
     name: 'Virtual TestRig',
     description: 'Virtual Testrig - Digital Twin product end-to-end integrated test bench service',
-    url: import.meta.env.VITE_TESTRIG_URL || 'https://testrig.10.182.252.32.sslip.io',
+    url: import.meta.env.VITE_TESTRIG_URL || 'http://dashboard.10-182-252-5.sslip.io',
     icon: 'Wrench',
     color: 'bg-amber-600',
     tokenRelay: 'fragment',
