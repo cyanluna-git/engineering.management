@@ -121,6 +121,7 @@ function SubTeamSection({
   expandedMembers,
   onToggleMember,
   currentUserId,
+  currentUserSubTeamId,
   referenceDate,
 }: {
   subTeam: WeeklyReportHierarchySubTeam;
@@ -129,29 +130,55 @@ function SubTeamSection({
   expandedMembers: Set<string>;
   onToggleMember: (userId: string) => void;
   currentUserId?: string;
+  currentUserSubTeamId?: string;
   referenceDate: Date;
 }) {
   const hasTeamReport = subTeam.report && subTeam.report.markdown_body?.trim().length > 0;
+  const [showTeamReportCard, setShowTeamReportCard] = useState(false);
 
   return (
     <Card className="overflow-hidden">
-      <button
-        onClick={onToggle}
-        className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-slate-50 transition-colors"
-      >
-        {isExpanded ? (
-          <ChevronDown className="h-4 w-4 text-slate-500 shrink-0 transition-transform" />
-        ) : (
-          <ChevronRight className="h-4 w-4 text-slate-500 shrink-0 transition-transform" />
+      <div className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 transition-colors">
+        <button
+          onClick={onToggle}
+          className="flex min-w-0 flex-1 items-center gap-3 text-left"
+        >
+          {isExpanded ? (
+            <ChevronDown className="h-4 w-4 text-slate-500 shrink-0 transition-transform" />
+          ) : (
+            <ChevronRight className="h-4 w-4 text-slate-500 shrink-0 transition-transform" />
+          )}
+          <Users className="h-4 w-4 text-blue-500 shrink-0" />
+          <span className="font-medium text-slate-700">{subTeam.name}</span>
+          <SubmissionBadge submitted={subTeam.submitted_count} total={subTeam.total_count} />
+        </button>
+        {subTeam.id && currentUserSubTeamId === subTeam.id && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="gap-1.5 text-xs text-blue-600 hover:text-blue-700 hover:bg-blue-50 shrink-0 print:hidden"
+            onClick={(e) => { e.stopPropagation(); setShowTeamReportCard(!showTeamReportCard); }}
+          >
+            <FileText className="h-3.5 w-3.5" />
+            {hasTeamReport ? '팀 보고 수정' : '팀 보고 작성'}
+          </Button>
         )}
-        <Users className="h-4 w-4 text-blue-500 shrink-0" />
-        <span className="font-medium text-slate-700">{subTeam.name}</span>
-        <SubmissionBadge submitted={subTeam.submitted_count} total={subTeam.total_count} />
-      </button>
+      </div>
+
+      {showTeamReportCard && subTeam.id && (
+        <div className="border-t border-slate-200 px-4 py-3 bg-slate-50/50">
+          <TeamWeeklyReportCard
+            teamScope="sub_team"
+            selectedOrgId={subTeam.id}
+            referenceDate={referenceDate}
+            teamName={subTeam.name}
+          />
+        </div>
+      )}
 
       {isExpanded && (
         <div>
-          {hasTeamReport && (
+          {hasTeamReport && !showTeamReportCard && (
             <div className="border-t border-slate-200 px-4 py-3 bg-blue-50/30">
               <div className="text-xs font-medium text-blue-600 mb-2 flex items-center gap-1">
                 <FileText className="h-3 w-3" /> 팀 요약
@@ -186,6 +213,7 @@ export function WeeklyReportHierarchyPage() {
   const [activeTab, setActiveTab] = useState<string>('team');
   const [selectedProjectId, setSelectedProjectId] = useState<string>('');
   const [expandedProjectMembers, setExpandedProjectMembers] = useState<Set<string>>(new Set());
+  const [showDeptReport, setShowDeptReport] = useState(false);
 
   const monday = useMemo(() => getMonday(referenceDate), [referenceDate]);
   const dateKey = format(monday, 'yyyy-MM-dd');
@@ -417,12 +445,32 @@ export function WeeklyReportHierarchyPage() {
               {/* Department Report */}
               <Card>
                 <CardHeader className="pb-3">
-                  <CardTitle className="flex items-center gap-2 text-lg">
-                    <Building2 className="h-5 w-5 text-indigo-500" />
-                    {data.department.name}
-                  </CardTitle>
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="flex items-center gap-2 text-lg">
+                      <Building2 className="h-5 w-5 text-indigo-500" />
+                      {data.department.name}
+                    </CardTitle>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="gap-1.5 text-xs text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 shrink-0 print:hidden"
+                      onClick={() => setShowDeptReport(!showDeptReport)}
+                    >
+                      <FileText className="h-3.5 w-3.5" />
+                      {data.department_report?.markdown_body?.trim() ? '부서 보고 수정' : '부서 보고 작성'}
+                    </Button>
+                  </div>
                 </CardHeader>
-                {data.department_report && data.department_report.markdown_body?.trim() ? (
+                {showDeptReport ? (
+                  <CardContent>
+                    <TeamWeeklyReportCard
+                      teamScope="department"
+                      selectedOrgId={departmentId}
+                      referenceDate={referenceDate}
+                      teamName={data.department.name}
+                    />
+                  </CardContent>
+                ) : data.department_report && data.department_report.markdown_body?.trim() ? (
                   <CardContent>
                     <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
                       <WeeklyReportMarkdown value={data.department_report.markdown_body} emptyMessage="" compact />
@@ -448,6 +496,7 @@ export function WeeklyReportHierarchyPage() {
                       expandedMembers={expandedMembers}
                       onToggleMember={toggleMember}
                       currentUserId={user?.id}
+                      currentUserSubTeamId={user?.sub_team_id}
                       referenceDate={referenceDate}
                     />
                   );

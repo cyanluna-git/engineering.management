@@ -227,7 +227,16 @@ class WeeklyReportSummaryService:
         for report in reports_db:
             user = user_map.get(report.owner_user_id)
             user_name = user.name if user else report.owner_user_id
-            content = (report.markdown_body or "").strip()
+            # Extract project-specific section if structured sections exist
+            content = ""
+            if report.sections and isinstance(report.sections, list):
+                for section in report.sections:
+                    if section.get("project_id") == project_id:
+                        content = (section.get("body") or "").strip()
+                        break
+            if not content:
+                # Fallback: use full body for legacy reports
+                content = (report.markdown_body or "").strip()
             if len(content) > _REPORT_CONTENT_MAX_CHARS:
                 content = content[:_REPORT_CONTENT_MAX_CHARS] + "\n... (이하 생략)"
             if content:

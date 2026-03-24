@@ -34,6 +34,7 @@ class WeeklyReport(Base):
     status = Column(String(20), nullable=False, default="draft")
     title = Column(String(200), nullable=True)
     markdown_body = Column(Text, nullable=False, default="")
+    sections = Column(JSONB, nullable=True)
     source_metadata = Column(JSONB, nullable=True)
 
     owner_user_id = Column(String(36), ForeignKey("users.id"), nullable=True)

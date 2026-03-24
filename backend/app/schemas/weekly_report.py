@@ -22,6 +22,7 @@ class WeeklyReportUpsertRequest(BaseModel):
     status: WeeklyReportStatus = "draft"
     title: Optional[str] = None
     markdown_body: str = ""
+    sections: Optional[List[dict]] = None
 
     @field_validator("title")
     @classmethod
@@ -57,6 +58,7 @@ class WeeklyReportResponse(BaseModel):
     status: WeeklyReportStatus
     title: Optional[str] = None
     markdown_body: str
+    sections: Optional[List[dict]] = None
     source_metadata: Optional[dict] = None
     owner_user_id: Optional[str] = None
     created_by_user_id: str

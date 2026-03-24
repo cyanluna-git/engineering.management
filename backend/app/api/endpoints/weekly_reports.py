@@ -94,7 +94,23 @@ async def upsert_weekly_report(
         status_value=body.status,
         title=body.title,
         markdown_body=body.markdown_body,
+        sections=body.sections,
     )
+
+
+@router.get("/user-projects")
+async def get_user_active_projects(
+    reference_date: Optional[date] = Query(None, description="Reference date (defaults to today)"),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Return projects the current user is actively working on (planned + recent worklogs)."""
+    service = WeeklyReportService(db)
+    projects = service.get_user_active_projects(
+        user_id=current_user.id,
+        reference_date=reference_date,
+    )
+    return {"projects": projects}
 
 
 @router.get("/hierarchy")

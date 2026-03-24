@@ -231,6 +231,40 @@ class WeeklyReportService:
         )
         return [self.serialize(report) for report in reports]
 
+    def _extract_project_section(self, report: WeeklyReport, project_id: str) -> Optional[dict]:
+        """Extract only the project-specific section from a report.
+
+        If the report has structured sections, return a serialized report
+        with only the matching project's body. If no sections (legacy),
+        return the full report as fallback.
+        """
+        serialized = self.serialize(report)
+        if report.sections and isinstance(report.sections, list):
+            for section in report.sections:
+                if section.get("project_id") == project_id:
+                    body = (section.get("body") or "").strip()
+                    if body:
+                        serialized["markdown_body"] = body
+                        return serialized
+            # Has sections but none for this project
+            return None
+        # Legacy report (no sections): return full body as fallback
+        if serialized["markdown_body"] and serialized["markdown_body"].strip():
+            return serialized
+        return None
+
+    @staticmethod
+    def _sections_to_markdown(sections: list[dict]) -> str:
+        """Generate composite markdown from structured sections."""
+        parts = []
+        for section in sections:
+            body = (section.get("body") or "").strip()
+            if not body:
+                continue
+            name = section.get("project_name") or "Team"
+            parts.append(f"### {name}\n{body}")
+        return "\n\n".join(parts)
+
     def upsert(
         self,
         current_user: User,
@@ -243,6 +277,7 @@ class WeeklyReportService:
         status_value: str,
         title: Optional[str],
         markdown_body: str,
+        sections: Optional[list[dict]] = None,
     ) -> dict:
         self.ensure_write_access(current_user)
         target = self.resolve_target(current_user, scope, team_scope_type, scope_id)
@@ -277,7 +312,11 @@ class WeeklyReportService:
 
         report.status = status_value
         report.title = title
-        report.markdown_body = markdown_body
+        if sections is not None:
+            report.sections = sections
+            report.markdown_body = self._sections_to_markdown(sections)
+        else:
+            report.markdown_body = markdown_body
         report.week_end = week_end
         report.week_key = week_key
         report.updated_by_user_id = current_user.id
@@ -292,6 +331,54 @@ class WeeklyReportService:
         self.db.commit()
         self.db.refresh(report)
         return self.serialize(report)
+
+    def get_user_active_projects(
+        self,
+        user_id: str,
+        reference_date: Optional[date] = None,
+    ) -> list[dict]:
+        """Return projects the user is actively working on.
+
+        Source: WorkLog entries in the reference week only.
+        Completed/Cancelled projects excluded.
+        """
+        ref = reference_date or date.today()
+        excluded_statuses = ["Completed", "Cancelled"]
+
+        # Determine the week (Monday ~ Sunday) for the reference date
+        week_start = ref - timedelta(days=ref.weekday())  # Monday
+        week_end = week_start + timedelta(days=6)  # Sunday
+
+        results: dict[str, dict] = {}
+
+        # WorkLog projects for this week
+        worklog_rows = (
+            self.db.query(WorkLog.project_id, Project.name)
+            .join(Project, WorkLog.project_id == Project.id)
+            .filter(
+                WorkLog.user_id == user_id,
+                WorkLog.project_id.isnot(None),
+                WorkLog.date >= week_start,
+                WorkLog.date <= week_end,
+                Project.status.notin_(excluded_statuses),
+            )
+            .distinct()
+            .all()
+        )
+        for project_id, project_name in worklog_rows:
+            if project_id not in results:
+                results[project_id] = {
+                    "project_id": project_id,
+                    "project_name": project_name,
+                    "source": "worklog",
+                }
+
+        # Sort alphabetically by project name
+        sorted_results = sorted(
+            results.values(),
+            key=lambda x: x["project_name"],
+        )
+        return sorted_results
 
     def delete(self, current_user: User, report_id: str) -> None:
         self.ensure_write_access(current_user)
@@ -326,6 +413,7 @@ class WeeklyReportService:
             "status": report.status,
             "title": report.title,
             "markdown_body": report.markdown_body,
+            "sections": report.sections,
             "source_metadata": report.source_metadata,
             "owner_user_id": report.owner_user_id,
             "created_by_user_id": report.created_by_user_id,
@@ -546,14 +634,17 @@ class WeeklyReportService:
         for u in planned_users + fallback_users:
             u_report = report_by_key.get(f"user:{u.id}")
             source = "planned" if u.id in planned_member_ids else "worklog"
+            filtered_report = None
+            if u_report:
+                filtered_report = self._extract_project_section(u_report, project_id)
             members.append({
                 "user_id": u.id,
                 "name": u.name,
                 "korean_name": u.korean_name,
-                "report": self.serialize(u_report) if u_report else None,
+                "report": filtered_report,
                 "source": source,
             })
-            if u_report:
+            if filtered_report:
                 submitted_count += 1
 
         project_report = report_by_key.get(f"project:{project_id}")

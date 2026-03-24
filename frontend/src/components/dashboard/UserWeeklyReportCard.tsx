@@ -1,18 +1,22 @@
-import { useRef, useState } from "react";
+import { useState, useCallback } from "react";
 import { format } from "date-fns";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "@/hooks/useAuth";
 import {
   CalendarDays,
+  ChevronDown,
+  ChevronRight,
   Eye,
   FileText,
   PencilLine,
   Save,
   SquarePen,
+  Users,
 } from "lucide-react";
 
 import {
+  apiClient,
   getApiError,
   getCurrentWeeklyReport,
   getWeeklyReportHistory,
@@ -32,8 +36,6 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import {
-  applyMarkdownBlockAction,
-  WeeklyReportEditorToolbar,
   WeeklyReportMarkdown,
 } from "@/components/dashboard/weekly-report-markdown";
 
@@ -63,9 +65,37 @@ export function UserWeeklyReportCard({
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<"edit" | "preview">("edit");
   const [draftBody, setDraftBody] = useState("");
-  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
   const referenceDateKey = getReferenceDateKey(referenceDate);
+
+  // Structured sections state
+  interface ReportSection {
+    project_id: string | null;
+    project_name: string;
+    body: string;
+    source?: string;
+  }
+  const [draftSections, setDraftSections] = useState<ReportSection[]>([]);
+  const [collapsedSections, setCollapsedSections] = useState<Set<number>>(new Set());
+
+  // Fetch user's active projects for dynamic form
+  const activeProjectsQuery = useQuery({
+    queryKey: ["user-active-projects", referenceDateKey],
+    queryFn: () => apiClient.get(`/weekly-reports/user-projects?reference_date=${referenceDateKey}`).then(r => r.data),
+    enabled: isEditorOpen,
+  });
+
+  const toggleSectionCollapse = useCallback((index: number) => {
+    setCollapsedSections(prev => {
+      const next = new Set(prev);
+      if (next.has(index)) next.delete(index); else next.add(index);
+      return next;
+    });
+  }, []);
+
+  const updateSectionBody = useCallback((index: number, body: string) => {
+    setDraftSections(prev => prev.map((s, i) => i === index ? { ...s, body } : s));
+  }, []);
 
   const currentQuery = useQuery({
     queryKey: ["weekly-report", "user", "current", referenceDateKey, userId],
@@ -94,7 +124,12 @@ export function UserWeeklyReportCard({
         reference_date: referenceDateKey,
         markdown_body: draftBody,
         status: "published",
-      }),
+        sections: draftSections.length > 0 ? draftSections.map(s => ({
+          project_id: s.project_id,
+          project_name: s.project_name,
+          body: s.body,
+        })) : undefined,
+      } as Parameters<typeof upsertWeeklyReport>[0]),
     onSuccess: async () => {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["weekly-report", "user"] }),
@@ -108,31 +143,45 @@ export function UserWeeklyReportCard({
   const currentData = currentQuery.data;
   const currentReport = currentData?.report ?? null;
   const historyItems = historyQuery.data ?? [];
-  const previousReport = historyItems.find((item) => !currentData || item.week_start < currentData.week_start);
-
   const handleOpenEditor = () => {
+    const existingSections = (currentReport as unknown as { sections?: ReportSection[] | null })?.sections ?? null;
+    const projects: Array<{ project_id: string; project_name: string; source: string }> =
+      activeProjectsQuery.data?.projects ?? [];
+
+    if (existingSections && existingSections.length > 0) {
+      // Load existing structured sections + merge new projects
+      const sectionMap = new Map(existingSections.map(s => [s.project_id, s]));
+      const merged: ReportSection[] = [
+        sectionMap.get(null) ?? { project_id: null, project_name: "Team", body: "" },
+      ];
+      for (const p of projects) {
+        const existing = sectionMap.get(p.project_id);
+        merged.push(existing ?? { project_id: p.project_id, project_name: p.project_name, body: "", source: p.source });
+      }
+      // Add sections from saved data that aren't in active projects (preserving old entries)
+      for (const s of existingSections) {
+        if (s.project_id !== null && !projects.some(p => p.project_id === s.project_id) && s.body.trim()) {
+          merged.push(s);
+        }
+      }
+      setDraftSections(merged);
+    } else {
+      // Legacy or new report: put existing markdown in Team section
+      const sections: ReportSection[] = [
+        { project_id: null, project_name: "Team", body: currentReport?.markdown_body ?? "" },
+        ...projects.map(p => ({ project_id: p.project_id, project_name: p.project_name, body: "", source: p.source })),
+      ];
+      setDraftSections(sections);
+    }
+
+    // Composite preview
     setDraftBody(currentReport?.markdown_body ?? "");
+    setCollapsedSections(new Set());
     setActiveTab("edit");
     setIsEditorOpen(true);
   };
 
-  const handleToolbarAction = (action: Parameters<typeof applyMarkdownBlockAction>[0]["action"]) => {
-    const textarea = textareaRef.current;
-    if (!textarea) return;
 
-    const result = applyMarkdownBlockAction({
-      value: draftBody,
-      selectionStart: textarea.selectionStart,
-      selectionEnd: textarea.selectionEnd,
-      action,
-    });
-
-    setDraftBody(result.nextValue);
-    requestAnimationFrame(() => {
-      textarea.focus();
-      textarea.setSelectionRange(result.nextSelectionStart, result.nextSelectionEnd);
-    });
-  };
 
   const saveErrorMessage = saveMutation.error ? getApiError(saveMutation.error).message : null;
   const editorDialog = (
@@ -162,35 +211,65 @@ export function UserWeeklyReportCard({
               </TabsTrigger>
             </TabsList>
 
-            <TabsContent value="edit" className="mt-4">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <WeeklyReportEditorToolbar onAction={handleToolbarAction} />
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setDraftBody(previousReport?.markdown_body ?? "")}
-                  disabled={!previousReport}
-                >
-                  {t("weeklyReport.copyPrevious")}
-                </Button>
-              </div>
-              <label htmlFor="weekly-report-body" className="sr-only">
-                {t("weeklyReport.tabEdit")}
-              </label>
-              <Textarea
-                id="weekly-report-body"
-                ref={textareaRef}
-                value={draftBody}
-                onChange={(event) => setDraftBody(event.target.value)}
-                placeholder={t("weeklyReport.editorPlaceholder")}
-                className="mt-3 min-h-[360px] resize-y font-mono text-sm"
-              />
+            <TabsContent value="edit" className="mt-4 space-y-3">
+              {draftSections.map((section, idx) => {
+                const isTeam = section.project_id === null;
+                const isCollapsed = collapsedSections.has(idx);
+                const hasContent = section.body.trim().length > 0;
+
+                return (
+                  <div key={section.project_id ?? "team"} className={`rounded-lg border ${isTeam ? 'border-blue-200 bg-blue-50/30' : 'border-slate-200'}`}>
+                    <button
+                      type="button"
+                      onClick={() => !isTeam && toggleSectionCollapse(idx)}
+                      className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm font-medium"
+                    >
+                      {isTeam ? (
+                        <Users className="h-4 w-4 text-blue-500 shrink-0" />
+                      ) : isCollapsed ? (
+                        <ChevronRight className="h-4 w-4 text-slate-400 shrink-0" />
+                      ) : (
+                        <ChevronDown className="h-4 w-4 text-slate-400 shrink-0" />
+                      )}
+                      <span className={isTeam ? 'text-blue-700' : 'text-slate-700'}>
+                        {section.project_name}
+                      </span>
+                      {!isTeam && section.source && (
+                        <Badge variant="secondary" className="text-[10px] font-normal">
+                          {section.source === "planned" ? "계획" : "워크로그"}
+                        </Badge>
+                      )}
+                      {!isTeam && !hasContent && (
+                        <span className="ml-auto text-xs text-slate-400">미작성</span>
+                      )}
+                    </button>
+                    {(!isCollapsed || isTeam) && (
+                      <div className="px-4 pb-3">
+                        <Textarea
+                          value={section.body}
+                          onChange={(e) => updateSectionBody(idx, e.target.value)}
+                          placeholder={isTeam ? "팀 공통사항, 회의, 기타 업무..." : `${section.project_name} 관련 이번주 진행사항...`}
+                          className="min-h-[120px] resize-y font-mono text-sm"
+                        />
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+              {draftSections.length === 0 && (
+                <div className="text-center py-8 text-slate-400 text-sm">로딩 중...</div>
+              )}
             </TabsContent>
 
             <TabsContent value="preview" className="mt-4">
               <div className="min-h-[360px] rounded-lg border border-slate-200 bg-slate-50 p-5">
-                <WeeklyReportMarkdown value={draftBody} emptyMessage={t("weeklyReport.previewEmpty")} />
+                <WeeklyReportMarkdown
+                  value={draftSections.map(s => {
+                    if (!s.body.trim()) return '';
+                    return `### ${s.project_name}\n${s.body}`;
+                  }).filter(Boolean).join('\n\n')}
+                  emptyMessage={t("weeklyReport.previewEmpty")}
+                />
               </div>
             </TabsContent>
           </Tabs>
