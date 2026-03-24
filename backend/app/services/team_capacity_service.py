@@ -14,7 +14,7 @@ from calendar import monthrange
 from datetime import date
 from typing import Optional
 
-from sqlalchemy import and_, func
+from sqlalchemy import and_, or_, func
 from sqlalchemy.orm import Session, joinedload
 
 from app.models.absence import Absence
@@ -84,8 +84,9 @@ class TeamCapacityService:
         if not sub_team_ids:
             return 0.0
 
-        count = (
-            self.db.query(func.count(func.distinct(UserHistory.user_id)))
+        # Users with active history records overlapping the month
+        history_count_q = (
+            self.db.query(func.distinct(UserHistory.user_id))
             .filter(
                 and_(
                     UserHistory.department_id == department_id,
@@ -98,9 +99,40 @@ class TeamCapacityService:
                     UserHistory.change_type.notin_(["TRANSFER_OUT", "RESIGN"]),
                 ),
             )
-            .scalar()
         )
-        return float(count or 0)
+        history_user_ids = {row[0] for row in history_count_q.all()}
+
+        # Fallback: users in sub_team with no history records at all
+        # Include if: (is_active=True) OR (termination_date is in the future relative to month)
+        history_exists_subq = (
+            self.db.query(UserHistory.user_id)
+            .filter(UserHistory.sub_team_id.in_(sub_team_ids))
+            .distinct()
+            .subquery()
+        )
+        fallback_count_q = (
+            self.db.query(User.id)
+            .filter(
+                and_(
+                    User.department_id == department_id,
+                    User.sub_team_id.in_(sub_team_ids),
+                    or_(
+                        User.is_active.is_(True),
+                        # Include inactive users whose termination_date is after month_start
+                        and_(
+                            User.termination_date.isnot(None),
+                            User.termination_date > month_start,
+                        ),
+                    ),
+                    ~User.id.in_(
+                        self.db.query(history_exists_subq.c.user_id)
+                    ),
+                ),
+            )
+        )
+        fallback_user_ids = {row[0] for row in fallback_count_q.all()}
+
+        return float(len(history_user_ids | fallback_user_ids))
 
     def _sum_absence_impact(
         self,
@@ -231,8 +263,8 @@ class TeamCapacityService:
         if not sub_team_ids:
             return []
 
-        # Find distinct user_ids with active history records on target_date
-        active_user_ids_q = (
+        # 1) Users with active history records on target_date
+        history_user_ids_q = (
             self.db.query(func.distinct(UserHistory.user_id))
             .filter(
                 and_(
@@ -247,7 +279,39 @@ class TeamCapacityService:
                 ),
             )
         )
-        active_user_ids = [row[0] for row in active_user_ids_q.all()]
+        history_user_ids = {row[0] for row in history_user_ids_q.all()}
+
+        # 2) Fallback: users assigned to the sub_team in users table
+        #    but missing from user_history (no history record at all)
+        #    Include inactive users whose termination_date is after target_date
+        history_exists_subq = (
+            self.db.query(UserHistory.user_id)
+            .filter(UserHistory.sub_team_id.in_(sub_team_ids))
+            .distinct()
+            .subquery()
+        )
+        fallback_user_ids_q = (
+            self.db.query(User.id)
+            .filter(
+                and_(
+                    User.department_id == department_id,
+                    User.sub_team_id.in_(sub_team_ids),
+                    or_(
+                        User.is_active.is_(True),
+                        and_(
+                            User.termination_date.isnot(None),
+                            User.termination_date > target_date,
+                        ),
+                    ),
+                    ~User.id.in_(
+                        self.db.query(history_exists_subq.c.user_id)
+                    ),
+                ),
+            )
+        )
+        fallback_user_ids = {row[0] for row in fallback_user_ids_q.all()}
+
+        active_user_ids = list(history_user_ids | fallback_user_ids)
         if not active_user_ids:
             return []
 

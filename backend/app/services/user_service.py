@@ -96,6 +96,17 @@ class UserService:
             del update_data["password"]
             user.hashed_password = hashed_password
 
+        # Detect deactivation (resign)
+        was_active = user.is_active
+        had_termination = user.termination_date is not None
+        will_deactivate = was_active and update_data.get("is_active") is False
+        # Also trigger RESIGN if already inactive but termination_date is being set for the first time
+        will_set_termination = (
+            not had_termination
+            and "termination_date" in update_data
+            and update_data["termination_date"] is not None
+        )
+
         for field, value in update_data.items():
             setattr(user, field, value)
 
@@ -110,8 +121,20 @@ class UserService:
         org_changed = (old_division_id != new_division_id) or (old_department_id != new_department_id) or (
             old_sub_team_id != new_sub_team_id
         ) or (old_position_id != new_position_id)
-        
-        if org_changed:
+
+        if will_deactivate or will_set_termination:
+            # Auto-create RESIGN history record using termination_date if available
+            self._log_history_change(
+                user_id=cast(str, user.id),
+                division_id=cast(Optional[str], old_division_id),
+                department_id=cast(Optional[str], old_department_id),
+                sub_team_id=cast(Optional[str], old_sub_team_id),
+                position_id=cast(str, old_position_id or new_position_id),
+                change_type="RESIGN",
+                remarks="Deactivated via user management.",
+                effective_date=user.termination_date,
+            )
+        elif org_changed:
             self._log_history_change(
                 user_id=cast(str, user.id),
                 division_id=cast(Optional[str], new_division_id),
@@ -133,9 +156,10 @@ class UserService:
         position_id: str,
         change_type: str = "TRANSFER",
         remarks: str = "User profile updated.",
+        effective_date: Optional[datetime] = None,
     ):
         """Logs changes in a user's department/sub-team/position."""
-        now = datetime.utcnow()
+        now = effective_date or datetime.utcnow()
 
         # End the current history record
         current_history = (

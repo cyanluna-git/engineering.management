@@ -21,6 +21,7 @@ class UserBase(BaseModel):
     role: Optional[str] = "USER"
     is_active: bool = True
     hire_date: Optional[datetime] = None
+    termination_date: Optional[datetime] = None
 
 
 class UserCreate(UserBase):

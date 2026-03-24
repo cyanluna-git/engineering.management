@@ -289,7 +289,13 @@ export const ResourcesTab: React.FC = () => {
                                         </span>
                                     </td>
                                     <td className="py-2 px-3 text-center">
-                                        <span className={`inline-block w-2 h-2 rounded-full ${user.is_active ? 'bg-green-500' : 'bg-gray-300'}`} />
+                                        {user.is_active ? (
+                                            <span className="inline-block w-2 h-2 rounded-full bg-green-500" />
+                                        ) : (
+                                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-red-100 text-red-700">
+                                                퇴사
+                                            </span>
+                                        )}
                                     </td>
                                     <td className="py-2 px-3 text-right space-x-2">
                                         {canManageUsers && (
@@ -355,6 +361,9 @@ export const UserEditModal: React.FC<{
         primary_business_unit_id: user.primary_business_unit_id || '',
         role: user.role || 'USER',
         is_active: user.is_active ?? true,
+        termination_date: 'termination_date' in user && user.termination_date
+            ? String(user.termination_date).slice(0, 10)
+            : '',
     });
 
     const createMutation = useMutation({
@@ -395,6 +404,9 @@ export const UserEditModal: React.FC<{
                 primary_business_unit_id: formData.primary_business_unit_id || null,
                 role: formData.role,
                 is_active: formData.is_active,
+                ...((!formData.is_active && formData.termination_date)
+                    ? { termination_date: formData.termination_date }
+                    : {}),
             });
         }
     };
@@ -507,14 +519,47 @@ export const UserEditModal: React.FC<{
                             <option value="ADMIN">ADMIN</option>
                         </select>
                     </div>
-                    <div className="flex items-center gap-2">
-                        <input
-                            type="checkbox"
-                            id="is_active"
-                            checked={formData.is_active}
-                            onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
-                        />
-                        <label htmlFor="is_active" className="text-sm">Active</label>
+                    <div className="space-y-3">
+                        {!isNewUser && !formData.is_active && formData.termination_date ? (
+                            /* Already resigned — read-only display */
+                            <div className="p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-3">
+                                <div className="w-2 h-2 rounded-full bg-red-500 flex-shrink-0" />
+                                <div>
+                                    <p className="text-sm font-medium text-red-700">
+                                        퇴사 처리됨 — {formData.termination_date} 이후
+                                    </p>
+                                    <p className="text-xs text-red-500 mt-0.5">Team Capacity에서 자동 제외됩니다.</p>
+                                </div>
+                            </div>
+                        ) : (
+                            <>
+                                <div className="flex items-center gap-2">
+                                    <input
+                                        type="checkbox"
+                                        id="is_active"
+                                        checked={formData.is_active}
+                                        onChange={(e) => setFormData({
+                                            ...formData,
+                                            is_active: e.target.checked,
+                                            termination_date: e.target.checked ? '' : formData.termination_date,
+                                        })}
+                                    />
+                                    <label htmlFor="is_active" className="text-sm">Active</label>
+                                </div>
+                                {!formData.is_active && (
+                                    <div className="ml-6 p-3 bg-red-50 border border-red-200 rounded-lg space-y-2">
+                                        <label className="block text-sm font-medium text-red-700">퇴사일 (Termination Date)</label>
+                                        <input
+                                            type="date"
+                                            className="w-full border border-red-200 rounded px-3 py-2 text-sm"
+                                            value={formData.termination_date}
+                                            onChange={(e) => setFormData({ ...formData, termination_date: e.target.value })}
+                                        />
+                                        <p className="text-xs text-red-500">퇴사일을 입력하면 해당 날짜 이후 Team Capacity에서 자동 제외됩니다.</p>
+                                    </div>
+                                )}
+                            </>
+                        )}
                     </div>
                 </div>
                 <DialogFooter>

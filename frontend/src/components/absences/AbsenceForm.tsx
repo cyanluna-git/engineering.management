@@ -144,6 +144,7 @@ export function AbsenceForm({ open, onClose, absence, departmentId, onSuccess }:
         }
       );
     } else {
+      const selectedUser = users.find((u) => u.id === userId);
       const data: AbsenceCreate = {
         user_id: userId,
         absence_type: absenceType,
@@ -151,6 +152,7 @@ export function AbsenceForm({ open, onClose, absence, departmentId, onSuccess }:
         end_date: noEndDate ? null : (endDate || null),
         fte_impact: fteImpact,
         department_id: departmentId,
+        sub_team_id: selectedUser?.sub_team_id || null,
         remarks: remarks || null,
       };
       createMutation.mutate(data, {

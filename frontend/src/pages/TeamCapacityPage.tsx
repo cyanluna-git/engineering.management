@@ -398,10 +398,10 @@ function TeamCapacityPage() {
                                                             key={`ai-${item.month}`}
                                                             className={cn(
                                                                 'text-center py-2 px-2',
-                                                                item.absence_impact > 0 ? 'text-orange-600 font-medium' : 'text-slate-400'
+                                                                item.absence_impact < 0 ? 'text-orange-600 font-medium' : 'text-slate-400'
                                                             )}
                                                         >
-                                                            {item.absence_impact > 0 ? `-${item.absence_impact}` : '0'}
+                                                            {item.absence_impact < 0 ? item.absence_impact : '0'}
                                                         </td>
                                                     ))}
                                                 </tr>
