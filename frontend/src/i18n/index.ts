@@ -14,6 +14,7 @@ import enOrganization from '../locales/en/organization.json';
 import enReports from '../locales/en/reports.json';
 import enErrors from '../locales/en/errors.json';
 import enValidation from '../locales/en/validation.json';
+import enIntroduction from '../locales/en/introduction.json';
 
 // --- KO namespaces ---
 import koCommon from '../locales/ko/common.json';
@@ -27,6 +28,7 @@ import koOrganization from '../locales/ko/organization.json';
 import koReports from '../locales/ko/reports.json';
 import koErrors from '../locales/ko/errors.json';
 import koValidation from '../locales/ko/validation.json';
+import koIntroduction from '../locales/ko/introduction.json';
 
 export const supportedLanguages = ['en', 'ko'] as const;
 export type SupportedLanguage = (typeof supportedLanguages)[number];
@@ -48,6 +50,7 @@ i18n
         reports: enReports,
         errors: enErrors,
         validation: enValidation,
+        introduction: enIntroduction,
       },
       ko: {
         common: koCommon,
@@ -61,6 +64,7 @@ i18n
         reports: koReports,
         errors: koErrors,
         validation: koValidation,
+        introduction: koIntroduction,
       },
     },
     fallbackLng: 'en',
@@ -78,6 +82,7 @@ i18n
       'reports',
       'errors',
       'validation',
+      'introduction',
     ],
     interpolation: {
       escapeValue: false, // React already escapes

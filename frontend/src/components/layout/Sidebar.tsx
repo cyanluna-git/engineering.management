@@ -23,6 +23,7 @@ import {
   ChevronRight,
   History,
   FileText,
+  BookOpen,
 } from "lucide-react";
 
 // Nav item definition with i18n key
@@ -234,6 +235,16 @@ export function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
             >
               <History className="h-5 w-5 flex-shrink-0" />
             </Link>
+            <Link
+              to="/introduction"
+              title={t("sidebar.introduction")}
+              className={cn(
+                "flex w-full items-center justify-center rounded-lg px-2 py-1.5 text-sm font-medium text-slate-300 transition-colors hover:bg-slate-800 hover:text-white",
+                location.pathname === "/introduction" && "bg-slate-800 text-white",
+              )}
+            >
+              <BookOpen className="h-5 w-5 flex-shrink-0" />
+            </Link>
           </div>
         ) : (
           <div className="flex items-center gap-2">
@@ -256,6 +267,16 @@ export function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
               )}
             >
               <History className="h-4.5 w-4.5" />
+            </Link>
+            <Link
+              to="/introduction"
+              title={t("sidebar.introduction")}
+              className={cn(
+                "flex h-10 w-10 items-center justify-center rounded-lg text-slate-300 transition-colors hover:bg-slate-800 hover:text-white",
+                location.pathname === "/introduction" && "bg-slate-800 text-white",
+              )}
+            >
+              <BookOpen className="h-4.5 w-4.5" />
             </Link>
             <div className="min-w-0 flex-1">
               <LanguageToggle variant="collapsed" />

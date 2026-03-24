@@ -2,7 +2,7 @@ import { lazy, Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './hooks/useAuth';
 import { MainLayout, PortalLayout } from './components/layout';
-import { LandingPage, LoginPage, RegisterPage } from './pages';
+import { LoginPage, RegisterPage } from './pages';
 
 import './App.css';
 
@@ -20,6 +20,7 @@ const WeeklyReportHierarchyPage = lazy(() => import('./pages/WeeklyReportHierarc
 const RequestBoardPage = lazy(() => import('./pages/RequestBoardPage').then(m => ({ default: m.RequestBoardPage })));
 const ProfilePage = lazy(() => import('./pages/ProfilePage').then(m => ({ default: m.ProfilePage })));
 const UpdatesPage = lazy(() => import('./pages/UpdatesPage').then(m => ({ default: m.UpdatesPage })));
+const IntroductionPage = lazy(() => import('./pages/IntroductionPage'));
 const PortalPage = lazy(() => import('./pages/PortalPage'));
 const PortalStatsPage = lazy(() => import('./pages/PortalStatsPage'));
 const TeamCapacityPage = lazy(() => import('./pages/TeamCapacityPage'));
@@ -70,17 +71,21 @@ function App() {
               <Route path="/requests" element={<Suspense fallback={<PageLoader />}><RequestBoardPage /></Suspense>} />
               <Route path="/profile" element={<Suspense fallback={<PageLoader />}><ProfilePage /></Suspense>} />
               <Route path="/updates" element={<Suspense fallback={<PageLoader />}><UpdatesPage /></Suspense>} />
+              <Route path="/introduction" element={<Suspense fallback={<PageLoader />}><IntroductionPage /></Suspense>} />
               <Route path="*" element={<Navigate to="/portal" />} />
             </Route>
           </>
         ) : (
           <>
-            <Route path="/" element={<LandingPage />} />
+            <Route path="/" element={<Navigate to="/introduction" replace />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
-            <Route path="*" element={<Navigate to="/" />} />
+            <Route path="*" element={<Navigate to="/introduction" />} />
           </>
         )}
+
+        {/* Public — accessible without login */}
+        <Route path="/introduction" element={<Suspense fallback={<PageLoader />}><IntroductionPage /></Suspense>} />
       </Routes>
     </Router>
   );

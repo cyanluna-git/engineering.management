@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import axios from 'axios';
 import { loginUser } from '@/api/client';
 import { Link, useSearchParams } from 'react-router-dom';
-import { BarChart3, Mail, Lock, Loader2, Info, ShieldAlert, UserX } from 'lucide-react';
+import { BarChart3, Mail, Lock, Loader2, Info, ShieldAlert, UserX, ChevronDown } from 'lucide-react';
 
 interface SsoError {
   type: 'unregistered' | 'inactive';
@@ -21,6 +21,7 @@ export function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [ssoError, setSsoError] = useState<SsoError | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [showEmailLogin, setShowEmailLogin] = useState(false);
   const { login } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const { t } = useTranslation('auth');
@@ -140,127 +141,124 @@ export function LoginPage() {
 
             {/* Form Section */}
             <div className="px-8 pb-8">
-              <form onSubmit={handleSubmit} className="space-y-5">
-                {/* Email Field */}
-                <div className="space-y-2">
-                  <label htmlFor="email" className="text-sm font-medium text-slate-700">
-                    {t('login.email')}
-                  </label>
-                  <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <Mail className="h-5 w-5 text-slate-400" />
-                    </div>
-                    <Input
-                      id="email"
-                      type="email"
-                      placeholder={t('login.emailPlaceholder')}
-                      required
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      className="pl-10 h-12 bg-slate-50 border-slate-200 focus:bg-white focus:border-blue-500 focus:ring-blue-500 transition-colors"
-                    />
-                  </div>
-                </div>
+              {/* SSO Login Button — Primary */}
+              <Button
+                type="button"
+                className="w-full h-12 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-medium rounded-lg shadow-lg shadow-blue-500/25 transition-all duration-200 flex items-center justify-center gap-3"
+                onClick={() => {
+                  const apiBase = import.meta.env.VITE_API_URL || '';
+                  let ssoLoginUrl = '';
+                  if (apiBase && apiBase !== '/') {
+                    ssoLoginUrl = `${apiBase}/auth/sso/login`;
+                  } else {
+                    ssoLoginUrl = `/api/auth/sso/login`;
+                  }
+                  ssoLoginUrl = ssoLoginUrl.replace(/\/+/g, '/');
+                  if (window.location.hostname === 'localhost' && !apiBase.startsWith('http')) {
+                    window.location.href = `http://localhost:8004/api/auth/sso/login`;
+                  } else {
+                    window.location.href = ssoLoginUrl;
+                  }
+                }}
+              >
+                <svg className="w-5 h-5" viewBox="0 0 23 23" xmlns="http://www.w3.org/2000/svg">
+                  <path fill="#f3f3f3" d="M0 0h23v23H0z"/>
+                  <path fill="#f35325" d="M1 1h10v10H1z"/>
+                  <path fill="#81bc06" d="M12 1h10v10H12z"/>
+                  <path fill="#05a6f0" d="M1 12h10v10H1z"/>
+                  <path fill="#ffba08" d="M12 12h10v10H12z"/>
+                </svg>
+                {t('login.ssoButton')}
+              </Button>
 
-                {/* Password Field */}
-                <div className="space-y-2">
-                  <label htmlFor="password" className="text-sm font-medium text-slate-700">
-                    {t('login.password')}
-                  </label>
-                  <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <Lock className="h-5 w-5 text-slate-400" />
-                    </div>
-                    <Input
-                      id="password"
-                      type="password"
-                      placeholder={t('login.passwordPlaceholder')}
-                      required
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      className="pl-10 h-12 bg-slate-50 border-slate-200 focus:bg-white focus:border-blue-500 focus:ring-blue-500 transition-colors"
-                    />
-                  </div>
-                </div>
-
-                {/* Error Message */}
-                {error && (
-                  <div className="p-3 rounded-lg bg-red-50 border border-red-200">
-                    <p className="text-sm text-red-600 flex items-center gap-2">
-                      <span className="inline-block w-1.5 h-1.5 rounded-full bg-red-500"></span>
-                      {error}
-                    </p>
-                  </div>
-                )}
-
-                {/* Login Button */}
-                <Button
-                  type="submit"
-                  disabled={isLoading}
-                  className="w-full h-12 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-medium rounded-lg shadow-lg shadow-blue-500/25 transition-all duration-200 disabled:opacity-70"
-                >
-                  {isLoading ? (
-                    <span className="flex items-center gap-2">
-                      <Loader2 className="w-5 h-5 animate-spin" />
-                      {t('login.signingIn')}
-                    </span>
-                  ) : (
-                    t('login.signIn')
-                  )}
-                </Button>
-
-                {/* SSO Separator */}
-                <div className="relative my-6">
-                  <div className="absolute inset-0 flex items-center">
-                    <span className="w-full border-t border-slate-200"></span>
-                  </div>
-                  <div className="relative flex justify-center text-xs uppercase">
-                    <span className="bg-white px-2 text-slate-500 font-medium tracking-wider">
-                      {t('login.orContinueWith')}
-                    </span>
-                  </div>
-                </div>
-
-                {/* SSO Login Button */}
-                <Button
+              {/* Email/Password Fallback — Collapsible */}
+              <div className="mt-6">
+                <button
                   type="button"
-                  variant="outline"
-                  className="w-full h-12 border-slate-200 hover:bg-slate-50 text-slate-700 font-medium rounded-lg transition-all duration-200 flex items-center justify-center gap-3"
-                  onClick={() => {
-                    // Use absolute URL for SSO login to avoid issues with proxies during redirection
-                    const apiBase = import.meta.env.VITE_API_URL || '';
-
-                    // Force /api prefix if not present to ensure it hits the Nginx API proxy
-                    let ssoLoginUrl = '';
-                    if (apiBase && apiBase !== '/') {
-                      ssoLoginUrl = `${apiBase}/auth/sso/login`;
-                    } else {
-                      ssoLoginUrl = `/api/auth/sso/login`;
-                    }
-
-                    // Clean up double slashes
-                    ssoLoginUrl = ssoLoginUrl.replace(/\/+/g, '/');
-
-                    if (window.location.hostname === 'localhost' && !apiBase.startsWith('http')) {
-                      // In local dev, redirect to the known backend port
-                      window.location.href = `http://localhost:8004/api/auth/sso/login`;
-                    } else {
-                      // In production, use the constructed relative URL
-                      window.location.href = ssoLoginUrl;
-                    }
-                  }}
+                  onClick={() => setShowEmailLogin(!showEmailLogin)}
+                  className="w-full flex items-center justify-center gap-2 text-xs uppercase text-slate-400 font-medium tracking-wider hover:text-slate-600 transition-colors"
                 >
-                  <svg className="w-5 h-5" viewBox="0 0 23 23" xmlns="http://www.w3.org/2000/svg">
-                    <path fill="#f3f3f3" d="M0 0h23v23H0z"/>
-                    <path fill="#f35325" d="M1 1h10v10H1z"/>
-                    <path fill="#81bc06" d="M12 1h10v10H12z"/>
-                    <path fill="#05a6f0" d="M1 12h10v10H1z"/>
-                    <path fill="#ffba08" d="M12 12h10v10H12z"/>
-                  </svg>
-                  {t('login.ssoButton')}
-                </Button>
-              </form>
+                  <span className="flex-1 border-t border-slate-200" />
+                  <span className="flex items-center gap-1 px-2">
+                    {t('login.orContinueWith')}
+                    <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${showEmailLogin ? 'rotate-180' : ''}`} />
+                  </span>
+                  <span className="flex-1 border-t border-slate-200" />
+                </button>
 
+                <div className={`overflow-hidden transition-all duration-300 ease-in-out ${showEmailLogin ? 'max-h-[400px] opacity-100 mt-5' : 'max-h-0 opacity-0'}`}>
+                  <form onSubmit={handleSubmit} className="space-y-5">
+                    {/* Email Field */}
+                    <div className="space-y-2">
+                      <label htmlFor="email" className="text-sm font-medium text-slate-700">
+                        {t('login.email')}
+                      </label>
+                      <div className="relative">
+                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                          <Mail className="h-5 w-5 text-slate-400" />
+                        </div>
+                        <Input
+                          id="email"
+                          type="email"
+                          placeholder={t('login.emailPlaceholder')}
+                          required
+                          value={email}
+                          onChange={(e) => setEmail(e.target.value)}
+                          className="pl-10 h-12 bg-slate-50 border-slate-200 focus:bg-white focus:border-blue-500 focus:ring-blue-500 transition-colors"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Password Field */}
+                    <div className="space-y-2">
+                      <label htmlFor="password" className="text-sm font-medium text-slate-700">
+                        {t('login.password')}
+                      </label>
+                      <div className="relative">
+                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                          <Lock className="h-5 w-5 text-slate-400" />
+                        </div>
+                        <Input
+                          id="password"
+                          type="password"
+                          placeholder={t('login.passwordPlaceholder')}
+                          required
+                          value={password}
+                          onChange={(e) => setPassword(e.target.value)}
+                          className="pl-10 h-12 bg-slate-50 border-slate-200 focus:bg-white focus:border-blue-500 focus:ring-blue-500 transition-colors"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Error Message */}
+                    {error && (
+                      <div className="p-3 rounded-lg bg-red-50 border border-red-200">
+                        <p className="text-sm text-red-600 flex items-center gap-2">
+                          <span className="inline-block w-1.5 h-1.5 rounded-full bg-red-500"></span>
+                          {error}
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Login Button */}
+                    <Button
+                      type="submit"
+                      disabled={isLoading}
+                      variant="outline"
+                      className="w-full h-12 border-slate-200 hover:bg-slate-50 text-slate-700 font-medium rounded-lg transition-all duration-200 disabled:opacity-70"
+                    >
+                      {isLoading ? (
+                        <span className="flex items-center gap-2">
+                          <Loader2 className="w-5 h-5 animate-spin" />
+                          {t('login.signingIn')}
+                        </span>
+                      ) : (
+                        t('login.signIn')
+                      )}
+                    </Button>
+                  </form>
+                </div>
+              </div>
             </div>
           </div>
 
