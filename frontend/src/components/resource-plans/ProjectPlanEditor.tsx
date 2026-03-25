@@ -46,8 +46,7 @@ const ProjectPlanEditorInner: React.ForwardRefRenderFunction<ProjectPlanEditorHa
     onDeleteRow,
     onDataChange,
     stickyTopOffset: _stickyTopOffset = 0,
-}, ref
-}) => {
+}, ref) => {
     const { t } = useTranslation('resource-plans');
     const { canManageResources } = usePermissions();
     const queryClient = useQueryClient();

@@ -121,7 +121,7 @@ export const ResourcePlansPage: React.FC = () => {
     const monthInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
     const monthGridColumnCount = 6;
 
-    const handleSave = useCallback(async () => {
+    const handleEditSave = useCallback(async () => {
         if (!editorRef.current) return;
         setIsSaving(true);
         try {
@@ -132,7 +132,7 @@ export const ResourcePlansPage: React.FC = () => {
         }
     }, []);
 
-    const handleCancel = useCallback(() => {
+    const handleEditCancel = useCallback(() => {
         editorRef.current?.cancelAll();
         setIsEditMode(false);
     }, []);
@@ -631,7 +631,7 @@ export const ResourcePlansPage: React.FC = () => {
                                                     size="sm"
                                                     variant="default"
                                                     className="h-7 text-xs"
-                                                    onClick={handleSave}
+                                                    onClick={handleEditSave}
                                                     disabled={isSaving}
                                                 >
                                                     {isSaving ? t('actions.saving') : t('actions.save')}
@@ -640,7 +640,7 @@ export const ResourcePlansPage: React.FC = () => {
                                                     size="sm"
                                                     variant="outline"
                                                     className="h-7 text-xs"
-                                                    onClick={handleCancel}
+                                                    onClick={handleEditCancel}
                                                     disabled={isSaving}
                                                 >
                                                     {t('actions.cancel')}
