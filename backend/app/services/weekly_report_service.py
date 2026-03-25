@@ -343,7 +343,7 @@ class WeeklyReportService:
         Completed/Cancelled projects excluded.
         """
         ref = reference_date or date.today()
-        excluded_statuses = ["Completed", "Cancelled"]
+        excluded_statuses = ["Complete", "Cancelled"]
 
         # Determine the week (Monday ~ Sunday) for the reference date
         week_start = ref - timedelta(days=ref.weekday())  # Monday

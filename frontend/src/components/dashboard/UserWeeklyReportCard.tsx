@@ -78,11 +78,11 @@ export function UserWeeklyReportCard({
   const [draftSections, setDraftSections] = useState<ReportSection[]>([]);
   const [collapsedSections, setCollapsedSections] = useState<Set<number>>(new Set());
 
-  // Fetch user's active projects for dynamic form
+  // Prefetch user's active projects on mount (not on editor open)
   const activeProjectsQuery = useQuery({
     queryKey: ["user-active-projects", referenceDateKey],
     queryFn: () => apiClient.get(`/weekly-reports/user-projects?reference_date=${referenceDateKey}`).then(r => r.data),
-    enabled: isEditorOpen,
+    staleTime: 1000 * 60 * 5,
   });
 
   const toggleSectionCollapse = useCallback((index: number) => {
