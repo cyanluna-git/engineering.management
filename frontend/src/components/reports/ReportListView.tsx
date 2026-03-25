@@ -3,7 +3,6 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { Button, Card, CardContent } from '@/components/ui';
 import { getGeneratedReports, generateAIReport } from '@/api/client';
-import { usePermissions } from '@/hooks/usePermissions';
 import type { GeneratedReport } from '@/types';
 
 interface ReportListViewProps {
@@ -23,7 +22,6 @@ const STATUS_BADGE: Record<string, { bg: string; label: string }> = {
 
 export function ReportListView({ onSelectReport }: ReportListViewProps) {
     const { t } = useTranslation('reports');
-    const { canViewReports } = usePermissions();
     const queryClient = useQueryClient();
     const [typeFilter, setTypeFilter] = useState<string>('');
 
@@ -32,14 +30,23 @@ export function ReportListView({ onSelectReport }: ReportListViewProps) {
         queryFn: () => getGeneratedReports(typeFilter || undefined),
     });
 
+    const [generateError, setGenerateError] = useState<string>('');
+
     const generateMutation = useMutation({
         mutationFn: generateAIReport,
         onSuccess: () => {
+            setGenerateError('');
             queryClient.invalidateQueries({ queryKey: ['generated-reports'] });
+        },
+        onError: (error: Error & { response?: { data?: { detail?: string }; status?: number } }) => {
+            const msg = error.response?.data?.detail || error.message || 'Generation failed';
+            setGenerateError(msg);
+            console.error('Report generation failed:', error);
         },
     });
 
     const handleGenerate = (reportType: string) => {
+        setGenerateError('');
         generateMutation.mutate({ report_type: reportType });
     };
 
@@ -63,26 +70,31 @@ export function ReportListView({ onSelectReport }: ReportListViewProps) {
                     ))}
                 </div>
 
-                {canViewReports && (
-                    <div className="flex items-center gap-2">
-                        <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleGenerate('weekly')}
-                            disabled={generateMutation.isPending}
-                        >
-                            {t('aiReport.generateWeekly')}
-                        </Button>
-                        <Button
-                            size="sm"
-                            onClick={() => handleGenerate('monthly')}
-                            disabled={generateMutation.isPending}
-                        >
-                            {generateMutation.isPending ? t('aiReport.generating') : t('aiReport.generateMonthly')}
-                        </Button>
-                    </div>
-                )}
+                <div className="flex items-center gap-2">
+                    <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleGenerate('weekly')}
+                        disabled={generateMutation.isPending}
+                    >
+                        {generateMutation.isPending ? t('aiReport.generating') : t('aiReport.generateWeekly')}
+                    </Button>
+                    <Button
+                        size="sm"
+                        onClick={() => handleGenerate('monthly')}
+                        disabled={generateMutation.isPending}
+                    >
+                        {generateMutation.isPending ? t('aiReport.generating') : t('aiReport.generateMonthly')}
+                    </Button>
+                </div>
             </div>
+
+            {/* Error */}
+            {generateError && (
+                <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-700">
+                    {generateError}
+                </div>
+            )}
 
             {/* Loading */}
             {isLoading && (

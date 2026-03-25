@@ -180,7 +180,7 @@ async def get_working_days(
 async def generate_report(
     body: GeneratedReportCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role(["ADMIN", "PM", "FM"])),
+    current_user: User = Depends(require_role("ADMIN", "PM", "FM")),
 ):
     """Generate a new AI-powered engineering intelligence report."""
     service = ReportGenerationService(db)
@@ -223,7 +223,7 @@ async def get_generated_report(
 async def auto_generate_report(
     report_type: str = Query(..., description="weekly or monthly"),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role(["ADMIN"])),
+    current_user: User = Depends(require_role("ADMIN")),
 ):
     """Auto-generate report for the latest period if not already exists. For cron use."""
     service = ReportGenerationService(db)
