@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState, useCallback, memo } from 'react';
+import React, { useMemo, useRef, useState, useCallback, memo, useImperativeHandle, forwardRef } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { useResourcePlans } from '@/hooks/useResourcePlans';
@@ -21,23 +21,32 @@ export interface ResourceRow {
 interface ProjectPlanEditorProps {
     projectId: string;
     months: { year: number; month: number; label: string }[];
+    isEditMode?: boolean;
     onAddMember?: () => void;
     onDeleteRow?: (row: ResourceRow) => void;
     onDataChange?: (data: ResourceRow[]) => void;
     stickyTopOffset?: number;
 }
 
+export interface ProjectPlanEditorHandle {
+    saveAllPending: () => Promise<void>;
+    cancelAll: () => void;
+    hasPendingChanges: () => boolean;
+}
+
 /**
  * ProjectPlanEditor - Excel-style inline cell editing for resource plans.
- * Replaces ProjectResourceTable with direct in-cell editing (no modal needed).
+ * In edit mode, changes accumulate and are batch-saved via ref handle.
  */
-export const ProjectPlanEditor: React.FC<ProjectPlanEditorProps> = memo(({
+const ProjectPlanEditorInner: React.ForwardRefRenderFunction<ProjectPlanEditorHandle, ProjectPlanEditorProps> = ({
     projectId,
     months,
+    isEditMode = false,
     onAddMember,
     onDeleteRow,
     onDataChange,
     stickyTopOffset: _stickyTopOffset = 0,
+}, ref
 }) => {
     const { t } = useTranslation('resource-plans');
     const { canManageResources } = usePermissions();
@@ -193,14 +202,12 @@ export const ProjectPlanEditor: React.FC<ProjectPlanEditorProps> = memo(({
         let operation: 'create' | 'update' | 'delete' | 'noop' = 'noop';
         if (!existingPlanId) {
             if (!isEmptyOrZero) operation = 'create';
-            // else: no plan, empty value → noop
         } else {
             if (isEmptyOrZero) {
                 operation = 'delete';
             } else if (newValue !== existingHours) {
                 operation = 'update';
             }
-            // else: same value → noop
         }
 
         if (operation === 'noop') {
@@ -221,7 +228,10 @@ export const ProjectPlanEditor: React.FC<ProjectPlanEditorProps> = memo(({
             return;
         }
 
-        // Optimistic: keep pending value visible while saving
+        // In edit mode: accumulate changes only, don't save yet
+        if (isEditMode) return;
+
+        // Immediate save mode (legacy behavior when not in edit mode)
         setSavingCells(prev => new Set(prev).add(cellId));
         setErrorCells(prev => {
             const next = new Set(prev);
@@ -248,10 +258,8 @@ export const ProjectPlanEditor: React.FC<ProjectPlanEditorProps> = memo(({
                 await deleteResourcePlan(existingPlanId!);
             }
 
-            // Invalidate query to re-fetch fresh data
             queryClient.invalidateQueries({ queryKey: ['resource-plans'] });
 
-            // Clear pending value (committed data will now reflect the new value after refetch)
             setPendingValues(prev => {
                 const next = { ...prev };
                 if (next[rowKey]) {
@@ -266,9 +274,7 @@ export const ProjectPlanEditor: React.FC<ProjectPlanEditorProps> = memo(({
                 return next;
             });
         } catch {
-            // Rollback: show error state + restore original value
             setErrorCells(prev => new Set(prev).add(cellId));
-            // Restore original value in pending
             const originalVal = existingData ? String(existingData.hours) : '';
             setPendingValues(prev => ({
                 ...prev,
@@ -281,7 +287,74 @@ export const ProjectPlanEditor: React.FC<ProjectPlanEditorProps> = memo(({
                 return next;
             });
         }
-    }, [projectId, queryClient]);
+    }, [projectId, queryClient, isEditMode]);
+
+    // Batch save all pending changes (called from parent via onSaveAll)
+    const saveAllPending = useCallback(async () => {
+        const ops: Promise<unknown>[] = [];
+        for (const [rowKey, monthEntries] of Object.entries(pendingValues)) {
+            const row = rows.find(r => {
+                const rk = `${r.projectRoleId || r.positionId || ''}-${r.userId || 'TBD'}`;
+                return rk === rowKey;
+            });
+            if (!row) continue;
+
+            for (const [monthKey, valStr] of Object.entries(monthEntries)) {
+                const trimmed = valStr.trim();
+                const newValue = trimmed === '' ? null : parseFloat(trimmed);
+                const isEmptyOrZero = newValue === null || newValue === 0;
+                const existingData = row.monthlyData[monthKey];
+                const existingPlanId = existingData?.planId;
+                const existingHours = existingData?.hours;
+
+                if (!existingPlanId && !isEmptyOrZero) {
+                    const [year, month] = monthKey.split('-').map(Number);
+                    ops.push(createResourcePlan({
+                        project_id: projectId,
+                        year,
+                        month,
+                        project_role_id: row.projectRoleId || undefined,
+                        position_id: row.positionId || undefined,
+                        user_id: row.userId,
+                        planned_hours: newValue!,
+                    }));
+                } else if (existingPlanId && isEmptyOrZero) {
+                    ops.push(deleteResourcePlan(existingPlanId));
+                } else if (existingPlanId && newValue !== existingHours) {
+                    ops.push(updateResourcePlan(existingPlanId, { planned_hours: newValue! }));
+                }
+            }
+        }
+
+        if (ops.length > 0) {
+            setSavingCells(new Set(['__batch__']));
+            try {
+                await Promise.all(ops);
+                queryClient.invalidateQueries({ queryKey: ['resource-plans'] });
+            } finally {
+                setSavingCells(new Set());
+            }
+        }
+
+        setPendingValues({});
+        setErrorCells(new Set());
+    }, [pendingValues, rows, projectId, queryClient]);
+
+    const cancelAll = useCallback(() => {
+        setPendingValues({});
+        setEditingCell(null);
+        setErrorCells(new Set());
+    }, []);
+
+    const hasPendingChanges = useCallback(() => {
+        return Object.keys(pendingValues).length > 0;
+    }, [pendingValues]);
+
+    useImperativeHandle(ref, () => ({
+        saveAllPending,
+        cancelAll,
+        hasPendingChanges,
+    }), [saveAllPending, cancelAll, hasPendingChanges]);
 
     // Keyboard navigation handler
     const handleKeyDown = useCallback((
@@ -493,9 +566,16 @@ export const ProjectPlanEditor: React.FC<ProjectPlanEditorProps> = memo(({
                                     const isError = errorCells.has(cellId);
                                     const displayVal = getCellDisplayValue(rowKey, monthKey, row);
 
+                                    const hasPending = pendingValues[rowKey]?.[monthKey] !== undefined;
+                                    const isModified = isEditMode && hasPending && (() => {
+                                        const orig = row.monthlyData[monthKey];
+                                        const origVal = orig ? String(orig.hours) : '';
+                                        return pendingValues[rowKey]?.[monthKey] !== origVal;
+                                    })();
+
                                     return (
-                                        <td key={monthKey} className="text-center py-1 px-1 border-l text-xs">
-                                            {canManageResources ? (
+                                        <td key={monthKey} className={`text-center py-1 px-1 border-l text-xs ${isModified ? 'bg-yellow-50' : ''}`}>
+                                            {canManageResources && isEditMode ? (
                                                 <input
                                                     ref={el => registerCellRef(rowKey, monthKey, el)}
                                                     type="number"
@@ -503,7 +583,7 @@ export const ProjectPlanEditor: React.FC<ProjectPlanEditorProps> = memo(({
                                                     min="0"
                                                     max="1"
                                                     className={[
-                                                        'w-12 text-center text-xs rounded border px-1 py-0.5 bg-transparent',
+                                                        'w-12 text-center text-xs rounded border px-1 py-0.5',
                                                         'focus:outline-none',
                                                         isEditing
                                                             ? 'border-blue-500 ring-1 ring-blue-400 bg-white'
@@ -511,7 +591,9 @@ export const ProjectPlanEditor: React.FC<ProjectPlanEditorProps> = memo(({
                                                                 ? 'border-red-500 ring-1 ring-red-400'
                                                                 : isSaving
                                                                     ? 'border-slate-300 opacity-60'
-                                                                    : 'border-transparent hover:border-slate-300',
+                                                                    : isModified
+                                                                        ? 'border-yellow-400 bg-yellow-50'
+                                                                        : 'border-transparent hover:border-slate-300 bg-transparent',
                                                     ].join(' ')}
                                                     value={displayVal}
                                                     onChange={e => {
@@ -529,7 +611,6 @@ export const ProjectPlanEditor: React.FC<ProjectPlanEditorProps> = memo(({
                                                     title={isError ? t('editor.saveError') : undefined}
                                                 />
                                             ) : (
-                                                // Read-only display
                                                 <span className="text-slate-700">
                                                     {displayVal || '-'}
                                                 </span>
@@ -648,4 +729,6 @@ export const ProjectPlanEditor: React.FC<ProjectPlanEditorProps> = memo(({
             </Dialog>
         </div>
     );
-});
+};
+
+export const ProjectPlanEditor = memo(forwardRef(ProjectPlanEditorInner));

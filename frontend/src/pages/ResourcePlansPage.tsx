@@ -24,7 +24,7 @@ import {
     DialogFooter,
     StatusBadge,
 } from '@/components/ui';
-import { ProjectPlanEditor, type ResourceRow } from '@/components/resource-plans/ProjectPlanEditor';
+import { ProjectPlanEditor, type ResourceRow, type ProjectPlanEditorHandle } from '@/components/resource-plans/ProjectPlanEditor';
 import { PlanSummaryPanel } from '@/components/resource-plans/PlanSummaryPanel';
 import { ProjectSummaryTab } from '@/components/resource-plans/ProjectSummaryTab';
 import { RoleSummaryTab } from '@/components/resource-plans/RoleSummaryTab';
@@ -106,6 +106,11 @@ export const ResourcePlansPage: React.FC = () => {
 
     const [selectedProjectId, setSelectedProjectId] = useState<string>(''); // For modal context
 
+    // Edit mode state
+    const [isEditMode, setIsEditMode] = useState(false);
+    const [isSaving, setIsSaving] = useState(false);
+    const editorRef = useRef<ProjectPlanEditorHandle>(null);
+
     // Modal state
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [monthlyValues, setMonthlyValues] = useState<Record<string, number>>({});
@@ -115,6 +120,22 @@ export const ResourcePlansPage: React.FC = () => {
     const [bulkApplyValue, setBulkApplyValue] = useState<string>('');
     const monthInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
     const monthGridColumnCount = 6;
+
+    const handleSave = useCallback(async () => {
+        if (!editorRef.current) return;
+        setIsSaving(true);
+        try {
+            await editorRef.current.saveAllPending();
+            setIsEditMode(false);
+        } finally {
+            setIsSaving(false);
+        }
+    }, []);
+
+    const handleCancel = useCallback(() => {
+        editorRef.current?.cancelAll();
+        setIsEditMode(false);
+    }, []);
 
     // Data fetching
     const { data: projects = [] } = useProjects();
@@ -603,24 +624,59 @@ export const ResourcePlansPage: React.FC = () => {
                                 </span>
                                 {focusedProject?.status && <StatusBadge status={focusedProject.status} />}
                                 {canManageResources && (
-                                    <Button
-                                        size="sm"
-                                        variant="outline"
-                                        className="ml-auto h-7 text-xs"
-                                        onClick={() => handleAddRow(focusedProjectId)}
-                                    >
-                                        {t('actions.addRow')}
-                                    </Button>
+                                    <div className="ml-auto flex items-center gap-2">
+                                        {isEditMode ? (
+                                            <>
+                                                <Button
+                                                    size="sm"
+                                                    variant="default"
+                                                    className="h-7 text-xs"
+                                                    onClick={handleSave}
+                                                    disabled={isSaving}
+                                                >
+                                                    {isSaving ? t('actions.saving') : t('actions.save')}
+                                                </Button>
+                                                <Button
+                                                    size="sm"
+                                                    variant="outline"
+                                                    className="h-7 text-xs"
+                                                    onClick={handleCancel}
+                                                    disabled={isSaving}
+                                                >
+                                                    {t('actions.cancel')}
+                                                </Button>
+                                            </>
+                                        ) : (
+                                            <Button
+                                                size="sm"
+                                                variant="outline"
+                                                className="h-7 text-xs"
+                                                onClick={() => setIsEditMode(true)}
+                                            >
+                                                {t('actions.edit')}
+                                            </Button>
+                                        )}
+                                        <Button
+                                            size="sm"
+                                            variant="outline"
+                                            className="h-7 text-xs"
+                                            onClick={() => handleAddRow(focusedProjectId)}
+                                        >
+                                            {t('actions.addRow')}
+                                        </Button>
+                                    </div>
                                 )}
                             </div>
 
                             {/* Resource Table - fills remaining space, independent scroll */}
                             <div className="flex-1 min-h-0 overflow-auto border border-slate-200 rounded-lg">
                                 <ProjectPlanEditor
+                                    ref={editorRef}
                                     projectId={focusedProjectId}
                                     months={months}
+                                    isEditMode={isEditMode}
                                     onAddMember={canManageResources ? () => handleAddRow(focusedProjectId) : undefined}
-                                    onDeleteRow={canManageResources ? (row) => handleDeleteRow(row) : undefined}
+                                    onDeleteRow={canManageResources && !isEditMode ? (row) => handleDeleteRow(row) : undefined}
                                     onDataChange={setLiveRows}
                                     stickyTopOffset={0}
                                 />

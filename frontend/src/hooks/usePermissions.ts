@@ -13,7 +13,7 @@ export function usePermissions() {
 
   // Role-based permissions
   const canManageProjects = isAdmin || isPM;      // ADMIN + PM
-  const canManageResources = isAdmin || isFM;     // ADMIN + FM
+  const canManageResources = isAdmin || isFM || isPM; // ADMIN + FM + PM
   const canManageOrganization = isAdmin;          // ADMIN only
   const canManageUsers = isAdmin;                 // ADMIN only
   const canManageHiringPlans = isAdmin;           // ADMIN only
