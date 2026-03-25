@@ -37,7 +37,7 @@ export const PORTAL_SERVICES: PortalService[] = [
     url: import.meta.env.VITE_OQC_URL || 'https://oqc.10.182.252.32.sslip.io',
     icon: 'ClipboardCheck',
     color: 'bg-emerald-600',
-    tokenRelay: 'fragment',
+    tokenRelay: 'none',
   },
   {
     id: 'jarvis',
