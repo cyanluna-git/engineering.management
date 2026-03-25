@@ -14,11 +14,13 @@ import { cn } from '@/lib/utils';
 
 // Reuse constants from ProjectForm
 export const STATUS_OPTIONS: { value: ProjectStatus; label: string }[] = [
-  { value: 'Prospective', label: 'Prospective' },
-  { value: 'Planned', label: 'Planned' },
-  { value: 'InProgress', label: 'In Progress' },
+  { value: 'Lead', label: 'Lead' },
+  { value: 'Opportunity', label: 'Opportunity' },
+  { value: 'Planning', label: 'Planning' },
+  { value: 'Active', label: 'Active' },
+  { value: 'Launched', label: 'Launched' },
+  { value: 'Complete', label: 'Complete' },
   { value: 'OnHold', label: 'On Hold' },
-  { value: 'Completed', label: 'Completed' },
   { value: 'Cancelled', label: 'Cancelled' },
 ];
 

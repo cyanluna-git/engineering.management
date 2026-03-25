@@ -33,7 +33,7 @@ export const ProjectSelector: React.FC<ProjectSelectorProps> = ({
 
     // 종료된 프로젝트 필터링 (Closed, Cancelled, Completed 상태 제외)
     const activeProjects = useMemo(() => {
-        const excludedStatuses = ['Completed', 'Cancelled'];
+        const excludedStatuses = ['Complete', 'Cancelled'];
         return projects.filter(p => {
             // 상태로 필터링
             if (excludedStatuses.includes(p.status)) return false;

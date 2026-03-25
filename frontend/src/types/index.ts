@@ -96,7 +96,7 @@ export interface ProductLine {
 }
 
 
-export type ProjectStatus = 'Prospective' | 'Planned' | 'InProgress' | 'OnHold' | 'Cancelled' | 'Completed'
+export type ProjectStatus = 'Lead' | 'Opportunity' | 'Planning' | 'Active' | 'Launched' | 'Complete' | 'OnHold' | 'Cancelled'
 export type ProjectScale = 'CIP' | 'A&D' | 'Simple' | 'Complex' | 'Platform'
 
 // Internal IO (Internal Order) - for financial tracking

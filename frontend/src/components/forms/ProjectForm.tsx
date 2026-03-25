@@ -24,12 +24,14 @@ import { getProductLines, getUsers, getBusinessUnits, getDepartments, getInterna
 // ============================================================
 
 export const STATUS_OPTIONS: { value: ProjectStatus; label: string; color: string }[] = [
-    { value: 'Prospective', label: 'Prospective', color: 'bg-gray-400' },
-    { value: 'Planned', label: 'Planned', color: 'bg-blue-400' },
-    { value: 'InProgress', label: 'In Progress', color: 'bg-green-500' },
+    { value: 'Lead', label: 'Lead', color: 'bg-gray-400' },
+    { value: 'Opportunity', label: 'Opportunity', color: 'bg-cyan-400' },
+    { value: 'Planning', label: 'Planning', color: 'bg-blue-400' },
+    { value: 'Active', label: 'Active', color: 'bg-green-500' },
+    { value: 'Launched', label: 'Launched', color: 'bg-purple-500' },
+    { value: 'Complete', label: 'Complete', color: 'bg-gray-500' },
     { value: 'OnHold', label: 'On Hold', color: 'bg-yellow-500' },
     { value: 'Cancelled', label: 'Cancelled', color: 'bg-red-500' },
-    { value: 'Completed', label: 'Completed', color: 'bg-purple-500' },
 ];
 
 export const SCALE_OPTIONS: { value: ProjectScale; label: string }[] = [
@@ -73,7 +75,7 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({ project, onSuccess, on
                 internal_io_id: project.internal_io_id || undefined,
                 recharge_io_id: project.recharge_io_id || undefined,
                 name: project.name || '',
-                status: project.status || 'Prospective',
+                status: project.status || 'Lead',
                 scale: project.scale || undefined,
                 category: project.category || 'PRODUCT',
                 product_line_id: project.product_line_id || undefined,
@@ -87,7 +89,7 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({ project, onSuccess, on
                 owner_department_id: project.owner_department_id || undefined,
             };
         }
-        return { status: 'Prospective', category: 'PRODUCT', ...initialValues };
+        return { status: 'Lead', category: 'PRODUCT', ...initialValues };
     };
 
     const { register, handleSubmit, reset, control, watch, setValue, formState: { errors } } = useForm<ProjectFormData & { business_unit_id?: string }>({
@@ -224,7 +226,7 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({ project, onSuccess, on
                             render={({ field }) => {
                                 const selectedStatus = STATUS_OPTIONS.find(opt => opt.value === field.value);
                                 return (
-                                    <Select onValueChange={field.onChange} value={field.value || 'Prospective'}>
+                                    <Select onValueChange={field.onChange} value={field.value || 'Lead'}>
                                         <SelectTrigger className="h-8">
                                             <SelectValue>
                                                 {selectedStatus && (

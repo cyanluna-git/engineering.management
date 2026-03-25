@@ -320,11 +320,13 @@ const InlineEditableRowInner: React.FC<InlineEditableRowProps> = ({
         <span
           className={cn(
             'inline-flex px-2 py-0.5 rounded text-xs font-semibold',
-            project.status === 'InProgress' && 'bg-green-100 text-green-800',
-            project.status === 'Planned' && 'bg-blue-100 text-blue-800',
-            project.status === 'Prospective' && 'bg-yellow-100 text-yellow-800',
+            project.status === 'Active' && 'bg-green-100 text-green-800',
+            project.status === 'Planning' && 'bg-blue-100 text-blue-800',
+            project.status === 'Opportunity' && 'bg-cyan-100 text-cyan-800',
+            project.status === 'Lead' && 'bg-yellow-100 text-yellow-800',
+            project.status === 'Launched' && 'bg-purple-100 text-purple-800',
+            project.status === 'Complete' && 'bg-gray-200 text-gray-700',
             project.status === 'OnHold' && 'bg-orange-100 text-orange-800',
-            project.status === 'Completed' && 'bg-gray-200 text-gray-700',
             project.status === 'Cancelled' && 'bg-red-100 text-red-800'
           )}
         >

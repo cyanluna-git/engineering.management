@@ -17,11 +17,13 @@ const CATEGORY_OPTIONS: FilterOption[] = [
 ];
 
 const STATUS_OPTIONS: FilterOption[] = [
-  { value: 'InProgress', label: 'In Progress' },
-  { value: 'Planned', label: 'Planned' },
-  { value: 'Prospective', label: 'Prospective' },
+  { value: 'Active', label: 'Active' },
+  { value: 'Planning', label: 'Planning' },
+  { value: 'Opportunity', label: 'Opportunity' },
+  { value: 'Lead', label: 'Lead' },
+  { value: 'Launched', label: 'Launched' },
+  { value: 'Complete', label: 'Complete' },
   { value: 'OnHold', label: 'On Hold' },
-  { value: 'Completed', label: 'Completed' },
   { value: 'Cancelled', label: 'Cancelled' },
 ];
 

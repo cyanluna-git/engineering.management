@@ -159,7 +159,7 @@ export const ResourcePlansPage: React.FC = () => {
         const filterProjects = (nodes: HierarchyNode[]): HierarchyNode[] => {
             return nodes.map(node => {
                 if (node.type === 'project') {
-                    if (['Completed', 'Cancelled'].includes(node.status || '')) {
+                    if (['Complete', 'Cancelled'].includes(node.status || '')) {
                         return null;
                     }
                     return node;

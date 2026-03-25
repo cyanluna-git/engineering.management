@@ -56,12 +56,14 @@ export const ProjectDashboard: React.FC<ProjectDashboardProps> = ({ projectId })
             <div className="text-right">
               <span
                 className={`inline-block px-3 py-1 rounded-full text-sm font-medium ${
-                  project.status === 'InProgress'
+                  project.status === 'Active'
                     ? 'bg-green-500'
-                    : project.status === 'Completed'
+                    : project.status === 'Complete'
                     ? 'bg-gray-500'
                     : project.status === 'OnHold'
                     ? 'bg-yellow-500'
+                    : project.status === 'Launched'
+                    ? 'bg-purple-500'
                     : 'bg-blue-500'
                 }`}
               >

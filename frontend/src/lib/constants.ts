@@ -13,13 +13,14 @@
  * Colors aligned with ProjectForm STATUS_OPTIONS
  */
 export const STATUS_COLORS: Record<string, { bg: string; text: string; dot: string }> = {
-    'Prospective': { bg: 'bg-gray-100', text: 'text-gray-700', dot: 'bg-gray-400' },
-    'Planned': { bg: 'bg-blue-100', text: 'text-blue-700', dot: 'bg-blue-400' },
-    'InProgress': { bg: 'bg-green-100', text: 'text-green-700', dot: 'bg-green-500' },
+    'Lead': { bg: 'bg-gray-100', text: 'text-gray-700', dot: 'bg-gray-400' },
+    'Opportunity': { bg: 'bg-cyan-100', text: 'text-cyan-700', dot: 'bg-cyan-400' },
+    'Planning': { bg: 'bg-blue-100', text: 'text-blue-700', dot: 'bg-blue-400' },
+    'Active': { bg: 'bg-green-100', text: 'text-green-700', dot: 'bg-green-500' },
+    'Launched': { bg: 'bg-purple-100', text: 'text-purple-700', dot: 'bg-purple-500' },
+    'Complete': { bg: 'bg-gray-200', text: 'text-gray-500', dot: 'bg-gray-400' },
     'OnHold': { bg: 'bg-yellow-100', text: 'text-yellow-700', dot: 'bg-yellow-500' },
     'Cancelled': { bg: 'bg-red-100', text: 'text-red-700', dot: 'bg-red-500' },
-    'Completed': { bg: 'bg-purple-100', text: 'text-purple-700', dot: 'bg-purple-500' },
-    'Closed': { bg: 'bg-gray-200', text: 'text-gray-500', dot: 'bg-gray-400' },
 };
 
 /**

@@ -82,7 +82,7 @@ export function WorkLogTablePage() {
     // ============ 프로젝트 기반 필터 로직 ============
     // Projects filtered by BusinessUnit through Product Line, excluding Closed/Completed
     const filteredProjects = useMemo(() => {
-        let result = allProjects.filter(p => !['Closed', 'Completed'].includes(p.status || ''));
+        let result = allProjects.filter(p => !['Complete', 'Cancelled'].includes(p.status || ''));
 
         // Filter by business unit through product line
         if (businessUnitFilter) {

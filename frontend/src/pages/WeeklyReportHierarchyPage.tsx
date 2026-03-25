@@ -518,7 +518,7 @@ export function WeeklyReportHierarchyPage() {
             >
               <option value="">프로젝트 선택</option>
               {projects
-                ?.filter((p: Project) => p.status === 'InProgress' || p.status === 'Planned')
+                ?.filter((p: Project) => p.status === 'Active' || p.status === 'Planning' || p.status === 'Opportunity')
                 .map((p: Project) => (
                   <option key={p.id} value={p.id}>{p.name}</option>
                 ))}

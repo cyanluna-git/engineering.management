@@ -102,16 +102,18 @@ interface DepartmentNode extends HierarchyNode {
 
 // Status priority order: InProgress first, then Prospective, then others
 const STATUS_PRIORITY: Record<string, number> = {
-    'InProgress': 1,
-    'Prospective': 2,
-    'Planned': 3,
-    'OnHold': 4,
-    'Completed': 5,
-    'Cancelled': 6,
+    'Active': 1,
+    'Planning': 2,
+    'Opportunity': 3,
+    'Lead': 4,
+    'Launched': 5,
+    'OnHold': 6,
+    'Complete': 7,
+    'Cancelled': 8,
 };
 
 // Active statuses for filtering
-const ACTIVE_STATUSES = ['InProgress', 'Prospective'];
+const ACTIVE_STATUSES = ['Active', 'Planning', 'Opportunity'];
 
 // Filter projects to only active ones
 const filterActiveProjects = <T extends { status: string }>(projects: T[]): T[] => {
@@ -737,8 +739,8 @@ export const ProjectHierarchyEditor: React.FC = () => {
                                                             <span>🔹</span>
                                                             <span>{proj.name}</span>
                                                             <span className="text-xs text-muted-foreground">{proj.internal_io?.io_number || '-'}</span>
-                                                            <span className={`text-[10px] px-1.5 py-0.5 rounded ${proj.status === 'InProgress' ? 'bg-green-100 text-green-700' :
-                                                                proj.status === 'Completed' ? 'bg-gray-100 text-gray-700' :
+                                                            <span className={`text-[10px] px-1.5 py-0.5 rounded ${proj.status === 'Active' ? 'bg-green-100 text-green-700' :
+                                                                proj.status === 'Complete' ? 'bg-gray-100 text-gray-700' :
                                                                     'bg-yellow-100 text-yellow-700'
                                                                 }`}>
                                                                 {proj.status}
