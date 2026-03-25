@@ -15,6 +15,8 @@ import {
 } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui';
 import { getCapacitySummary, getWorklogSummary, CapacitySummary, WorklogSummary } from '@/api/client';
+import { ReportListView } from '@/components/reports/ReportListView';
+import { ReportDetailView } from '@/components/reports/ReportDetailView';
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d', '#ffc658', '#8dd1e1', '#a4de6c'];
 
@@ -24,7 +26,8 @@ export const ReportsPage: React.FC = () => {
     const { t } = useTranslation('reports');
     const currentYear = new Date().getFullYear();
     const [selectedYear, setSelectedYear] = useState(currentYear);
-    const [activeTab, setActiveTab] = useState<'capacity' | 'worklog'>('capacity');
+    const [activeTab, setActiveTab] = useState<'capacity' | 'worklog' | 'ai-report'>('capacity');
+    const [selectedReportId, setSelectedReportId] = useState<string | null>(null);
 
     // Fetch data
     const { data: capacityData, isLoading: capacityLoading } = useQuery<CapacitySummary>({
@@ -85,6 +88,15 @@ export const ReportsPage: React.FC = () => {
                     onClick={() => setActiveTab('worklog')}
                 >
                     {t('tabs.worklog')}
+                </button>
+                <button
+                    className={`px-4 py-2 -mb-px ${activeTab === 'ai-report'
+                        ? 'border-b-2 border-blue-600 text-blue-600 font-medium'
+                        : 'text-muted-foreground'
+                        }`}
+                    onClick={() => { setActiveTab('ai-report'); setSelectedReportId(null); }}
+                >
+                    {t('tabs.aiReport')}
                 </button>
             </div>
 
@@ -286,6 +298,18 @@ export const ReportsPage: React.FC = () => {
                         </>
                     )}
                 </div>
+            )}
+
+            {/* AI Report Tab */}
+            {activeTab === 'ai-report' && (
+                selectedReportId ? (
+                    <ReportDetailView
+                        reportId={selectedReportId}
+                        onBack={() => setSelectedReportId(null)}
+                    />
+                ) : (
+                    <ReportListView onSelectReport={setSelectedReportId} />
+                )
             )}
         </div>
     );

@@ -653,3 +653,33 @@ export interface AbsenceUpdate {
     fte_impact?: number
     remarks?: string | null
 }
+
+// Generated AI Report
+export interface GeneratedReport {
+    id: string
+    report_type: 'weekly' | 'monthly'
+    period_start: string
+    period_end: string
+    title: string
+    status: 'generating' | 'published' | 'failed'
+    sections?: Record<string, GeneratedReportSection>
+    charts_data?: Record<string, unknown>
+    ai_model?: string
+    error_message?: string
+    created_at?: string
+}
+
+export interface GeneratedReportSection {
+    headline: string
+    insights: string[]
+    risk_level?: 'green' | 'yellow' | 'red'
+    recommendations?: string[]
+    overloaded?: Array<{ name: string; fte: number }>
+    underutilized?: Array<{ name: string; fte: number }>
+    delayed_gates?: string[]
+    gaps?: string[]
+    key_issues?: string[]
+    submission_rate_comment?: string
+    health_status?: string
+    risk_level_reason?: string
+}

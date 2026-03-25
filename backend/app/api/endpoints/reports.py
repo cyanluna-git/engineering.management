@@ -2,13 +2,20 @@
 Reports and Analytics endpoints
 """
 
-from typing import Optional
-from fastapi import APIRouter, Depends, Query
+from typing import Optional, List
+from fastapi import APIRouter, Depends, Query, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.core.security import get_current_user
+from app.core.security import get_current_user, require_role
+from app.models.user import User
 from app.services.report_service import ReportService
+from app.services.report_generation_service import ReportGenerationService
+from app.schemas.generated_report import (
+    GeneratedReportCreate,
+    GeneratedReportListItem,
+    GeneratedReportResponse,
+)
 
 router = APIRouter()
 
@@ -158,3 +165,69 @@ async def get_working_days(
     """
     # TODO: Implement working days calculation
     return {"message": f"Working days for {year}/{month} - to be implemented"}
+
+
+# ============================================================
+# Generated AI Reports
+# ============================================================
+
+
+@router.post(
+    "/generate",
+    response_model=GeneratedReportResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def generate_report(
+    body: GeneratedReportCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role(["ADMIN", "PM", "FM"])),
+):
+    """Generate a new AI-powered engineering intelligence report."""
+    service = ReportGenerationService(db)
+    report = await service.generate_report(
+        report_type=body.report_type,
+        user_id=current_user.id,
+        period_start=body.period_start,
+        period_end=body.period_end,
+    )
+    return report
+
+
+@router.get("/generated", response_model=List[GeneratedReportListItem])
+async def list_generated_reports(
+    report_type: Optional[str] = Query(None),
+    limit: int = Query(20, le=100),
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    """List generated reports, newest first."""
+    service = ReportGenerationService(db)
+    return service.get_reports(report_type=report_type, limit=limit)
+
+
+@router.get("/generated/{report_id}", response_model=GeneratedReportResponse)
+async def get_generated_report(
+    report_id: str,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    """Get a single generated report with full sections and chart data."""
+    service = ReportGenerationService(db)
+    report = service.get_report(report_id)
+    if not report:
+        raise HTTPException(status_code=404, detail="Report not found")
+    return report
+
+
+@router.post("/auto-generate")
+async def auto_generate_report(
+    report_type: str = Query(..., description="weekly or monthly"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role(["ADMIN"])),
+):
+    """Auto-generate report for the latest period if not already exists. For cron use."""
+    service = ReportGenerationService(db)
+    report = await service.auto_generate(report_type, current_user.id)
+    if report is None:
+        return {"message": "Report already exists for this period", "generated": False}
+    return {"message": "Report generated", "generated": True, "id": report.id}

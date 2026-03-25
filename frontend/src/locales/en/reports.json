@@ -2,7 +2,8 @@
   "title": "Reports",
   "tabs": {
     "capacity": "Capacity (Resource Allocation)",
-    "worklog": "WorkLog (Actuals)"
+    "worklog": "WorkLog (Actuals)",
+    "aiReport": "AI Report"
   },
   "yearSelector": "{{year}}",
   "capacity": {
@@ -31,5 +32,19 @@
   },
   "status": {
     "loading": "Loading..."
+  },
+  "common": {
+    "loading": "Loading..."
+  },
+  "aiReport": {
+    "filterAll": "All",
+    "weekly": "Weekly",
+    "monthly": "Monthly",
+    "generateWeekly": "Generate Weekly",
+    "generateMonthly": "Generate Monthly",
+    "generating": "Generating...",
+    "noReports": "No AI reports generated yet. Click Generate to create your first report.",
+    "backToList": "Back to list",
+    "loadFailed": "Failed to load report."
   }
 }

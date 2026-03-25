@@ -28,6 +28,7 @@ from app.models.ai_summary import AISummary
 from app.models.portal_access_log import PortalAccessLog
 from app.models.weekly_report import WeeklyReport
 from app.models.absence import Absence
+from app.models.generated_report import GeneratedReport
 
 
 __all__ = [
@@ -74,4 +75,6 @@ __all__ = [
     "WeeklyReport",
     # Absence
     "Absence",
+    # Generated Reports
+    "GeneratedReport",
 ]

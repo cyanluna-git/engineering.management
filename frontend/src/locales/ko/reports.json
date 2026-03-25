@@ -2,7 +2,8 @@
   "title": "리포트",
   "tabs": {
     "capacity": "Capacity (리소스 배정)",
-    "worklog": "WorkLog (실적)"
+    "worklog": "WorkLog (실적)",
+    "aiReport": "AI 보고서"
   },
   "yearSelector": "{{year}}년",
   "capacity": {
@@ -31,5 +32,19 @@
   },
   "status": {
     "loading": "로딩 중..."
+  },
+  "common": {
+    "loading": "로딩 중..."
+  },
+  "aiReport": {
+    "filterAll": "전체",
+    "weekly": "주간",
+    "monthly": "월간",
+    "generateWeekly": "주간 보고서 생성",
+    "generateMonthly": "월간 보고서 생성",
+    "generating": "생성 중...",
+    "noReports": "생성된 AI 보고서가 없습니다. 생성 버튼을 클릭하세요.",
+    "backToList": "목록으로",
+    "loadFailed": "보고서 로드 실패"
   }
 }

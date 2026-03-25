@@ -1505,7 +1505,7 @@ export const getMatrixDetails = async (
 
 // ============ Team Capacity API ============
 
-import type { TeamFTEMonth, TeamMemberAtDate, Absence, AbsenceCreate, AbsenceUpdate } from '@/types';
+import type { TeamFTEMonth, TeamMemberAtDate, Absence, AbsenceCreate, AbsenceUpdate, GeneratedReport } from '@/types';
 
 export const getTeamCapacity = async (params: {
   department_id: string;
@@ -1553,6 +1553,27 @@ export const updateAbsence = async (id: string, data: AbsenceUpdate): Promise<Ab
 
 export const deleteAbsence = async (id: string): Promise<void> => {
   await apiClient.delete(`/absences/${id}`);
+};
+
+// ============================================================
+// Generated AI Reports
+// ============================================================
+
+export const generateAIReport = async (data: { report_type: string; period_start?: string; period_end?: string }): Promise<GeneratedReport> => {
+  const response = await apiClient.post('/reports/generate', data);
+  return response.data;
+};
+
+export const getGeneratedReports = async (reportType?: string, limit: number = 20): Promise<GeneratedReport[]> => {
+  const params: Record<string, unknown> = { limit };
+  if (reportType) params.report_type = reportType;
+  const response = await apiClient.get('/reports/generated', { params });
+  return response.data;
+};
+
+export const getGeneratedReport = async (id: string): Promise<GeneratedReport> => {
+  const response = await apiClient.get(`/reports/generated/${id}`);
+  return response.data;
 };
 
 export default apiClient;
