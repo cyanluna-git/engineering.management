@@ -2,7 +2,7 @@ import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import {
-    BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
+    Bar, XAxis, YAxis, CartesianGrid, Tooltip,
     ResponsiveContainer, Legend, ComposedChart,
 } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle, Button } from '@/components/ui';
