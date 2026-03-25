@@ -739,7 +739,7 @@ export const DashboardPage: React.FC = () => {
                                 <CardTitle className="text-sm font-medium text-muted-foreground">{t('cards.monthlyAllocation')}</CardTitle>
                             </CardHeader>
                             <CardContent>
-                                <div className="text-3xl font-bold">{data.resource_allocation.total_fte} FTE</div>
+                                <div className="text-3xl font-bold">{Number(data.resource_allocation.total_fte).toFixed(1)} FTE</div>
                                 <p className="text-xs text-muted-foreground mt-1">{t('labels.plannedResources')}</p>
                             </CardContent>
                         </Card>
