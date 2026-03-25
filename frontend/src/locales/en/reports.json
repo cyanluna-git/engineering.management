@@ -8,16 +8,21 @@
   "yearSelector": "{{year}}",
   "capacity": {
     "monthlyFte": "Monthly Resource Allocation (FTE)",
+    "planVsActual": "Plan vs Actual FTE",
     "byPosition": "Allocation by Position",
+    "byProjectRole": "Allocation by Project Role",
     "byProjectTop10": "Allocation by Project Top 10",
     "project": "Project",
     "fte": "FTE",
+    "totalFte": "Total FTE",
+    "avgFte": "Avg/mo",
     "noDataYear": "No data for {{year}}.",
     "noData": "No data available."
   },
   "worklog": {
     "monthlyHours": "Monthly WorkLog (Hours)",
     "byType": "By Work Type",
+    "byCategory": "Hours by Category (Product / Functional / Support)",
     "byProjectTop10": "By Project Top 10",
     "project": "Project",
     "hours": "Hours",

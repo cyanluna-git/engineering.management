@@ -8,16 +8,21 @@
   "yearSelector": "{{year}}년",
   "capacity": {
     "monthlyFte": "월별 리소스 배정 (FTE)",
+    "planVsActual": "Plan vs Actual FTE",
     "byPosition": "포지션별 배정",
+    "byProjectRole": "프로젝트 역할별 배정",
     "byProjectTop10": "프로젝트별 배정 Top 10",
     "project": "프로젝트",
     "fte": "FTE",
+    "totalFte": "연간 FTE",
+    "avgFte": "월평균",
     "noDataYear": "{{year}}년 데이터가 없습니다.",
     "noData": "데이터가 없습니다."
   },
   "worklog": {
     "monthlyHours": "월별 WorkLog (시간)",
     "byType": "업무 유형별",
+    "byCategory": "카테고리별 시간 (Product / Functional / Support)",
     "byProjectTop10": "프로젝트별 Top 10",
     "project": "프로젝트",
     "hours": "시간",

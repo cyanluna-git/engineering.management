@@ -10,7 +10,7 @@ from sqlalchemy import func, and_, extract
 from app.models.resource import ResourcePlan, WorkLog
 from app.models.project import Project
 from app.models.internal_io import InternalIO
-from app.models.organization import JobPosition
+from app.models.organization import JobPosition, ProjectRole
 
 
 class ReportService:
@@ -49,6 +49,31 @@ class ReportService:
             .all()
         )
 
+        # Monthly actual FTE from worklogs
+        monthly_actual = (
+            self.db.query(
+                extract("month", WorkLog.date).label("month"),
+                func.sum(WorkLog.hours).label("total_hours"),
+            )
+            .filter(extract("year", WorkLog.date) == year)
+            .group_by(extract("month", WorkLog.date))
+            .all()
+        )
+        actual_by_month = {int(r.month): round(float(r.total_hours) / 160, 1) if r.total_hours else 0 for r in monthly_actual}
+
+        # By project role aggregation
+        by_project_role = (
+            self.db.query(
+                ProjectRole.name,
+                func.sum(ResourcePlan.planned_hours).label("total_fte"),
+            )
+            .join(ProjectRole, ResourcePlan.project_role_id == ProjectRole.id)
+            .filter(ResourcePlan.year == year)
+            .group_by(ProjectRole.name)
+            .order_by(func.sum(ResourcePlan.planned_hours).desc())
+            .all()
+        )
+
         # By project aggregation
         by_project = (
             self.db.query(
@@ -71,6 +96,7 @@ class ReportService:
                 {
                     "month": m.month,
                     "total_fte": float(m.total_fte) if m.total_fte else 0,
+                    "actual_fte": actual_by_month.get(m.month, 0),
                     "plan_count": m.plan_count,
                 }
                 for m in monthly_data
@@ -78,6 +104,10 @@ class ReportService:
             "by_position": [
                 {"name": p.name, "total_fte": float(p.total_fte) if p.total_fte else 0}
                 for p in by_position
+            ],
+            "by_project_role": [
+                {"name": r.name, "total_fte": float(r.total_fte) if r.total_fte else 0}
+                for r in by_project_role
             ],
             "by_project": [
                 {
@@ -106,6 +136,28 @@ class ReportService:
             .order_by(extract("month", WorkLog.date))
             .all()
         )
+
+        # By project category (Product/Functional/Support)
+        by_category = (
+            self.db.query(
+                Project.category,
+                extract("month", WorkLog.date).label("month"),
+                func.sum(WorkLog.hours).label("total_hours"),
+            )
+            .join(Project, WorkLog.project_id == Project.id)
+            .filter(extract("year", WorkLog.date) == year)
+            .group_by(Project.category, extract("month", WorkLog.date))
+            .order_by(extract("month", WorkLog.date))
+            .all()
+        )
+
+        # Build category monthly data
+        cat_monthly: dict[int, dict[str, float]] = {}
+        for r in by_category:
+            m = int(r.month)
+            if m not in cat_monthly:
+                cat_monthly[m] = {}
+            cat_monthly[m][r.category or "Other"] = round(float(r.total_hours), 1)
 
         # By work type category
         from app.models.work_type import WorkTypeCategory
@@ -146,9 +198,19 @@ class ReportService:
                 {
                     "month": int(m.month),
                     "total_hours": float(m.total_hours) if m.total_hours else 0,
+                    "total_fte": round(float(m.total_hours) / 160, 1) if m.total_hours else 0,
                     "log_count": m.log_count,
                 }
                 for m in monthly_data
+            ],
+            "by_category": [
+                {
+                    "month": m,
+                    "PRODUCT": cats.get("PRODUCT", 0),
+                    "FUNCTIONAL": cats.get("FUNCTIONAL", 0),
+                    "SUPPORT": cats.get("SUPPORT", 0),
+                }
+                for m, cats in sorted(cat_monthly.items())
             ],
             "by_type": [
                 {
