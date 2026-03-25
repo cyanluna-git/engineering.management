@@ -352,7 +352,7 @@ def build_sql() -> str:
                 if fte is None or not isinstance(fte, (int, float)) or fte <= 0:
                     continue
 
-                planned_hours = round(fte * 160.0, 1)
+                planned_hours = round(fte, 2)
 
                 sql_parts.append(
                     f"INSERT INTO resource_plans "

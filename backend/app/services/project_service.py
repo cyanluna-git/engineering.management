@@ -332,15 +332,15 @@ class ProjectService:
         - product_projects: Business Unit -> Product Line -> Projects
         - functional_projects: Department -> Projects (filtered by user's department)
 
-        Only shows active projects (InProgress, Prospective, Planned).
-        Completed, Cancelled, OnHold projects are hidden.
+        Only shows active projects (Active, Planning, Opportunity, Lead, Launched).
+        Complete, Cancelled, OnHold projects are hidden.
 
         Optimized: Uses single JOIN queries instead of N+1 loops.
         """
         from app.models.organization import Department as DepartmentModel
 
-        # Active status filter for WorkLog entry
-        ACTIVE_STATUSES = ["InProgress", "Prospective", "Planned"]
+        # Active status filter for WorkLog entry (PCP lifecycle)
+        ACTIVE_STATUSES = ["Active", "Planning", "Opportunity", "Lead", "Launched"]
 
         # ============ OPTIMIZED: Single query for all Product Projects ============
         # Fetches Projects + ProductLine + BusinessUnit in one query (eliminates N+1)
