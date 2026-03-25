@@ -95,25 +95,25 @@ class ReportService:
             "monthly": [
                 {
                     "month": m.month,
-                    "total_fte": float(m.total_fte) if m.total_fte else 0,
+                    "total_fte": round(float(m.total_fte), 1) if m.total_fte else 0,
                     "actual_fte": actual_by_month.get(m.month, 0),
                     "plan_count": m.plan_count,
                 }
                 for m in monthly_data
             ],
             "by_position": [
-                {"name": p.name, "total_fte": float(p.total_fte) if p.total_fte else 0}
+                {"name": p.name, "total_fte": round(float(p.total_fte), 1) if p.total_fte else 0}
                 for p in by_position
             ],
             "by_project_role": [
-                {"name": r.name, "total_fte": float(r.total_fte) if r.total_fte else 0}
+                {"name": r.name, "total_fte": round(float(r.total_fte), 1) if r.total_fte else 0}
                 for r in by_project_role
             ],
             "by_project": [
                 {
                     "code": p.io_number,
                     "name": p.name,
-                    "total_fte": float(p.total_fte) if p.total_fte else 0,
+                    "total_fte": round(float(p.total_fte), 1) if p.total_fte else 0,
                 }
                 for p in by_project
             ],
@@ -197,7 +197,7 @@ class ReportService:
             "monthly": [
                 {
                     "month": int(m.month),
-                    "total_hours": float(m.total_hours) if m.total_hours else 0,
+                    "total_hours": round(float(m.total_hours), 1) if m.total_hours else 0,
                     "total_fte": round(float(m.total_hours) / 160, 1) if m.total_hours else 0,
                     "log_count": m.log_count,
                 }
@@ -215,7 +215,7 @@ class ReportService:
             "by_type": [
                 {
                     "type": t.category_name,
-                    "total_hours": float(t.total_hours) if t.total_hours else 0,
+                    "total_hours": round(float(t.total_hours), 1) if t.total_hours else 0,
                 }
                 for t in by_type
             ],
