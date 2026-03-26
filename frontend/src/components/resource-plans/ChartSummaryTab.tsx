@@ -67,10 +67,14 @@ export function ChartSummaryTab({ selectedYear, projectSummary, worklogSummary }
       data[row.month]['actual'] = (data[row.month]['actual'] || 0) + row.total_fte;
     }
 
-    return Object.values(data).map(d => ({
-      ...d,
-      name: MONTHS[d.month as number],
-    }));
+    return Object.values(data).map(d => {
+      const rounded: Record<string, unknown> = { name: MONTHS[d.month as number] };
+      for (const [k, v] of Object.entries(d)) {
+        if (k === 'month') continue;
+        rounded[k] = typeof v === 'number' ? round(v, 1) : v;
+      }
+      return rounded;
+    });
   }, [projectSummary, worklogSummary, selectedYear, topProjectIds]);
 
   // Chart 2: Project comparison bars (annual sum)
