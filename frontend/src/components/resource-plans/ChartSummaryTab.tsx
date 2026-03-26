@@ -131,7 +131,7 @@ export function ChartSummaryTab({ selectedYear, projectSummary, worklogSummary }
       color: COLORS[i % COLORS.length],
     }));
     // Check if there's "other" data
-    const hasOther = monthlyStackedData.some(d => (d as Record<string, number>)['__other'] > 0);
+    const hasOther = monthlyStackedData.some(d => (d as unknown as Record<string, number>)['__other'] > 0);
     if (hasOther) {
       items.push({ id: '__other', name: t('chart.other'), color: '#94a3b8' });
     }
