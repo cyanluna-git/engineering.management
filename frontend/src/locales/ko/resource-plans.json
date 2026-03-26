@@ -3,7 +3,17 @@
   "tabs": {
     "detail": "프로젝트 상세",
     "projectSummary": "프로젝트별 집계",
-    "roleSummary": "롤별 집계"
+    "roleSummary": "롤별 집계",
+    "chart": "Chart"
+  },
+  "chart": {
+    "monthlyTotalFte": "월별 총 Plan FTE vs Actual",
+    "projectComparison": "프로젝트별 Plan vs Actual (연간)",
+    "projectTrend": "프로젝트 추이",
+    "planFte": "Plan FTE",
+    "actualFte": "Actual FTE",
+    "other": "기타",
+    "noData": "데이터가 없습니다."
   },
   "actions": {
     "addRow": "+ 팀원 추가",

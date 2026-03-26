@@ -29,6 +29,7 @@ import { PlanSummaryPanel } from '@/components/resource-plans/PlanSummaryPanel';
 import { ProjectSummaryTab } from '@/components/resource-plans/ProjectSummaryTab';
 import { RoleSummaryTab } from '@/components/resource-plans/RoleSummaryTab';
 import { TbdAssignmentModal } from '@/components/resource-plans/TbdAssignmentModal';
+import { ChartSummaryTab } from '@/components/resource-plans/ChartSummaryTab';
 import { UserHierarchySelect } from '@/components/UserHierarchySelect';
 
 // StatusBadge is now imported from @/components/ui
@@ -70,7 +71,7 @@ export const ResourcePlansPage: React.FC = () => {
     const resetYearWindow = () => setSelectedYear(currentCalendarYear);
 
     // Tab state: 'detail' | 'project-summary' | 'role-summary'
-    const [activeTab, setActiveTab] = useState<'detail' | 'project-summary' | 'role-summary'>('detail');
+    const [activeTab, setActiveTab] = useState<'detail' | 'project-summary' | 'role-summary' | 'chart'>('detail');
 
     // Fullscreen state
     const [isFullscreen, setIsFullscreen] = useState(false);
@@ -505,6 +506,12 @@ export const ResourcePlansPage: React.FC = () => {
                         >
                             {t('tabs.roleSummary')}
                         </button>
+                        <button
+                            className={`px-4 py-2 -mb-px ${activeTab === 'chart' ? 'border-b-2 border-blue-600 text-blue-600 font-medium' : 'text-muted-foreground'}`}
+                            onClick={() => setActiveTab('chart')}
+                        >
+                            {t('tabs.chart')}
+                        </button>
                     </div>
                 </div>
 
@@ -819,6 +826,17 @@ export const ResourcePlansPage: React.FC = () => {
                         currentYear={currentYear}
                         currentMonth={currentMonth}
                         worklogRoleSummary={worklogRoleSummary}
+                    />
+                </div>
+            )}
+
+            {/* Chart Tab */}
+            {activeTab === 'chart' && (
+                <div className="flex-1 min-h-0 overflow-auto px-4 pb-4">
+                    <ChartSummaryTab
+                        selectedYear={selectedYear}
+                        projectSummary={projectSummary}
+                        worklogSummary={worklogSummary}
                     />
                 </div>
             )}

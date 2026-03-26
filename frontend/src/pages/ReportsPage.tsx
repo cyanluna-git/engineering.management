@@ -304,7 +304,7 @@ export const ReportsPage: React.FC = () => {
             {/* ═══════════ AI Report Tab ═══════════ */}
             {activeTab === 'ai-report' && (
                 selectedReportId ? (
-                    <ReportDetailView reportId={selectedReportId} onBack={() => setSelectedReportId(null)} />
+                    <ReportDetailView reportId={selectedReportId} onBack={() => setSelectedReportId(null)} onNavigate={setSelectedReportId} />
                 ) : (
                     <ReportListView onSelectReport={setSelectedReportId} />
                 )

@@ -3,7 +3,17 @@
   "tabs": {
     "detail": "Project Detail",
     "projectSummary": "Project Summary",
-    "roleSummary": "Role Summary"
+    "roleSummary": "Role Summary",
+    "chart": "Chart"
+  },
+  "chart": {
+    "monthlyTotalFte": "Monthly Total Plan FTE vs Actual",
+    "projectComparison": "Plan vs Actual by Project (Annual)",
+    "projectTrend": "Project Trend",
+    "planFte": "Plan FTE",
+    "actualFte": "Actual FTE",
+    "other": "Other",
+    "noData": "No data available."
   },
   "actions": {
     "addRow": "+ Add Member",

@@ -50,6 +50,8 @@
     "generating": "생성 중...",
     "noReports": "생성된 AI 보고서가 없습니다. 생성 버튼을 클릭하세요.",
     "backToList": "목록으로",
+    "prev": "이전",
+    "next": "다음",
     "loadFailed": "보고서 로드 실패"
   }
 }

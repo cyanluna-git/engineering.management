@@ -50,6 +50,8 @@
     "generating": "Generating...",
     "noReports": "No AI reports generated yet. Click Generate to create your first report.",
     "backToList": "Back to list",
+    "prev": "Prev",
+    "next": "Next",
     "loadFailed": "Failed to load report."
   }
 }

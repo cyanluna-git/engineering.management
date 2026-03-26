@@ -5,13 +5,15 @@ import {
     Bar, XAxis, YAxis, CartesianGrid, Tooltip,
     ResponsiveContainer, Legend, ComposedChart,
 } from 'recharts';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, Button } from '@/components/ui';
-import { getGeneratedReport } from '@/api/client';
+import { getGeneratedReport, getGeneratedReports } from '@/api/client';
 import type { GeneratedReport, GeneratedReportSection } from '@/types';
 
 interface ReportDetailViewProps {
     reportId: string;
     onBack: () => void;
+    onNavigate?: (id: string) => void;
 }
 
 const RISK_COLORS: Record<string, { bg: string; text: string; emoji: string }> = {
@@ -69,13 +71,23 @@ function SectionCard({ title, section, children }: { title: string; section?: Ge
     );
 }
 
-export function ReportDetailView({ reportId, onBack }: ReportDetailViewProps) {
+export function ReportDetailView({ reportId, onBack, onNavigate }: ReportDetailViewProps) {
     const { t } = useTranslation('reports');
 
     const { data: report, isLoading } = useQuery<GeneratedReport>({
         queryKey: ['generated-report', reportId],
         queryFn: () => getGeneratedReport(reportId),
     });
+
+    const { data: siblings = [] } = useQuery<GeneratedReport[]>({
+        queryKey: ['generated-reports', report?.report_type ?? ''],
+        queryFn: () => getGeneratedReports(report?.report_type),
+        enabled: !!report?.report_type,
+    });
+
+    const currentIdx = siblings.findIndex(r => r.id === reportId);
+    const prevReport = currentIdx > 0 ? siblings[currentIdx - 1] : null;
+    const nextReport = currentIdx >= 0 && currentIdx < siblings.length - 1 ? siblings[currentIdx + 1] : null;
 
     if (isLoading) {
         return <div className="text-center py-12 text-muted-foreground">{t('common.loading')}</div>;
@@ -126,6 +138,25 @@ export function ReportDetailView({ reportId, onBack }: ReportDetailViewProps) {
             {/* Header */}
             <div className="flex items-center justify-between print:hidden">
                 <Button variant="outline" size="sm" onClick={onBack}>← {t('aiReport.backToList')}</Button>
+                <div className="flex items-center gap-2">
+                    {onNavigate && prevReport && (
+                        <Button variant="ghost" size="sm" onClick={() => onNavigate(prevReport.id)} className="gap-1">
+                            <ChevronLeft className="h-4 w-4" />
+                            {t('aiReport.prev')}
+                        </Button>
+                    )}
+                    {siblings.length > 1 && (
+                        <span className="text-xs text-muted-foreground">
+                            {currentIdx + 1} / {siblings.length}
+                        </span>
+                    )}
+                    {onNavigate && nextReport && (
+                        <Button variant="ghost" size="sm" onClick={() => onNavigate(nextReport.id)} className="gap-1">
+                            {t('aiReport.next')}
+                            <ChevronRight className="h-4 w-4" />
+                        </Button>
+                    )}
+                </div>
                 <div className="text-sm text-muted-foreground">
                     {report.ai_model} · {report.created_at ? new Date(report.created_at).toLocaleString('ko-KR') : ''}
                 </div>
