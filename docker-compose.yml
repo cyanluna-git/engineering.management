@@ -64,29 +64,12 @@ services:
     build:
       context: ./portal
       dockerfile: Dockerfile
-      args:
-        VITE_BASE_DOMAIN: ${VITE_BASE_DOMAIN:-10.182.252.32.sslip.io}
     container_name: pcas-portal
     restart: unless-stopped
-    ports:
-      - "${PORTAL_PORT:-3000}:80"
-    networks:
-      - edwards_net
-
-  portal-api:
-    build:
-      context: ./portal/backend
-      dockerfile: Dockerfile
-    container_name: pcas-portal-api
-    restart: unless-stopped
     environment:
-      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@db:5432/${PORTAL_DB:-portal}
-      EOB_SECRET_KEY: ${SECRET_KEY:-}
-      CORS_ORIGINS: ${PORTAL_CORS:-http://localhost:3000}
+      NEXT_PUBLIC_BASE_DOMAIN: ${NEXT_PUBLIC_BASE_DOMAIN:-10.182.252.32.sslip.io}
     ports:
-      - "${PORTAL_API_PORT:-8000}:8000"
-    depends_on:
-      - db
+      - "${PORTAL_PORT:-3000}:3000"
     networks:
       - edwards_net
 

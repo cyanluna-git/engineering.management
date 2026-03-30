@@ -1,5 +1,6 @@
 node_modules
 .next
-out
 dist
+out
 .env*.local
+pnpm-debug.log*
