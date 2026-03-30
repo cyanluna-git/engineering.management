@@ -63,4 +63,15 @@ export const PORTAL_SERVICES: PortalService[] = [
     color: "bg-rose-600",
     category: "engineering",
   },
+  {
+    id: "quick-guides",
+    name: "Quick Guides",
+    description:
+      "How-to guides for company systems — travel, purchasing, IT equipment, VPN, and more",
+    url: "/guides",
+    icon: "BookOpen",
+    color: "bg-slate-600",
+    category: "guide",
+    internal: true,
+  },
 ];
