@@ -1,3 +1,5 @@
+import { useState, useMemo } from "react";
+import { Search, ChevronDown, ChevronRight } from "lucide-react";
 import { PORTAL_SERVICES } from "@/config/services";
 import { ServiceCard } from "@/components/portal/ServiceCard";
 
@@ -10,13 +12,27 @@ const CATEGORY_LABELS: Record<string, string> = {
 const CATEGORY_ORDER = ["engineering", "business", "guide"] as const;
 
 export function PortalPage() {
+  const [search, setSearch] = useState("");
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
+
+  const filtered = useMemo(() => {
+    if (!search.trim()) return PORTAL_SERVICES;
+    const q = search.toLowerCase();
+    return PORTAL_SERVICES.filter(
+      (s) =>
+        s.name.toLowerCase().includes(q) ||
+        s.description.toLowerCase().includes(q),
+    );
+  }, [search]);
+
   const grouped = CATEGORY_ORDER.map((cat) => ({
     key: cat,
     label: CATEGORY_LABELS[cat],
-    services: PORTAL_SERVICES.filter((s) => s.category === cat),
+    services: filtered.filter((s) => s.category === cat),
   })).filter((g) => g.services.length > 0);
 
-  const serviceCount = PORTAL_SERVICES.length;
+  const toggle = (key: string) =>
+    setCollapsed((prev) => ({ ...prev, [key]: !prev[key] }));
 
   return (
     <div className="mx-auto max-w-6xl space-y-10 px-6 py-8">
@@ -42,7 +58,7 @@ export function PortalPage() {
                 Available Services
               </p>
               <p className="mt-2 text-2xl font-semibold tracking-tight text-slate-950">
-                {serviceCount}
+                {PORTAL_SERVICES.length}
               </p>
             </div>
             <div className="rounded-2xl border border-red-100 bg-white p-3.5">
@@ -57,19 +73,54 @@ export function PortalPage() {
         </div>
       </section>
 
+      {/* Search */}
+      <div className="relative">
+        <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+        <input
+          type="text"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search services..."
+          className="w-full rounded-2xl border border-slate-200 bg-white py-3 pl-11 pr-4 text-sm text-slate-700 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-red-300 focus:ring-2 focus:ring-red-100"
+        />
+      </div>
+
+      {/* No results */}
+      {grouped.length === 0 && search.trim() && (
+        <p className="py-12 text-center text-sm text-slate-400">
+          No services matching "{search}"
+        </p>
+      )}
+
       {/* Service categories */}
-      {grouped.map(({ key, label, services }) => (
-        <section key={key} className="space-y-4">
-          <h2 className="text-lg font-semibold tracking-tight text-slate-800">
-            {label}
-          </h2>
-          <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-            {services.map((service) => (
-              <ServiceCard key={service.id} service={service} />
-            ))}
-          </div>
-        </section>
-      ))}
+      {grouped.map(({ key, label, services }) => {
+        const isCollapsed = collapsed[key] ?? false;
+        return (
+          <section key={key} className="space-y-4">
+            <button
+              onClick={() => toggle(key)}
+              className="flex items-center gap-2 text-lg font-semibold tracking-tight text-slate-800 transition hover:text-red-600"
+            >
+              {isCollapsed ? (
+                <ChevronRight className="h-5 w-5" />
+              ) : (
+                <ChevronDown className="h-5 w-5" />
+              )}
+              {label}
+              <span className="ml-1 text-sm font-normal text-slate-400">
+                ({services.length})
+              </span>
+            </button>
+            {!isCollapsed && (
+              <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+                {services.map((service) => (
+                  <ServiceCard key={service.id} service={service} />
+                ))}
+              </div>
+            )}
+          </section>
+        );
+      })}
     </div>
   );
 }
