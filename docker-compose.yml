@@ -60,6 +60,19 @@ services:
     networks:
       - edwards_net
 
+  portal:
+    build:
+      context: ./portal
+      dockerfile: Dockerfile
+      args:
+        VITE_BASE_DOMAIN: ${VITE_BASE_DOMAIN:-10.182.252.32.sslip.io}
+    container_name: pcas-portal
+    restart: unless-stopped
+    ports:
+      - "${PORTAL_PORT:-3000}:80"
+    networks:
+      - edwards_net
+
 volumes:
   db_data:
 
