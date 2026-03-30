@@ -405,7 +405,7 @@ export function TeamWeeklyReportCard({
                   value={draftBody}
                   onChange={(event) => setDraftBody(event.target.value)}
                   placeholder={t("weeklyReport.teamEditorPlaceholder")}
-                  className="mt-3 min-h-[360px] resize-y font-mono text-sm"
+                  className="mt-3 min-h-[720px] resize-y font-mono text-sm"
                 />
               </TabsContent>
 

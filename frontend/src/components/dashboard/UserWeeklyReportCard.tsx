@@ -249,7 +249,7 @@ export function UserWeeklyReportCard({
                           value={section.body}
                           onChange={(e) => updateSectionBody(idx, e.target.value)}
                           placeholder={isTeam ? "팀 공통사항, 회의, 기타 업무..." : `${section.project_name} 관련 이번주 진행사항...`}
-                          className="min-h-[120px] resize-y font-mono text-sm"
+                          className="min-h-[240px] resize-y font-mono text-sm"
                         />
                       </div>
                     )}
