@@ -73,6 +73,23 @@ services:
     networks:
       - edwards_net
 
+  portal-api:
+    build:
+      context: ./portal/backend
+      dockerfile: Dockerfile
+    container_name: pcas-portal-api
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@db:5432/${PORTAL_DB:-portal}
+      EOB_SECRET_KEY: ${SECRET_KEY:-}
+      CORS_ORIGINS: ${PORTAL_CORS:-http://localhost:3000}
+    ports:
+      - "${PORTAL_API_PORT:-8000}:8000"
+    depends_on:
+      - db
+    networks:
+      - edwards_net
+
 volumes:
   db_data:
 
