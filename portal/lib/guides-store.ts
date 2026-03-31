@@ -8,8 +8,46 @@ export interface Guide {
   updated_at: string;
 }
 
-// In-memory store for now. Replace with DB (PostgreSQL/SQLite) later.
-const guides: Guide[] = [
+export interface GuideListQuery {
+  category?: string;
+  search?: string;
+}
+
+export interface GuideCreateInput {
+  title: string;
+  category: string;
+  content: string;
+  author: string;
+}
+
+export interface GuideUpdateInput {
+  title?: string;
+  category?: string;
+  content?: string;
+}
+
+export interface GuideStore {
+  list(query?: GuideListQuery): Guide[];
+  get(id: string): Guide | undefined;
+  create(input: GuideCreateInput): Guide;
+  update(id: string, input: GuideUpdateInput): Guide | undefined;
+  delete(id: string): boolean;
+}
+
+export interface GuideStoreInfo {
+  provider: string;
+  backend: string;
+  writable: boolean;
+  note: string;
+}
+
+export interface GuideStoreProvider {
+  name: string;
+  info: GuideStoreInfo;
+  getStore(): GuideStore;
+}
+
+const GUIDE_SEED: Guide[] = [
   {
     id: "1",
     title: "VPN 설정 가이드",
@@ -42,50 +80,117 @@ const guides: Guide[] = [
   },
 ];
 
-export function listGuides(category?: string, search?: string): Guide[] {
-  let result = [...guides];
-  if (category) {
-    result = result.filter((g) => g.category === category);
+function cloneGuide(guide: Guide): Guide {
+  return { ...guide };
+}
+
+class InMemoryGuideStore implements GuideStore {
+  private readonly guides: Guide[];
+
+  constructor(initialGuides: Guide[]) {
+    this.guides = initialGuides.map(cloneGuide);
   }
-  if (search) {
-    const q = search.toLowerCase();
-    result = result.filter(
-      (g) =>
-        g.title.toLowerCase().includes(q) ||
-        g.content.toLowerCase().includes(q),
+
+  list(query?: GuideListQuery): Guide[] {
+    const category = query?.category?.trim();
+    const search = query?.search?.trim().toLowerCase();
+
+    let result = this.guides.map(cloneGuide);
+
+    if (category) {
+      result = result.filter((guide) => guide.category === category);
+    }
+
+    if (search) {
+      result = result.filter(
+        (guide) =>
+          guide.title.toLowerCase().includes(search) ||
+          guide.content.toLowerCase().includes(search),
+      );
+    }
+
+    return result.sort(
+      (a, b) =>
+        new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime(),
     );
   }
-  return result.sort(
-    (a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime(),
-  );
+
+  get(id: string): Guide | undefined {
+    const guide = this.guides.find((item) => item.id === id);
+    return guide ? cloneGuide(guide) : undefined;
+  }
+
+  create(input: GuideCreateInput): Guide {
+    const now = new Date().toISOString();
+    const guide: Guide = {
+      id: crypto.randomUUID(),
+      ...input,
+      created_at: now,
+      updated_at: now,
+    };
+    this.guides.push(guide);
+    return cloneGuide(guide);
+  }
+
+  update(id: string, input: GuideUpdateInput): Guide | undefined {
+    const guide = this.guides.find((item) => item.id === id);
+    if (!guide) return undefined;
+
+    Object.assign(guide, input, { updated_at: new Date().toISOString() });
+    return cloneGuide(guide);
+  }
+
+  delete(id: string): boolean {
+    const index = this.guides.findIndex((item) => item.id === id);
+    if (index === -1) return false;
+
+    this.guides.splice(index, 1);
+    return true;
+  }
+}
+
+const inMemoryGuideStore = new InMemoryGuideStore(GUIDE_SEED);
+
+const guideStoreProvider: GuideStoreProvider = {
+  name: "memory",
+  info: {
+    provider: "memory",
+    backend: "in-memory",
+    writable: true,
+    note: "Route handlers use a provider boundary so this store can be replaced with PostgreSQL later.",
+  },
+  getStore() {
+    return inMemoryGuideStore;
+  },
+};
+
+export function getGuideStore(): GuideStore {
+  return guideStoreProvider.getStore();
+}
+
+export function getGuideStoreInfo(): GuideStoreInfo {
+  return { ...guideStoreProvider.info };
+}
+
+export function listGuides(category?: string, search?: string): Guide[] {
+  return getGuideStore().list({ category, search });
 }
 
 export function getGuide(id: string): Guide | undefined {
-  return guides.find((g) => g.id === id);
+  return getGuideStore().get(id);
 }
 
-export function createGuide(data: { title: string; category: string; content: string; author: string }): Guide {
-  const now = new Date().toISOString();
-  const guide: Guide = {
-    id: String(Date.now()),
-    ...data,
-    created_at: now,
-    updated_at: now,
-  };
-  guides.push(guide);
-  return guide;
+export function createGuide(input: GuideCreateInput): Guide {
+  return getGuideStore().create(input);
 }
 
-export function updateGuide(id: string, data: Partial<Pick<Guide, "title" | "category" | "content">>): Guide | undefined {
-  const guide = guides.find((g) => g.id === id);
-  if (!guide) return undefined;
-  Object.assign(guide, data, { updated_at: new Date().toISOString() });
-  return guide;
+export function updateGuide(
+  id: string,
+  input: GuideUpdateInput,
+): Guide | undefined {
+  return getGuideStore().update(id, input);
 }
 
 export function deleteGuide(id: string): boolean {
-  const idx = guides.findIndex((g) => g.id === id);
-  if (idx === -1) return false;
-  guides.splice(idx, 1);
-  return true;
+  return getGuideStore().delete(id);
 }
