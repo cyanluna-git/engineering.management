@@ -6,7 +6,7 @@ export interface PortalService {
   icon: string;
   color: string;
   category: "engineering" | "business" | "guide";
-  internal?: boolean;
+  destination: "internal" | "external";
 }
 
 const BASE_DOMAIN = process.env.NEXT_PUBLIC_BASE_DOMAIN || "10.182.252.32.sslip.io";
@@ -20,6 +20,7 @@ export const PORTAL_SERVICES: PortalService[] = [
     icon: "LayoutDashboard",
     color: "bg-blue-600",
     category: "engineering",
+    destination: "external",
   },
   {
     id: "oqc",
@@ -29,6 +30,7 @@ export const PORTAL_SERVICES: PortalService[] = [
     icon: "ClipboardCheck",
     color: "bg-emerald-600",
     category: "engineering",
+    destination: "external",
   },
   {
     id: "jarvis",
@@ -38,6 +40,7 @@ export const PORTAL_SERVICES: PortalService[] = [
     icon: "BrainCircuit",
     color: "bg-purple-600",
     category: "engineering",
+    destination: "external",
   },
   {
     id: "testrig",
@@ -47,6 +50,7 @@ export const PORTAL_SERVICES: PortalService[] = [
     icon: "Wrench",
     color: "bg-amber-600",
     category: "engineering",
+    destination: "external",
   },
   {
     id: "pcas-software-portal",
@@ -56,6 +60,17 @@ export const PORTAL_SERVICES: PortalService[] = [
     icon: "ClipboardList",
     color: "bg-rose-600",
     category: "engineering",
+    destination: "external",
+  },
+  {
+    id: "servicenow-it",
+    name: "ServiceNow IT Services",
+    description: "Business systems entry point for IT requests, hardware support, and workflow approvals",
+    url: "https://atlascopco.service-now.com",
+    icon: "Building2",
+    color: "bg-cyan-700",
+    category: "business",
+    destination: "external",
   },
   {
     id: "quick-guides",
@@ -65,6 +80,6 @@ export const PORTAL_SERVICES: PortalService[] = [
     icon: "BookOpen",
     color: "bg-slate-600",
     category: "guide",
-    internal: true,
+    destination: "internal",
   },
 ];

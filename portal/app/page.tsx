@@ -5,10 +5,28 @@ import { Search, ChevronDown, ChevronRight } from "lucide-react";
 import { PORTAL_SERVICES } from "@/lib/services";
 import { ServiceCard } from "@/components/portal/ServiceCard";
 
-const CATEGORY_LABELS: Record<string, string> = {
-  engineering: "Engineering Tools",
-  business: "Business Systems",
-  guide: "Quick Guides",
+const CATEGORY_META: Record<
+  string,
+  { label: string; description: string; emptyMessage: string }
+> = {
+  engineering: {
+    label: "Engineering Tools",
+    description:
+      "Core engineering systems, quality tooling, and delivery workspaces.",
+    emptyMessage: "No engineering services are registered yet.",
+  },
+  business: {
+    label: "Business Systems",
+    description:
+      "Cross-functional systems for service requests, approvals, and operational workflows.",
+    emptyMessage: "Business systems will appear here as they are onboarded.",
+  },
+  guide: {
+    label: "Quick Guides",
+    description:
+      "Internal navigation and how-to content for frequent company workflows.",
+    emptyMessage: "Guide destinations will appear here as content hubs are added.",
+  },
 };
 
 const CATEGORY_ORDER = ["engineering", "business", "guide"] as const;
@@ -29,9 +47,11 @@ export default function PortalPage() {
 
   const grouped = CATEGORY_ORDER.map((cat) => ({
     key: cat,
-    label: CATEGORY_LABELS[cat],
+    ...CATEGORY_META[cat],
     services: filtered.filter((s) => s.category === cat),
-  })).filter((g) => g.services.length > 0);
+  }));
+
+  const totalMatches = filtered.length;
 
   const toggle = (key: string) =>
     setCollapsed((prev) => ({ ...prev, [key]: !prev[key] }));
@@ -87,36 +107,51 @@ export default function PortalPage() {
         />
       </div>
 
-      {grouped.length === 0 && search.trim() && (
+      {totalMatches === 0 && search.trim() && (
         <p className="py-12 text-center text-sm text-slate-400">
           No services matching &ldquo;{search}&rdquo;
         </p>
       )}
 
-      {grouped.map(({ key, label, services }) => {
+      {grouped.map(({ key, label, description, emptyMessage, services }) => {
         const isCollapsed = collapsed[key] ?? false;
         return (
           <section key={key} className="space-y-4">
-            <button
-              onClick={() => toggle(key)}
-              className="flex items-center gap-2 text-lg font-semibold tracking-tight text-slate-800 transition hover:text-red-600"
-            >
-              {isCollapsed ? (
-                <ChevronRight className="h-5 w-5" />
-              ) : (
-                <ChevronDown className="h-5 w-5" />
-              )}
-              {label}
-              <span className="ml-1 text-sm font-normal text-slate-400">
-                ({services.length})
-              </span>
-            </button>
-            {!isCollapsed && (
-              <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-                {services.map((service) => (
-                  <ServiceCard key={service.id} service={service} />
-                ))}
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <button
+                  onClick={() => toggle(key)}
+                  className="flex items-center gap-2 text-lg font-semibold tracking-tight text-slate-800 transition hover:text-red-600"
+                >
+                  {isCollapsed ? (
+                    <ChevronRight className="h-5 w-5" />
+                  ) : (
+                    <ChevronDown className="h-5 w-5" />
+                  )}
+                  {label}
+                  <span className="ml-1 text-sm font-normal text-slate-400">
+                    ({services.length})
+                  </span>
+                </button>
+                <p className="mt-1 text-sm leading-6 text-slate-500">
+                  {description}
+                </p>
               </div>
+            </div>
+            {!isCollapsed && (
+              services.length > 0 ? (
+                <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+                  {services.map((service) => (
+                    <ServiceCard key={service.id} service={service} />
+                  ))}
+                </div>
+              ) : (
+                <div className="rounded-2xl border border-dashed border-slate-200 bg-white/70 px-5 py-6 text-sm text-slate-500">
+                  {search.trim()
+                    ? "No matching services in this category."
+                    : emptyMessage}
+                </div>
+              )
             )}
           </section>
         );

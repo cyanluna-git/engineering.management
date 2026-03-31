@@ -8,6 +8,7 @@ import {
   Wrench,
   ClipboardList,
   BookOpen,
+  Building2,
   ExternalLink,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -20,6 +21,7 @@ const ICON_MAP: Record<string, React.ElementType> = {
   Wrench,
   ClipboardList,
   BookOpen,
+  Building2,
 };
 
 const cardClassName = cn(
@@ -30,6 +32,8 @@ const cardClassName = cn(
 
 function CardContent({ service }: { service: PortalService }) {
   const Icon = ICON_MAP[service.icon] || LayoutDashboard;
+  const destinationLabel =
+    service.destination === "internal" ? "Internal Route" : "External Service";
   return (
     <>
       <div className="absolute inset-x-0 top-0 h-24 bg-[radial-gradient(circle_at_top_left,rgba(220,38,38,0.12),transparent_48%),radial-gradient(circle_at_top_right,rgba(15,23,42,0.04),transparent_45%)]" />
@@ -42,6 +46,9 @@ function CardContent({ service }: { service: PortalService }) {
         <Icon className="h-7 w-7" />
       </div>
       <div className="relative space-y-2">
+        <span className="inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-medium uppercase tracking-[0.16em] text-slate-500">
+          {destinationLabel}
+        </span>
         <h3 className="text-xl font-semibold leading-none tracking-tight text-slate-950">
           {service.name}
         </h3>
@@ -49,7 +56,7 @@ function CardContent({ service }: { service: PortalService }) {
           {service.description}
         </p>
       </div>
-      {!service.internal && (
+      {service.destination === "external" && (
         <ExternalLink className="absolute right-5 top-5 h-4 w-4 text-slate-400 opacity-0 transition-opacity group-hover:opacity-100" />
       )}
     </>
@@ -57,7 +64,7 @@ function CardContent({ service }: { service: PortalService }) {
 }
 
 export function ServiceCard({ service }: { service: PortalService }) {
-  if (service.internal) {
+  if (service.destination === "internal") {
     return (
       <Link href={service.url} className={cardClassName}>
         <CardContent service={service} />
