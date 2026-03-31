@@ -28,6 +28,7 @@ PCAS Portal is a standalone Next.js 15 App Router application under [`portal/`](
 ## Environment
 
 - `NEXT_PUBLIC_BASE_DOMAIN`: Base domain used to build internal service URLs
+- `NEXT_PUBLIC_EOB_URL`, `NEXT_PUBLIC_OQC_URL`, `NEXT_PUBLIC_JARVIS_URL`: Optional explicit service host overrides when the portal should link to canonical service subdomains
 - `NEXT_PUBLIC_TESTRIG_URL`: Optional explicit TestRig URL override
 - `PORTAL_GUIDE_WRITE_TOKEN`: Enables guide mutation endpoints when callers send `x-portal-admin-token`
 

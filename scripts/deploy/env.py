@@ -66,29 +66,32 @@ REMOVE_KEYS = {"DATABASE_URL", "VITE_DEV_PROXY_TARGET"}
 
 def build_domain_overrides(domain: str) -> Dict[str, str]:
     """Build overrides that depend on the server domain."""
-    # Derive base domain (e.g. eob.10.182.252.32.sslip.io → 10.182.252.32.sslip.io)
+    # Derive shared base domain from the portal host (e.g. pcas-portal.<base>)
     base = domain.split(".", 1)[1] if "." in domain else domain
+    eob_domain = f"eob.{base}"
+    oqc_domain = f"oqc.{base}"
+    jarvis_domain = f"jarvis.{base}"
     cors = ",".join([
         "http://localhost:3000",
         "http://localhost:3004",
         f"http://{domain}",
         f"https://{domain}",
-        f"https://eob.{base}",
-        f"https://oqc.{base}",
-        f"https://jarvis.{base}",
+        f"https://{eob_domain}",
+        f"https://{oqc_domain}",
+        f"https://{jarvis_domain}",
     ])
     return {
-        "SAML_ENTITY_ID": f"https://{domain}/eob",
-        "SAML_ACS_URL": f"https://{domain}/eob/api/auth/sso/callback",
-        "SAML_SLO_URL": f"https://{domain}/eob/api/auth/logout",
+        "SAML_ENTITY_ID": f"https://{eob_domain}",
+        "SAML_ACS_URL": f"https://{eob_domain}/api/auth/sso/callback",
+        "SAML_SLO_URL": f"https://{eob_domain}/api/auth/logout",
         "CORS_ORIGINS": cors,
-        "VITE_APP_BASE": "/eob/",
-        "VITE_API_URL": "/eob/api",
-        "VITE_OQC_URL": "/oqc/",
-        "VITE_JARVIS_URL": "/jarvis/",
-        "NEXT_PUBLIC_EOB_URL": "/eob/",
-        "NEXT_PUBLIC_OQC_URL": "/oqc/",
-        "NEXT_PUBLIC_JARVIS_URL": "/jarvis/",
+        "VITE_APP_BASE": "/",
+        "VITE_API_URL": "/api",
+        "VITE_OQC_URL": f"https://{oqc_domain}",
+        "VITE_JARVIS_URL": f"https://{jarvis_domain}",
+        "NEXT_PUBLIC_EOB_URL": f"https://{eob_domain}",
+        "NEXT_PUBLIC_OQC_URL": f"https://{oqc_domain}",
+        "NEXT_PUBLIC_JARVIS_URL": f"https://{jarvis_domain}",
         "PORTAL_DOMAIN": domain,
         "BASE_DOMAIN": base,
     }

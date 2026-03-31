@@ -19,10 +19,10 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 NO_CACHE=""
 FRONTEND_BUILD_ARGS=(
-  --build-arg "VITE_APP_BASE=/eob/"
-  --build-arg "VITE_API_URL=/eob/api"
-  --build-arg "VITE_OQC_URL=/oqc/"
-  --build-arg "VITE_JARVIS_URL=/jarvis/"
+  --build-arg "VITE_APP_BASE=/"
+  --build-arg "VITE_API_URL=/api"
+  --build-arg "VITE_OQC_URL=https://oqc.10.182.252.32.sslip.io"
+  --build-arg "VITE_JARVIS_URL=https://jarvis.10.182.252.32.sslip.io"
 )
 
 # ── Colors ──
@@ -145,7 +145,9 @@ fi
 
 END_TIME=$(date +%s)
 ELAPSED=$((END_TIME - START_TIME))
+BASE_DOMAIN="${SERVER_IP}.sslip.io"
 
 echo -e "\n${CYAN}━━━ Quick Deploy Complete (${ELAPSED}s) ━━━${RESET}"
 echo -e "  ${GREEN}✓${RESET} Target: $TARGET"
-echo -e "  ${GREEN}✓${RESET} https://pcas-portal.10.182.252.32.sslip.io"
+echo -e "  ${GREEN}✓${RESET} Portal: https://pcas-portal.${BASE_DOMAIN}"
+echo -e "  ${GREEN}✓${RESET} EOB:    https://eob.${BASE_DOMAIN}"

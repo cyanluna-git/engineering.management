@@ -68,9 +68,9 @@ class Settings(BaseSettings):
 
     # SSO / SAML 2.0
     SAML_ENABLED: bool = False
-    SAML_ENTITY_ID: str = "https://pcas-portal.10.182.252.32.sslip.io/eob"
-    SAML_ACS_URL: str = "https://pcas-portal.10.182.252.32.sslip.io/eob/api/auth/sso/callback"
-    SAML_SLO_URL: str = "https://pcas-portal.10.182.252.32.sslip.io/eob/api/auth/logout"
+    SAML_ENTITY_ID: str = "https://eob.10.182.252.32.sslip.io"
+    SAML_ACS_URL: str = "https://eob.10.182.252.32.sslip.io/api/auth/sso/callback"
+    SAML_SLO_URL: str = "https://eob.10.182.252.32.sslip.io/api/auth/logout"
     # Identity Provider (IdP) Settings - To be provided by Admin
     SAML_IDP_ENTITY_ID: str = ""
     SAML_IDP_SSO_URL: str = ""

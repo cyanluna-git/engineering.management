@@ -30,42 +30,6 @@ server {
     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
     proxy_set_header X-Forwarded-Proto $scheme;
 
-    location = /eob {
-        return 301 /eob/;
-    }
-
-    location = /oqc {
-        return 301 /oqc/;
-    }
-
-    location = /jarvis {
-        return 301 /jarvis/;
-    }
-
-    location /eob/api/ {
-        proxy_pass http://backend:8004/api/;
-        proxy_set_header X-Forwarded-Prefix /eob/api;
-    }
-
-    location /eob/ {
-        proxy_pass http://frontend:80/;
-        proxy_set_header X-Forwarded-Prefix /eob;
-    }
-
-    location /oqc/ {
-        proxy_pass ${OQC_UPSTREAM};
-        proxy_set_header Host $proxy_host;
-        proxy_ssl_server_name on;
-        proxy_set_header X-Forwarded-Prefix /oqc;
-    }
-
-    location /jarvis/ {
-        proxy_pass ${JARVIS_UPSTREAM};
-        proxy_set_header Host $proxy_host;
-        proxy_ssl_server_name on;
-        proxy_set_header X-Forwarded-Prefix /jarvis;
-    }
-
     location / {
         proxy_pass http://portal:3000;
     }
@@ -78,8 +42,24 @@ server {
 
     ssl_certificate ${NGINX_SSL_CERT};
     ssl_certificate_key ${NGINX_SSL_KEY};
+    ssl_session_cache shared:SSL:10m;
+    ssl_session_timeout 10m;
 
-    return 301 https://${PORTAL_DOMAIN}/eob$request_uri;
+    proxy_http_version 1.1;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection $connection_upgrade;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+
+    location /api/ {
+        proxy_pass http://backend:8004/api/;
+    }
+
+    location / {
+        proxy_pass http://frontend:80/;
+    }
 }
 
 server {
@@ -89,8 +69,21 @@ server {
 
     ssl_certificate ${NGINX_SSL_CERT};
     ssl_certificate_key ${NGINX_SSL_KEY};
+    ssl_session_cache shared:SSL:10m;
+    ssl_session_timeout 10m;
 
-    return 301 https://${PORTAL_DOMAIN}/oqc$request_uri;
+    proxy_http_version 1.1;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection $connection_upgrade;
+    proxy_set_header Host $proxy_host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_ssl_server_name on;
+
+    location / {
+        proxy_pass ${OQC_UPSTREAM};
+    }
 }
 
 server {
@@ -100,8 +93,21 @@ server {
 
     ssl_certificate ${NGINX_SSL_CERT};
     ssl_certificate_key ${NGINX_SSL_KEY};
+    ssl_session_cache shared:SSL:10m;
+    ssl_session_timeout 10m;
 
-    return 301 https://${PORTAL_DOMAIN}/jarvis$request_uri;
+    proxy_http_version 1.1;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection $connection_upgrade;
+    proxy_set_header Host $proxy_host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_ssl_server_name on;
+
+    location / {
+        proxy_pass ${JARVIS_UPSTREAM};
+    }
 }
 
 server {

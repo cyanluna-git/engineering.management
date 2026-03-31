@@ -73,6 +73,7 @@ def main():
         .replace("eob.10.182.252.32.sslip.io", f"eob.{base_domain}")
         .replace("oqc.10.182.252.32.sslip.io", f"oqc.{base_domain}")
         .replace("jarvis.10.182.252.32.sslip.io", f"jarvis.{base_domain}")
+        .replace("10.182.252.32.sslip.io", base_domain)
     )
 
     with tempfile.NamedTemporaryFile("w", encoding="utf-8", delete=False) as tmp:
