@@ -10,7 +10,7 @@ export function GET(request: NextRequest) {
   const { searchParams } = request.nextUrl;
   const category = searchParams.get("category") || undefined;
   const search = searchParams.get("search") || undefined;
-  return NextResponse.json(listGuides(category, search));
+  return listGuides(category, search).then((guides) => NextResponse.json(guides));
 }
 
 export async function POST(request: NextRequest) {
@@ -30,7 +30,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const guide = createGuide({
+  const guide = await createGuide({
     title: body.title.trim(),
     category: body.category.trim(),
     content: body.content.trim(),

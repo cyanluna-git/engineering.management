@@ -1,37 +1,27 @@
-export interface Guide {
-  id: string;
-  title: string;
-  category: string;
-  content: string;
-  author: string;
-  created_at: string;
-  updated_at: string;
-}
+import { mkdir, readFile, writeFile } from "node:fs/promises";
+import path from "node:path";
+import {
+  GUIDE_CATEGORY_OPTIONS,
+  type Guide,
+  type GuideCreateInput,
+  type GuideListQuery,
+  type GuideUpdateInput,
+} from "@/lib/guides-schema";
 
-export interface GuideListQuery {
-  category?: string;
-  search?: string;
-}
-
-export interface GuideCreateInput {
-  title: string;
-  category: string;
-  content: string;
-  author: string;
-}
-
-export interface GuideUpdateInput {
-  title?: string;
-  category?: string;
-  content?: string;
-}
+export type {
+  Guide,
+  GuideCreateInput,
+  GuideListQuery,
+  GuideUpdateInput,
+} from "@/lib/guides-schema";
+export { GUIDE_CATEGORY_OPTIONS } from "@/lib/guides-schema";
 
 export interface GuideStore {
-  list(query?: GuideListQuery): Guide[];
-  get(id: string): Guide | undefined;
-  create(input: GuideCreateInput): Guide;
-  update(id: string, input: GuideUpdateInput): Guide | undefined;
-  delete(id: string): boolean;
+  list(query?: GuideListQuery): Promise<Guide[]>;
+  get(id: string): Promise<Guide | undefined>;
+  create(input: GuideCreateInput): Promise<Guide>;
+  update(id: string, input: GuideUpdateInput): Promise<Guide | undefined>;
+  delete(id: string): Promise<boolean>;
 }
 
 export interface GuideStoreInfo {
@@ -39,6 +29,7 @@ export interface GuideStoreInfo {
   backend: string;
   writable: boolean;
   note: string;
+  storagePath: string;
 }
 
 export interface GuideStoreProvider {
@@ -46,6 +37,8 @@ export interface GuideStoreProvider {
   info: GuideStoreInfo;
   getStore(): GuideStore;
 }
+
+const GUIDE_STORAGE_PATH = path.join(process.cwd(), "data", "guides.json");
 
 const GUIDE_SEED: Guide[] = [
   {
@@ -84,17 +77,60 @@ function cloneGuide(guide: Guide): Guide {
   return { ...guide };
 }
 
-class InMemoryGuideStore implements GuideStore {
-  private readonly guides: Guide[];
+function sanitizeGuide(guide: Guide): Guide {
+  return {
+    ...guide,
+    title: guide.title.trim(),
+    category: guide.category.trim(),
+    content: guide.content.trim(),
+    author: guide.author.trim() || "admin",
+  };
+}
 
-  constructor(initialGuides: Guide[]) {
-    this.guides = initialGuides.map(cloneGuide);
+class FileGuideStore implements GuideStore {
+  private guides: Guide[] = [];
+  private initPromise: Promise<void> | null = null;
+
+  private async ensureReady() {
+    if (!this.initPromise) {
+      this.initPromise = this.initialize();
+    }
+
+    await this.initPromise;
   }
 
-  list(query?: GuideListQuery): Guide[] {
+  private async initialize() {
+    await mkdir(path.dirname(GUIDE_STORAGE_PATH), { recursive: true });
+
+    try {
+      const raw = await readFile(GUIDE_STORAGE_PATH, "utf8");
+      const parsed = JSON.parse(raw);
+
+      if (Array.isArray(parsed)) {
+        this.guides = parsed.map((item) => sanitizeGuide(item as Guide));
+        return;
+      }
+    } catch {
+      // Seed below when the file is missing or invalid.
+    }
+
+    this.guides = GUIDE_SEED.map(cloneGuide);
+    await this.persist();
+  }
+
+  private async persist() {
+    await writeFile(
+      GUIDE_STORAGE_PATH,
+      `${JSON.stringify(this.guides, null, 2)}\n`,
+      "utf8",
+    );
+  }
+
+  async list(query?: GuideListQuery): Promise<Guide[]> {
+    await this.ensureReady();
+
     const category = query?.category?.trim();
     const search = query?.search?.trim().toLowerCase();
-
     let result = this.guides.map(cloneGuide);
 
     if (category) {
@@ -115,52 +151,75 @@ class InMemoryGuideStore implements GuideStore {
     );
   }
 
-  get(id: string): Guide | undefined {
+  async get(id: string): Promise<Guide | undefined> {
+    await this.ensureReady();
     const guide = this.guides.find((item) => item.id === id);
     return guide ? cloneGuide(guide) : undefined;
   }
 
-  create(input: GuideCreateInput): Guide {
+  async create(input: GuideCreateInput): Promise<Guide> {
+    await this.ensureReady();
+
     const now = new Date().toISOString();
-    const guide: Guide = {
+    const guide = sanitizeGuide({
       id: crypto.randomUUID(),
       ...input,
       created_at: now,
       updated_at: now,
-    };
+    });
+
     this.guides.push(guide);
+    await this.persist();
+
     return cloneGuide(guide);
   }
 
-  update(id: string, input: GuideUpdateInput): Guide | undefined {
+  async update(id: string, input: GuideUpdateInput): Promise<Guide | undefined> {
+    await this.ensureReady();
+
     const guide = this.guides.find((item) => item.id === id);
     if (!guide) return undefined;
 
-    Object.assign(guide, input, { updated_at: new Date().toISOString() });
+    const nextFields = Object.fromEntries(
+      Object.entries(input).filter(([, value]) => value !== undefined),
+    );
+
+    Object.assign(guide, nextFields, {
+      updated_at: new Date().toISOString(),
+    });
+
+    Object.assign(guide, sanitizeGuide(guide));
+    await this.persist();
+
     return cloneGuide(guide);
   }
 
-  delete(id: string): boolean {
+  async delete(id: string): Promise<boolean> {
+    await this.ensureReady();
+
     const index = this.guides.findIndex((item) => item.id === id);
     if (index === -1) return false;
 
     this.guides.splice(index, 1);
+    await this.persist();
+
     return true;
   }
 }
 
-const inMemoryGuideStore = new InMemoryGuideStore(GUIDE_SEED);
+const fileGuideStore = new FileGuideStore();
 
 const guideStoreProvider: GuideStoreProvider = {
-  name: "memory",
+  name: "file",
   info: {
-    provider: "memory",
-    backend: "in-memory",
+    provider: "file",
+    backend: "json-file",
     writable: true,
-    note: "Route handlers use a provider boundary so this store can be replaced with PostgreSQL later.",
+    note: "Guides persist to a JSON data file behind the store/provider boundary.",
+    storagePath: GUIDE_STORAGE_PATH,
   },
   getStore() {
-    return inMemoryGuideStore;
+    return fileGuideStore;
   },
 };
 
@@ -172,25 +231,32 @@ export function getGuideStoreInfo(): GuideStoreInfo {
   return { ...guideStoreProvider.info };
 }
 
-export function listGuides(category?: string, search?: string): Guide[] {
+export async function listGuides(
+  category?: string,
+  search?: string,
+): Promise<Guide[]> {
   return getGuideStore().list({ category, search });
 }
 
-export function getGuide(id: string): Guide | undefined {
+export async function getGuide(id: string): Promise<Guide | undefined> {
   return getGuideStore().get(id);
 }
 
-export function createGuide(input: GuideCreateInput): Guide {
+export async function createGuide(input: GuideCreateInput): Promise<Guide> {
   return getGuideStore().create(input);
 }
 
-export function updateGuide(
+export async function updateGuide(
   id: string,
   input: GuideUpdateInput,
-): Guide | undefined {
+): Promise<Guide | undefined> {
   return getGuideStore().update(id, input);
 }
 
-export function deleteGuide(id: string): boolean {
+export async function deleteGuide(id: string): Promise<boolean> {
   return getGuideStore().delete(id);
+}
+
+export function getGuideCategoryOptions(): readonly string[] {
+  return GUIDE_CATEGORY_OPTIONS;
 }

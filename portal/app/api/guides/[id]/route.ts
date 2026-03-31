@@ -7,8 +7,8 @@ function isNonEmptyString(value: unknown): value is string {
 }
 
 export function GET(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  return params.then(({ id }) => {
-    const guide = getGuide(id);
+  return params.then(async ({ id }) => {
+    const guide = await getGuide(id);
     if (!guide) return NextResponse.json({ error: "Not found" }, { status: 404 });
     return NextResponse.json(guide);
   });
@@ -31,16 +31,22 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     title: isNonEmptyString(body.title) ? body.title.trim() : undefined,
     category: isNonEmptyString(body.category) ? body.category.trim() : undefined,
     content: isNonEmptyString(body.content) ? body.content.trim() : undefined,
+    author: isNonEmptyString(body.author) ? body.author.trim() : undefined,
   };
 
-  if (!nextGuide.title && !nextGuide.category && !nextGuide.content) {
+  if (
+    !nextGuide.title &&
+    !nextGuide.category &&
+    !nextGuide.content &&
+    !nextGuide.author
+  ) {
     return NextResponse.json(
       { error: "At least one updatable field is required." },
       { status: 400 },
     );
   }
 
-  const guide = updateGuide(id, nextGuide);
+  const guide = await updateGuide(id, nextGuide);
   if (!guide) return NextResponse.json({ error: "Not found" }, { status: 404 });
   return NextResponse.json(guide);
 }
@@ -50,6 +56,6 @@ export async function DELETE(_request: NextRequest, { params }: { params: Promis
   if (denied) return denied;
 
   const { id } = await params;
-  if (!deleteGuide(id)) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  if (!(await deleteGuide(id))) return NextResponse.json({ error: "Not found" }, { status: 404 });
   return new NextResponse(null, { status: 204 });
 }
