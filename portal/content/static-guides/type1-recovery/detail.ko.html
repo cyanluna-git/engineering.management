@@ -1,0 +1,825 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Type 1 & Type 2 복구 프로세스 — 기술 가이드</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    /* ===== RESET ===== */
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+    html { scroll-behavior: smooth; font-size: 16px; }
+    body {
+      background: #f8fafc;
+      color: #1e293b;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      line-height: 1.75;
+      -webkit-font-smoothing: antialiased;
+    }
+    ::-webkit-scrollbar { width: 5px; }
+    ::-webkit-scrollbar-track { background: #f1f5f9; }
+    ::-webkit-scrollbar-thumb { background: #0f766e; border-radius: 3px; }
+
+    /* ===== TOC SIDEBAR ===== */
+    .toc-sidebar {
+      position: fixed; left: 0; top: 50%;
+      transform: translateY(-50%);
+      z-index: 1000; width: 220px;
+      padding: 24px 16px 24px 20px;
+      transition: transform 0.35s cubic-bezier(0.4,0,0.2,1);
+    }
+    .toc-sidebar .toc-label {
+      font-size: 0.6rem; font-weight: 700;
+      letter-spacing: 0.15em; text-transform: uppercase;
+      color: #0f766e; margin-bottom: 14px; padding-left: 14px;
+    }
+    .toc-sidebar nav ul { list-style: none; }
+    .toc-sidebar nav li { margin-bottom: 1px; }
+    .toc-sidebar nav a {
+      display: block; padding: 6px 12px 6px 14px;
+      font-size: 0.72rem; font-weight: 400;
+      color: #94a3b8; text-decoration: none;
+      border-left: 2px solid transparent;
+      border-radius: 0 5px 5px 0;
+      transition: all 0.25s ease; line-height: 1.45;
+    }
+    .toc-sidebar nav a:hover { color: #475569; background: rgba(15,118,110,0.05); }
+    .toc-sidebar nav a.active {
+      color: #0f766e; font-weight: 600;
+      border-left-color: #0f766e;
+      background: rgba(15,118,110,0.06);
+    }
+    .toc-sidebar nav a.sub { padding-left: 26px; font-size: 0.68rem; }
+
+    /* ===== MAIN ===== */
+    .page-wrapper { margin-left: 220px; min-height: 100vh; }
+
+    /* ===== HERO ===== */
+    .hero {
+      position: relative; width: 100%; min-height: 100vh;
+      display: flex; align-items: center; justify-content: center;
+      overflow: hidden;
+      background: linear-gradient(160deg, #f0fdfa 0%, #e6f7f4 40%, #f0fdfa 100%);
+    }
+    .hero::before {
+      content: ''; position: absolute; top: -40%; right: -25%;
+      width: 800px; height: 800px; border-radius: 50%;
+      background: radial-gradient(circle, rgba(15,118,110,0.06) 0%, transparent 70%);
+    }
+    .hero::after {
+      content: ''; position: absolute; bottom: -30%; left: -15%;
+      width: 600px; height: 600px; border-radius: 50%;
+      background: radial-gradient(circle, rgba(245,158,11,0.05) 0%, transparent 70%);
+    }
+    .hero-content {
+      position: relative; z-index: 2;
+      max-width: 1040px; padding: 60px 56px; text-align: center;
+    }
+    .hero-badge {
+      display: inline-block; padding: 5px 18px;
+      font-size: 0.65rem; font-weight: 700;
+      letter-spacing: 0.18em; text-transform: uppercase;
+      color: #0f766e; border: 1px solid rgba(15,118,110,0.3);
+      border-radius: 100px; margin-bottom: 28px;
+      background: rgba(15,118,110,0.06);
+    }
+    .hero-title {
+      font-size: 2.8rem; font-weight: 900; color: #1e293b;
+      line-height: 1.2; margin-bottom: 20px; letter-spacing: -0.02em;
+    }
+    .hero-title .accent {
+      background: linear-gradient(135deg, #0f766e, #14b8a6);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .hero-subtitle {
+      font-size: 1.05rem; color: #64748b; line-height: 1.65;
+      margin-bottom: 40px; font-weight: 300;
+    }
+    .hero-meta { display: flex; flex-wrap: wrap; justify-content: center; gap: 32px; }
+    .meta-item { text-align: center; }
+    .meta-label {
+      font-size: 0.58rem; font-weight: 700;
+      letter-spacing: 0.15em; text-transform: uppercase;
+      color: #94a3b8; margin-bottom: 3px;
+    }
+    .meta-value { font-size: 0.82rem; color: #334155; font-weight: 500; }
+    .hero-divider {
+      width: 60px; height: 2px; margin: 36px auto 0;
+      background: linear-gradient(90deg, #0f766e, #f59e0b); border-radius: 2px;
+    }
+    .hero-scroll-hint {
+      position: absolute; bottom: 36px; left: 50%; transform: translateX(-50%);
+      display: flex; flex-direction: column; align-items: center; gap: 6px;
+      color: #94a3b8; font-size: 0.65rem;
+      letter-spacing: 0.1em; text-transform: uppercase;
+      animation: gentleBounce 2.5s ease-in-out infinite;
+    }
+    .hero-scroll-hint .scroll-line {
+      width: 1px; height: 28px;
+      background: linear-gradient(to bottom, #94a3b8, transparent);
+    }
+    @keyframes gentleBounce {
+      0%, 100% { transform: translateX(-50%) translateY(0); }
+      50% { transform: translateX(-50%) translateY(5px); }
+    }
+
+    /* ===== STATS ===== */
+    .stats-banner {
+      display: grid; grid-template-columns: repeat(4,1fr);
+      max-width: 1160px; margin: -50px auto 0;
+      position: relative; z-index: 10;
+      border-radius: 14px; overflow: hidden;
+      border: 1px solid #e2e8f0; background: #fff;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.06);
+    }
+    .stat-card { padding: 28px 20px; text-align: center; position: relative; }
+    .stat-card:not(:last-child)::after {
+      content: ''; position: absolute; right: 0; top: 25%; height: 50%;
+      width: 1px; background: #e2e8f0;
+    }
+    .stat-number {
+      font-size: 2rem; font-weight: 800;
+      background: linear-gradient(135deg, #f59e0b, #d97706);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      background-clip: text; line-height: 1.1; margin-bottom: 6px;
+    }
+    .stat-label { font-size: 0.72rem; color: #64748b; font-weight: 400; }
+
+    /* ===== CONTENT ===== */
+    .content-area { max-width: 1180px; margin: 0 auto; padding: 70px 40px 100px; }
+
+    /* ===== SECTION CARD ===== */
+    .section-card {
+      background: #fff; border: 1px solid #e2e8f0;
+      border-radius: 16px; padding: 48px 44px;
+      margin-bottom: 32px; position: relative;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+      transition: border-color 0.4s ease, box-shadow 0.4s ease;
+    }
+    .section-card:hover {
+      border-color: #cbd5e1;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.06);
+    }
+    .section-card::before {
+      content: ''; position: absolute; top: 0; left: 36px; right: 36px;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(15,118,110,0.15), transparent);
+    }
+    .section-number {
+      font-size: 0.6rem; font-weight: 700;
+      letter-spacing: 0.2em; text-transform: uppercase;
+      color: #0f766e; margin-bottom: 10px; display: block;
+    }
+    .section-heading {
+      font-size: 1.5rem; font-weight: 800; color: #1e293b;
+      margin-bottom: 24px; line-height: 1.3;
+    }
+    .section-heading::after {
+      content: ''; display: block; width: 36px; height: 3px;
+      background: linear-gradient(90deg, #0f766e, #f59e0b);
+      border-radius: 3px; margin-top: 14px;
+    }
+    .section-card p {
+      font-size: 0.95rem; line-height: 1.85; color: #475569;
+      margin-bottom: 16px; font-weight: 400;
+    }
+    .section-card ul, .section-card ol {
+      margin: 0 0 16px 20px; color: #475569; font-size: 0.95rem;
+    }
+    .section-card li { margin-bottom: 6px; }
+    .section-card strong { color: #1e293b; font-weight: 600; }
+    .section-card code {
+      background: #f1f5f9; padding: 1px 6px; border-radius: 3px;
+      font-size: 0.85rem; font-family: 'Consolas','Monaco',monospace; color: #0f766e;
+    }
+
+    /* ===== TABLE ===== */
+    .section-card table {
+      width: 100%; border-collapse: collapse;
+      margin: 12px 0 20px; font-size: 0.85rem;
+    }
+    .section-card th {
+      background: #0f766e; color: #fff;
+      text-align: left; padding: 8px 14px; font-weight: 600;
+    }
+    .section-card td {
+      padding: 8px 14px; border-bottom: 1px solid #e2e8f0; color: #475569;
+    }
+    .section-card tbody tr:hover { background: #f8fafc; }
+
+    /* ===== PROCEDURE STEP ===== */
+    .proc-step {
+      display: flex; gap: 14px; align-items: flex-start;
+      margin: 12px 0; padding: 6px 0;
+    }
+    .step-badge {
+      flex-shrink: 0; width: 28px; height: 28px;
+      background: linear-gradient(135deg, #f59e0b, #d97706);
+      color: #fff; border-radius: 50%;
+      text-align: center; line-height: 28px;
+      font-size: 0.75rem; font-weight: 700; margin-top: 1px;
+    }
+    .step-content { flex: 1; color: #475569; font-size: 0.95rem; }
+    .step-content ul { margin: 6px 0 0 16px; }
+
+    /* ===== SCREENSHOT ===== */
+    .figure-wrapper {
+      margin: 20px 0; border-radius: 12px; overflow: hidden;
+      border: 1px solid #e2e8f0; background: #fff;
+      transition: border-color 0.4s ease, box-shadow 0.4s ease;
+    }
+    .figure-wrapper:hover {
+      border-color: #cbd5e1;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.06);
+    }
+    .figure-wrapper img {
+      width: 100%; display: block;
+      transition: transform 0.5s cubic-bezier(0.4,0,0.2,1);
+    }
+    .figure-wrapper:hover img { transform: scale(1.02); }
+    .figure-caption {
+      padding: 10px 16px; font-size: 0.7rem; color: #94a3b8;
+      text-align: center; background: #f8fafc;
+      border-top: 1px solid #e2e8f0;
+    }
+
+    /* ===== DECISION ===== */
+    .decision { display: flex; gap: 12px; margin: 16px 0; }
+    .decision-ok, .decision-nok {
+      flex: 1; padding: 14px 16px; border-radius: 10px; font-size: 0.85rem;
+    }
+    .decision-ok {
+      background: #f0fdf4; border: 1px solid #bbf7d0; color: #166534;
+    }
+    .decision-ok strong { color: #16a34a; }
+    .decision-nok {
+      background: #fef2f2; border: 1px solid #fecaca; color: #991b1b;
+    }
+    .decision-nok strong { color: #dc2626; }
+
+    /* ===== BOXES ===== */
+    .warning-box {
+      background: #fef2f2; border-left: 4px solid #dc2626;
+      border-radius: 0 8px 8px 0; padding: 16px 20px; margin: 20px 0;
+    }
+    .warning-box .label {
+      font-weight: 700; color: #dc2626; font-size: 0.65rem;
+      text-transform: uppercase; letter-spacing: 0.12em; margin-bottom: 6px;
+    }
+    .warning-box p, .warning-box ul { font-size: 0.88rem; color: #991b1b; }
+    .warning-box ul { margin-left: 16px; }
+    .warning-box strong { color: #7f1d1d; }
+
+    .info-box {
+      background: #f0fdfa; border-left: 4px solid #0f766e;
+      border-radius: 0 8px 8px 0; padding: 16px 20px; margin: 20px 0;
+      font-size: 0.88rem; color: #115e59;
+    }
+    .info-box .label {
+      font-weight: 700; color: #0f766e; font-size: 0.65rem;
+      text-transform: uppercase; letter-spacing: 0.12em; margin-bottom: 6px;
+    }
+
+    .tip-box {
+      background: #fffbeb; border-left: 4px solid #f59e0b;
+      border-radius: 0 8px 8px 0; padding: 16px 20px; margin: 20px 0;
+      font-size: 0.88rem; color: #92400e;
+    }
+    .tip-box .label {
+      font-weight: 700; color: #d97706; font-size: 0.65rem;
+      text-transform: uppercase; letter-spacing: 0.12em; margin-bottom: 6px;
+    }
+    .tip-box ol { margin-left: 16px; color: #92400e; }
+
+    /* ===== DIVIDER ===== */
+    .section-divider {
+      width: 100%; max-width: 180px; height: 1px;
+      margin: 0 auto 32px;
+      background: linear-gradient(90deg, transparent, #cbd5e1, transparent);
+    }
+
+    /* ===== CONCLUSION ===== */
+    .section-card.conclusion { border-color: rgba(245,158,11,0.3); }
+    .section-card.conclusion:hover {
+      border-color: rgba(245,158,11,0.5);
+      box-shadow: 0 4px 24px rgba(245,158,11,0.08);
+    }
+    .section-card.conclusion::before {
+      background: linear-gradient(90deg, transparent, rgba(245,158,11,0.25), transparent);
+    }
+    .section-card.conclusion .section-heading::after {
+      background: linear-gradient(90deg, #f59e0b, #0f766e);
+    }
+
+    /* ===== FOOTER ===== */
+    .page-footer {
+      text-align: center; padding: 40px 24px 56px;
+      border-top: 1px solid #e2e8f0;
+    }
+    .page-footer .footer-line {
+      width: 36px; height: 2px;
+      background: linear-gradient(90deg, #0f766e, #f59e0b);
+      margin: 0 auto 16px; border-radius: 2px;
+    }
+    .page-footer p { font-size: 0.7rem; color: #94a3b8; line-height: 1.7; }
+
+    /* ===== ANIMATION ===== */
+    .fade-in {
+      opacity: 0; transform: translateY(20px);
+      transition: opacity 0.6s ease, transform 0.6s ease;
+    }
+    .fade-in.visible { opacity: 1; transform: translateY(0); }
+
+    /* ===== RESPONSIVE ===== */
+    @media (max-width: 1100px) {
+      .toc-sidebar { transform: translateX(-100%) translateY(-50%); }
+      .page-wrapper { margin-left: 0; }
+    }
+    @media (max-width: 768px) {
+      html { font-size: 15px; }
+      .hero-title { font-size: 2rem; }
+      .hero-content { padding: 40px 20px; }
+      .stats-banner { grid-template-columns: repeat(2,1fr); margin: -36px 16px 0; }
+      .content-area { padding: 40px 18px 60px; }
+      .section-card { padding: 28px 22px; border-radius: 12px; }
+      .decision { flex-direction: column; }
+    }
+
+    /* ===== PRINT ===== */
+    @media print {
+      body { background: #fff !important; }
+      .toc-sidebar, .hero-scroll-hint { display: none !important; }
+      .page-wrapper { margin-left: 0 !important; }
+      .hero { min-height: auto !important; padding: 40px 20px; page-break-after: always; }
+      .hero::before, .hero::after { display: none; }
+      .section-card { box-shadow: none !important; break-inside: avoid; page-break-inside: avoid; }
+      .figure-wrapper { break-inside: avoid; }
+      .stats-banner { box-shadow: none !important; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ===== SIDEBAR ===== -->
+<aside class="toc-sidebar" id="toc">
+  <div class="toc-label">절차</div>
+  <nav><ul>
+    <li><a href="#intro" data-section="intro">소개</a></li>
+    <li><a href="#prep" data-section="prep">준비</a></li>
+    <li><a href="#setup" data-section="setup">1. 환경 설정</a></li>
+    <li><a href="#esp-install" data-section="esp-install" class="sub">ESP 설치</a></li>
+    <li><a href="#basic-sample" data-section="basic-sample" class="sub">2-1. Basic Sample</a></li>
+    <li><a href="#abatement" data-section="abatement" class="sub">2-2. Abatement</a></li>
+    <li><a href="#flash-memory" data-section="flash-memory" class="sub">2-3. Flash Memory</a></li>
+    <li><a href="#recovery" data-section="recovery">2. 복구 절차</a></li>
+    <li><a href="#step1-esp" data-section="step1-esp" class="sub">1단계: ESP 진단</a></li>
+    <li><a href="#firmware-upload" data-section="firmware-upload" class="sub">펌웨어 업로드</a></li>
+    <li><a href="#step2-jflash" data-section="step2-jflash" class="sub">2단계: J-Flash</a></li>
+    <li><a href="#step3-putty" data-section="step3-putty" class="sub">3단계: PuTTY</a></li>
+  </ul></nav>
+</aside>
+
+<div class="page-wrapper">
+
+<!-- ===== HERO ===== -->
+<section class="hero">
+  <div class="hero-content">
+    <div class="hero-badge">기술 가이드</div>
+    <h1 class="hero-title">Type 1 &amp; Type 2<br><span class="accent">복구 프로세스</span></h1>
+    <p class="hero-subtitle">ESP, JTAG, PuTTY 도구를 사용해 네트워크 단절, ping 손실, 파일 업로드 오류가 발생한 컨트롤러를 진단하고 복구하는 단계별 가이드입니다.</p>
+    <div class="hero-meta">
+      <div class="meta-item"><div class="meta-label">날짜</div><div class="meta-value">2026년 3월</div></div>
+      <div class="meta-item"><div class="meta-label">대상</div><div class="meta-value">필드 엔지니어</div></div>
+      <div class="meta-item"><div class="meta-label">복구 시간</div><div class="meta-value">10 – 20 min</div></div>
+      <div class="meta-item"><div class="meta-label">대상 장비</div><div class="meta-value">Type 1 / Type 2</div></div>
+    </div>
+    <div class="hero-divider"></div>
+  </div>
+  <div class="hero-scroll-hint">
+    <span>스크롤</span>
+    <div class="scroll-line"></div>
+  </div>
+</section>
+
+<!-- ===== STATS ===== -->
+<div class="stats-banner fade-in">
+  <div class="stat-card"><div class="stat-number">5</div><div class="stat-label">복구 단계</div></div>
+  <div class="stat-card"><div class="stat-number">3</div><div class="stat-label">ESP 프로젝트</div></div>
+  <div class="stat-card"><div class="stat-number">64KB</div><div class="stat-label">보호 메모리</div></div>
+  <div class="stat-card"><div class="stat-number">~15m</div><div class="stat-label">평균 복구 시간</div></div>
+</div>
+
+<div class="content-area">
+
+<!-- ==================== INTRODUCTION ==================== -->
+<div class="section-card fade-in" id="intro">
+  <span class="section-number">개요</span>
+  <h2 class="section-heading">소개</h2>
+  <p>이 문서는 네트워크 단절, ping 손실, 파일 업로드 오류와 같은 컨트롤러 문제를 복구할 때 사용하는 하드웨어와 소프트웨어 절차를 단계별로 설명합니다.</p>
+  <p>복구 절차는 먼저 문제를 진단하고, Digi 모듈 메모리 손상이 확인되면 <strong>ESP</strong>와 <strong>JTAG 프로그래머</strong> 같은 도구로 모듈을 다시 플래시하는 방식으로 진행됩니다.</p>
+  <div class="warning-box">
+    <div class="label">중요 — 메모리 보호</div>
+    <p>플래시 메모리의 마지막 <strong>64 KB</strong>에는 <strong>MAC 주소</strong>를 포함한 고유 설정 데이터가 저장되어 있습니다. 이 영역은 <strong>덮어쓰기 대상에서 반드시 제외</strong>해야 하며, 손상되면 PLC를 영구적으로 사용할 수 없게 됩니다.</p>
+    <p>복구 후에는 ATE 환경에서 설정을 다시 맞춰야 합니다. (예: static IP에서 DHCP로 전환)</p>
+  </div>
+</div>
+
+<div class="section-divider"></div>
+
+<!-- ==================== PREPARATION ==================== -->
+<div class="section-card fade-in" id="prep">
+  <span class="section-number">준비</span>
+  <h2 class="section-heading">필수 장비</h2>
+
+  <p><strong>하드웨어</strong></p>
+  <table>
+    <thead><tr><th>항목</th><th>비고</th></tr></thead>
+    <tbody>
+      <tr><td><strong>SEGGER J-Link PLUS Classic</strong></td><td>Plus 모델이어야 합니다. (Base 모델 불가) J-Flash 라이선스에 필요합니다.</td></tr>
+      <tr><td><strong>FTDI USB to RJ12 케이블</strong></td><td>컨트롤러와 시리얼 통신할 때 사용합니다.</td></tr>
+    </tbody>
+  </table>
+
+  <div class="figure-wrapper">
+    <img src="images/p02_img00.png" alt="SEGGER J-Link PLUS">
+    <div class="figure-caption">SEGGER J-Link PLUS Classic과 JTAG 리본 케이블</div>
+  </div>
+  <div class="figure-wrapper">
+    <img src="images/p02_img01.png" alt="FTDI cable">
+    <div class="figure-caption">FTDI USB to RJ12 케이블</div>
+  </div>
+
+  <p><strong>소프트웨어</strong> — <code>General &gt; Utilities &amp; Tools &gt; Controller recovery</code>에서 다운로드</p>
+  <table>
+    <thead><tr><th>도구</th><th>용도</th></tr></thead>
+    <tbody>
+      <tr><td><strong>PuTTY</strong></td><td>UART 시리얼 — 부트 로그 확인, 텍스트 기반 설정</td></tr>
+      <tr><td><strong>J-Link &amp; J-Flash</strong> v5.10I</td><td>JTAG/SWD를 통한 펌웨어 쓰기</td></tr>
+      <tr><td><strong>Digi ESP</strong></td><td>보드 설정 및 펌웨어 개발</td></tr>
+      <tr><td><strong>SVN</strong> (TortoiseSVN)</td><td>펌웨어 버전 관리</td></tr>
+      <tr><td><strong>FTDI Driver</strong></td><td>CDM2123620_Setup — USB to UART 드라이버</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="section-divider"></div>
+
+<!-- ==================== SETUP ==================== -->
+<div class="section-card fade-in" id="setup">
+  <span class="section-number">섹션 1</span>
+  <h2 class="section-heading">Digi 환경 설정</h2>
+
+  <h3 id="esp-install" style="color:#0f766e;font-size:1.1rem;margin:20px 0 14px;">Step 1: Digi ESP 설치</h3>
+
+  <div class="proc-step"><div class="step-badge">a</div><div class="step-content"><code>NET+OS 7.iso</code>를 다운로드해 마운트한 뒤, <code>setup.exe</code>를 실행합니다. (<strong>관리자 권한으로 실행</strong>)</div></div>
+
+  <div class="figure-wrapper"><img src="images/p03_img00.png" alt="Software folder"><div class="figure-caption">컨트롤러 복구 소프트웨어 폴더</div></div>
+
+  <div class="proc-step"><div class="step-badge">b</div><div class="step-content">라이선스 키 <strong>1M711-1W79T-81KB1</strong> 입력</div></div>
+
+  <div class="figure-wrapper"><img src="images/p04_img01.png" alt="Setup Wizard"><div class="figure-caption">Digi NET+OS 7.5.0 설치 마법사</div></div>
+  <div class="figure-wrapper"><img src="images/p04_img02.png" alt="License key"><div class="figure-caption">제품 키 입력: 1M711-1W79T-81KB1</div></div>
+
+  <div class="proc-step"><div class="step-badge">c</div><div class="step-content">이름, 회사, 이메일, 국가 정보를 입력해 등록</div></div>
+  <div class="proc-step"><div class="step-badge">d</div><div class="step-content">온라인 등록이 실패하면 <strong>Skip</strong>을 선택</div></div>
+
+  <div class="figure-wrapper"><img src="images/p05_img01.png" alt="Registration"><div class="figure-caption">온라인 등록 — 실패하면 Skip 선택</div></div>
+
+  <div class="proc-step"><div class="step-badge">e</div><div class="step-content">설치 방식: <strong>Typical</strong><ul><li>Platform: <strong>ConnectCore 9P 9215</strong></li><li>Debugger: <strong>Digi JTAG Link</strong></li></ul></div></div>
+
+  <div class="figure-wrapper"><img src="images/p06_img01.png" alt="Typical install"><div class="figure-caption">Typical 설치 선택</div></div>
+  <div class="figure-wrapper"><img src="images/p06_img02.png" alt="Platform debugger"><div class="figure-caption">Platform: ConnectCore 9P 9215 / Debugger: Digi JTAG Link</div></div>
+
+  <div class="proc-step"><div class="step-badge">f</div><div class="step-content">패키지 업데이트(예: Ethernet 패키지)를 수락</div></div>
+  <div class="proc-step"><div class="step-badge">g</div><div class="step-content">설치 후에도 <strong>관리자 권한으로 실행</strong>합니다. <code>netos75</code>는 <code>C:\</code> 아래에 설치됩니다.</div></div>
+</div>
+
+<div class="section-divider"></div>
+
+<!-- ===== 2-1. Basic Sample ===== -->
+<div class="section-card fade-in" id="basic-sample">
+  <span class="section-number">섹션 1 — 프로젝트 2-1</span>
+  <h2 class="section-heading">Basic Sample</h2>
+  <p>컨트롤러의 Ethernet 포트가 정상 동작하는지 확인할 때 사용합니다.</p>
+
+  <div class="info-box"><div class="label">조건</div><p>IP Ping은 OK이지만 PLC 연결은 <strong>불가</strong>한 상태</p></div>
+
+  <div class="proc-step"><div class="step-badge">a</div><div class="step-content">File → New → <strong>NET+OS Sample Project</strong> 선택</div></div>
+  <div class="proc-step"><div class="step-badge">b</div><div class="step-content">Platform: <strong>ConnectCore 9P 9215</strong> / Debugger: <strong>Digi JTAG Link</strong></div></div>
+
+  <div class="figure-wrapper"><img src="images/p08_img01.png" alt="Sample project"><div class="figure-caption">NET+OS Sample Project 설정</div></div>
+
+  <div class="proc-step"><div class="step-badge">c</div><div class="step-content"><strong>Basic Sample</strong> 선택</div></div>
+  <div class="proc-step"><div class="step-badge">d</div><div class="step-content">IP: <strong>192.168.2.200</strong> / Subnet: <strong>255.255.255.0</strong> / Auto IP 체크</div></div>
+
+  <div class="figure-wrapper"><img src="images/p09_img00.png" alt="샘플 선택"><div class="figure-caption">Basic Sample 선택</div></div>
+  <div class="figure-wrapper"><img src="images/p09_img01.png" alt="Network Config"><div class="figure-caption">네트워크 설정 — IP: 192.168.2.200</div></div>
+
+  <div class="proc-step"><div class="step-badge">e</div><div class="step-content">Next → Finish</div></div>
+  <div class="proc-step"><div class="step-badge">f</div><div class="step-content">Build: 프로젝트 우클릭 → <strong>NET+OS Build</strong></div></div>
+</div>
+
+<div class="section-divider"></div>
+
+<!-- ===== 2-2. Abatement ===== -->
+<div class="section-card fade-in" id="abatement">
+  <span class="section-number">섹션 1 — 프로젝트 2-2</span>
+  <h2 class="section-heading">Abatement</h2>
+  <p>Type 1 컨트롤러를 부팅하고 <strong>Run</strong> 상태로 전환할 때 사용합니다.</p>
+
+  <div class="info-box"><div class="label">조건</div><p>IP Ping도 OK이고 PLC 연결도 <strong>가능</strong>한 상태</p></div>
+
+  <div class="proc-step"><div class="step-badge">a</div><div class="step-content">File → <strong>Import</strong> → General → <strong>Existing Projects into Workspace</strong> 선택</div></div>
+
+  <div class="figure-wrapper"><img src="images/p12_img01.png" alt="Import dialog"><div class="figure-caption">Import → Existing Projects into Workspace</div></div>
+
+  <div class="proc-step"><div class="step-badge">b</div><div class="step-content">다운로드한 Export 경로에서 Abatement 폴더 선택</div></div>
+
+  <div class="tip-box"><div class="label">중요</div><p>경로 설정 후에는 <strong>폴더 위치를 변경하지 마십시오.</strong></p></div>
+
+  <div class="figure-wrapper"><img src="images/p13_img00.png" alt="Select root"><div class="figure-caption">루트 디렉터리 선택 — Abatement 폴더</div></div>
+
+  <div class="proc-step"><div class="step-badge">c</div><div class="step-content"><strong>SVN Checkout</strong>: 폴더 생성(예: <code>D:\Type1</code>) → 우클릭 → SVN Checkout<br>URL: <code>https://seukeappeas010/svn/.../DigiUpdate</code> → <code>netos75-abatement</code> 다운로드</div></div>
+
+  <div class="figure-wrapper"><img src="images/p14_img00.png" alt="SVN Checkout"><div class="figure-caption">SVN Checkout 대화상자</div></div>
+  <div class="figure-wrapper"><img src="images/p14_img01.png" alt="Repository"><div class="figure-caption">저장소 — netos75-abatement 폴더</div></div>
+
+  <div class="proc-step"><div class="step-badge">d</div><div class="step-content">Properties → NET+OS → 디렉터리를 <code>netos75-abatement</code>로 설정</div></div>
+
+  <div class="figure-wrapper"><img src="images/p15_img00.png" alt="NET+OS dir"><div class="figure-caption">Properties → NET+OS Directory</div></div>
+
+  <div class="proc-step"><div class="step-badge">e</div><div class="step-content">C/C++ Build: <code>make -k -s -j8</code>, 병렬 빌드 활성화</div></div>
+  <div class="proc-step"><div class="step-badge">f</div><div class="step-content">Build 성공 시 Debug 폴더에 <code>image.bin</code> 생성</div></div>
+
+  <div class="figure-wrapper"><img src="images/p18_img01.png" alt="Build success"><div class="figure-caption">빌드 성공 — image.bin 생성 확인</div></div>
+
+  <div class="tip-box"><div class="label">빌드 오류 — 누락된 라이브러리</div>
+    <ol>
+      <li>프로젝트 우클릭 → <strong>Properties</strong></li>
+      <li><strong>C/C++ General → Paths and Symbols</strong></li>
+      <li><strong>Add → File system</strong>을 눌러 누락된 라이브러리 폴더 추가</li>
+    </ol>
+  </div>
+
+  <div class="figure-wrapper"><img src="images/p19_img01.png" alt="Problems"><div class="figure-caption">Problems 탭 — 오류 상세</div></div>
+  <div class="figure-wrapper"><img src="images/p21_img00.png" alt="Paths"><div class="figure-caption">Paths and Symbols — include 디렉터리 추가</div></div>
+</div>
+
+<div class="section-divider"></div>
+
+<!-- ===== 2-3. Flash Memory ===== -->
+<div class="section-card fade-in" id="flash-memory">
+  <span class="section-number">섹션 1 — 프로젝트 2-3</span>
+  <h2 class="section-heading">Flash Memory Sample</h2>
+  <p>플래시 메모리에 저장된 특정 값을 초기화할 때 사용합니다.</p>
+
+  <div class="info-box"><div class="label">조건</div><p>IP Ping은 OK이지만 PLC 연결은 <strong>불가</strong>한 상태</p></div>
+
+  <div class="proc-step"><div class="step-badge">a</div><div class="step-content">New → NET+OS Sample Project → <strong>Flash Memory Sample</strong> 선택</div></div>
+  <div class="proc-step"><div class="step-badge">b</div><div class="step-content">IP: <strong>192.168.2.200</strong> (Basic Sample과 동일)</div></div>
+
+  <div class="figure-wrapper"><img src="images/p23_img00.png" alt="Flash Memory"><div class="figure-caption">Flash Memory Sample 선택</div></div>
+
+  <div class="proc-step"><div class="step-badge">c</div><div class="step-content"><strong><code>root.c</code>의 특정 라인을 주석 처리</strong>하거나 첨부 버전으로 교체합니다. 그렇지 않으면 실행 시간이 너무 오래 걸립니다.</div></div>
+
+  <div class="figure-wrapper"><img src="images/p25_img00.png" alt="root.c"><div class="figure-caption">root.c — 해당 라인 주석 처리</div></div>
+  <div class="figure-wrapper"><img src="images/p25_img01.png" alt="root.c detail"><div class="figure-caption">root.c — 주석 처리 대상 상세 보기</div></div>
+
+  <div class="proc-step"><div class="step-badge">d</div><div class="step-content">Build 성공 시 Console에 <code>image.bin</code> 생성</div></div>
+
+  <div class="figure-wrapper"><img src="images/p26_img01.png" alt="Build success"><div class="figure-caption">Flash Memory Sample 빌드 성공</div></div>
+</div>
+
+<div class="section-divider"></div>
+
+<!-- ==================== RECOVERY PROCEDURE ==================== -->
+<div class="section-card fade-in" id="recovery">
+  <span class="section-number">섹션 2</span>
+  <h2 class="section-heading">Recovery 절차</h2>
+  <p>Type 1과 Type 2 시스템의 복구 절차는 <strong>동일</strong>합니다.</p>
+  <ul>
+    <li>먼저 ESP 프로그램으로 진단을 시도합니다.</li>
+    <li>ESP Flash Memory 단계가 실패하면 <strong>J-Flash &amp; PuTTY</strong>로 강제 재초기화를 수행합니다.</li>
+    <li>J-Flash 완료 후에는 ESP 연결 단계로 돌아가 펌웨어와 <code>T5.cod</code>를 업로드합니다.</li>
+  </ul>
+</div>
+
+<div class="section-divider"></div>
+
+<!-- ===== Step 1: ESP ===== -->
+<div class="section-card fade-in" id="step1-esp">
+  <span class="section-number">Recovery — Step 1</span>
+  <h2 class="section-heading">ESP 프로그램 연결 및 진단</h2>
+
+  <div class="proc-step"><div class="step-badge">a</div><div class="step-content"><strong>J-Link 모듈</strong>과 <strong>LAN 케이블</strong>을 연결</div></div>
+  <div class="proc-step"><div class="step-badge">b</div><div class="step-content"><strong>ESP 프로그램</strong> 실행</div></div>
+  <div class="proc-step"><div class="step-badge">c</div><div class="step-content"><strong>Build Basic Sample</strong>: Build → Debug → Resume(F8)</div></div>
+  <div class="proc-step"><div class="step-badge">d</div><div class="step-content">연결 상태가 <strong>녹색</strong>으로 바뀌면 → <code>ping 192.168.2.200</code> 확인</div></div>
+
+  <div class="decision">
+    <div class="decision-ok"><strong>✓ Ping 성공</strong><br>Ethernet 정상 → e 단계 진행</div>
+    <div class="decision-nok"><strong>✗ Ping 실패</strong><br>Ethernet 불량 → <strong>복구 불가</strong></div>
+  </div>
+
+  <div class="figure-wrapper"><img src="images/p28_img01.png" alt="Debug ping"><div class="figure-caption">디버그 연결(녹색) 및 ping 성공 확인</div></div>
+
+  <div class="proc-step"><div class="step-badge">e</div><div class="step-content"><strong>Build Abatement</strong>: Build → Debug → Resume(F8)</div></div>
+  <div class="proc-step"><div class="step-badge">f</div><div class="step-content">컨트롤러가 <strong>RUN</strong> 상태로 부팅될 때까지 실행</div></div>
+
+  <div class="decision">
+    <div class="decision-ok"><strong>✓ Ping 동작</strong><br><code>192.168.2.200</code>의 PLC에 접속해 <code>config</code>와 <code>T5.cod</code> 확인</div>
+    <div class="decision-nok"><strong>✗ 실패 / 중단</strong><br>플래시 메모리 이상 의심 → h 단계 진행</div>
+  </div>
+
+  <div class="figure-wrapper"><img src="images/p29_img00.png" alt="Abatement running"><div class="figure-caption">Abatement 프로젝트 실행 중 — 부팅 상태 확인</div></div>
+
+  <div class="proc-step"><div class="step-badge">g</div><div class="step-content"><code>192.168.2.200</code> → File Management에서 <code>T5.cod</code> 확인. 없으면 업로드</div></div>
+
+  <div class="figure-wrapper"><img src="images/p30_img00.png" alt="File Management"><div class="figure-caption">PLC File Management — T5.cod 및 t5.hot</div></div>
+</div>
+
+<div class="section-divider"></div>
+
+<!-- ===== 펌웨어 업로드 ===== -->
+<div class="section-card fade-in" id="firmware-upload">
+  <span class="section-number">Recovery — Firmware</span>
+  <h2 class="section-heading">펌웨어 업로드</h2>
+
+  <div class="proc-step"><div class="step-badge">1</div><div class="step-content"><code>192.168.2.200</code>에 접속 → <strong>Upload Firmware</strong></div></div>
+  <div class="proc-step"><div class="step-badge">2</div><div class="step-content"><code>D37904612D</code> 폴더에서 펌웨어 선택</div></div>
+  <div class="proc-step"><div class="step-badge">3</div><div class="step-content"><strong>rom.bin</strong> 업로드 → PLC 재부팅</div></div>
+  <div class="proc-step"><div class="step-badge">4</div><div class="step-content">Abatement으로 연결 복구</div></div>
+  <div class="proc-step"><div class="step-badge">5</div><div class="step-content"><strong>image.bin</strong> 업로드 → PLC 재부팅 → <strong>복구 완료</strong></div></div>
+
+  <div class="figure-wrapper"><img src="images/p31_img00.png" alt="Upload"><div class="figure-caption">Upload Firmware — rom.bin 선택</div></div>
+  <div class="figure-wrapper"><img src="images/p31_img01.png" alt="rom.bin"><div class="figure-caption">D37904612D 폴더에서 rom.bin 선택</div></div>
+  <div class="figure-wrapper"><img src="images/p32_img00.png" alt="image.bin"><div class="figure-caption">재부팅 후 image.bin 업로드</div></div>
+
+  <div class="info-box"><div class="label">복구 완료</div><p>정상적으로 완료되면 PLC 재부팅 후 J-Link 모듈을 분리합니다.</p></div>
+
+  <div class="warning-box"><div class="label">플래시 초기화 후</div><p>플래시 메모리 초기화 후 돌아온 경우에는 <strong>펌웨어도 반드시 다시 업로드</strong>해야 합니다.</p></div>
+
+  <p><strong>Flash Memory 단계 (펌웨어 업로드 경로가 실패한 경우):</strong></p>
+
+  <div class="proc-step"><div class="step-badge">h</div><div class="step-content"><strong>Build Flash Memory project</strong>: Build → Debug → 브레이크포인트 설정 → Resume(F8)</div></div>
+  <div class="proc-step"><div class="step-badge">i</div><div class="step-content">실행이 <code>applicationStart()</code> 브레이크포인트에서 멈춤</div></div>
+
+  <div class="figure-wrapper"><img src="images/p33_img00.png" alt="Breakpoints"><div class="figure-caption">root.c 실행 — 브레이크포인트 위치</div></div>
+
+  <div class="proc-step"><div class="step-badge">j</div><div class="step-content">Resume(F8) 후 플래시 삭제를 위해 <strong>3~4분</strong> 대기. <strong>전원을 끄지 마십시오.</strong></div></div>
+
+  <div class="decision">
+    <div class="decision-ok"><strong>✓ 플래시 삭제 완료</strong><br>e 단계로 돌아가 <code>rom.bin</code> → <code>image.bin</code> 업로드</div>
+    <div class="decision-nok"><strong>✗ 실패</strong><br><strong>2단계(J-Flash)</strong>로 진행</div>
+  </div>
+</div>
+
+<div class="section-divider"></div>
+
+<!-- ===== 2단계: J-Flash ===== -->
+<div class="section-card fade-in" id="step2-jflash">
+  <span class="section-number">Recovery — Step 2</span>
+  <h2 class="section-heading">J-Flash 연결 및 프로그래밍</h2>
+  <p>MAC 주소와 시리얼 ID가 저장된 설정 영역은 <strong>제외</strong>한 채 플래시 메모리를 강제로 재프로그램합니다.</p>
+
+  <div class="warning-box"><div class="label">사전 조건 — 전원 공급</div>
+    <p><strong>PL24</strong> 소켓의 <strong>1번 핀(0V)</strong>, <strong>2번 핀(+24V)</strong>, <strong>4번 핀(0V)</strong>에 전원을 인가합니다.</p>
+  </div>
+
+  <div class="figure-wrapper"><img src="images/p34_img00.png" alt="PL24"><div class="figure-caption">PL24 전원 소켓 핀 배치</div></div>
+
+  <div class="proc-step"><div class="step-badge">a</div><div class="step-content">J-Flash에서 프로젝트를 <strong><code>Production_config.jflash</code></strong>로 변경 → Start</div></div>
+
+  <div class="figure-wrapper"><img src="images/p34_img01.png" alt="J-Flash welcome"><div class="figure-caption">기존 프로젝트 열기: Production_config.jflash</div></div>
+
+  <div class="proc-step"><div class="step-badge">b</div><div class="step-content">File → Open Data File → <strong><code>Version N factory partial image Rev3.mot</code></strong> 선택</div></div>
+
+  <div class="figure-wrapper"><img src="images/p34_img02.png" alt="Open data file"><div class="figure-caption">데이터 파일 열기 — Version N factory partial image Rev3.mot</div></div>
+
+  <div class="proc-step"><div class="step-badge">c</div><div class="step-content">대상 장비 → Connect → Device: <strong>Digi NS9360</strong></div></div>
+
+  <div class="figure-wrapper"><img src="images/p35_img01.png" alt="Device selection"><div class="figure-caption">대상 장비 device — Manufacturer: Digi, Model: NS9360</div></div>
+
+  <p><strong>J-Flash v5.10I 이하인 경우:</strong></p>
+  <ul>
+    <li>대상 장비 → <strong>Program and Verify</strong> (F6) → confirm → close (<strong>do not save</strong>)</li>
+  </ul>
+
+  <div class="figure-wrapper"><img src="images/p36_img00.png" alt="v5.10I"><div class="figure-caption">J-Flash v5.10I — 대상 장비 menu</div></div>
+  <div class="figure-wrapper"><img src="images/p36_img01.png" alt="Success"><div class="figure-caption">프로그램 및 검증 성공</div></div>
+
+  <p><strong>J-Flash v5.10I 초과 버전인 경우:</strong></p>
+
+  <div class="warning-box"><div class="label">중요 경고</div>
+    <p>옵션을 잘못 설정하면 <strong>마지막 메모리 영역까지 함께 삭제</strong>되어 PLC를 <strong>영구적으로 사용할 수 없게</strong> 됩니다.</p>
+  </div>
+
+  <ul>
+    <li>대상 장비 → <strong>Production Programming</strong> (F7)</li>
+    <li>Erase: <strong>"affected sectors"</strong>만 사용 ("Erase chip" 금지)</li>
+    <li>Program: 체크 / Verify: 선택</li>
+  </ul>
+
+  <div class="figure-wrapper"><img src="images/p37_img00.png" alt="v8 Production"><div class="figure-caption">J-Flash v8 — 올바른 설정의 Production Programming</div></div>
+  <div class="figure-wrapper"><img src="images/p37_img01.png" alt="Production settings"><div class="figure-caption">Erase는 "affected sectors"만 사용 — 전체 삭제 금지</div></div>
+
+  <div class="warning-box"><div class="label">절대 하지 말 것</div>
+    <ul>
+      <li><strong>절대</strong> "All Sector Erase" 또는 "Erase chip" 사용 금지</li>
+      <li>마지막 64KB 블록의 MAC 주소와 시리얼 ID가 영구 손상됩니다.</li>
+    </ul>
+  </div>
+</div>
+
+<div class="section-divider"></div>
+
+<!-- ===== 3단계: PuTTY ===== -->
+<div class="section-card fade-in" id="step3-putty">
+  <span class="section-number">Recovery — Step 3</span>
+  <h2 class="section-heading">PuTTY 시리얼 모니터링</h2>
+  <p>부팅 상태를 모니터링하고 시리얼 통신으로 Digi 모듈과 상호작용합니다.</p>
+
+  <ul>
+    <li><strong>부팅 상태 모니터링</strong> — 부팅, FTP 활성화, 네트워크 초기화 확인</li>
+    <li><strong>콘솔 명령</strong> — MAC 주소 수정, 공장 초기화</li>
+  </ul>
+
+  <div class="tip-box"><div class="label">사전 조건</div>
+    <p>RJ12 케이블을 PLC의 <strong>COM3</strong>에 연결합니다. <strong>Device Manager → Ports</strong>에서 확인하고, 인식되지 않으면 FTDI 드라이버(<code>CDM2123620_Setup</code>)를 설치합니다.</p>
+  </div>
+
+  <div class="figure-wrapper"><img src="images/p38_img00.png" alt="Device Manager"><div class="figure-caption">Device Manager — COM 포트 인식 확인</div></div>
+
+  <div class="proc-step"><div class="step-badge">a</div><div class="step-content">PuTTY 설정: <strong>Serial</strong> / <strong>COM4</strong> / <strong>9600</strong> baud → <strong>PLC 재부팅</strong></div></div>
+
+  <div class="figure-wrapper"><img src="images/p39_img01.png" alt="PuTTY config"><div class="figure-caption">PuTTY 설정 — Serial, COM4, 9600</div></div>
+
+  <div class="proc-step"><div class="step-badge">b</div><div class="step-content"><strong>부팅 메시지</strong> 관찰</div></div>
+  <div class="proc-step"><div class="step-badge">c</div><div class="step-content"><code>"Press any key to stop booting within 5 secs"</code> 메시지가 나오면 아무 키나 입력</div></div>
+  <div class="proc-step"><div class="step-badge">d</div><div class="step-content">설정: <code>M</code>으로 Modify → <code>Y</code>로 기본값 복원 → 나머지는 <strong>Enter</strong></div></div>
+  <div class="proc-step"><div class="step-badge">e</div><div class="step-content"><code>"FTP download server is ready"</code>가 보이면 성공 → <strong>PuTTY 종료</strong></div></div>
+
+  <div class="figure-wrapper"><img src="images/p40_img00.png" alt="FTP ready"><div class="figure-caption">"FTP download server is ready" = 리셋 성공</div></div>
+
+  <div class="proc-step"><div class="step-badge">f</div><div class="step-content"><strong>1단계 e</strong>(Abatement)로 돌아가 펌웨어 재업로드</div></div>
+</div>
+
+<div class="section-divider"></div>
+
+<!-- ===== CONCLUSION ===== -->
+<div class="section-card conclusion fade-in" id="conclusion">
+  <span class="section-number">최종 점검</span>
+  <h2 class="section-heading">복구 후 체크리스트</h2>
+  <ul>
+    <li>File Management에서 <code>T5.cod</code> 파일 존재 여부 확인</li>
+    <li>J-Link 없이도 컨트롤러가 정상 부팅되는지 확인</li>
+    <li><code>192.168.2.200</code>에서 PLC 연결 확인</li>
+    <li>최종 재부팅 후 J-Link 모듈 분리</li>
+    <li>ATE 환경이면 static IP에서 DHCP로 전환</li>
+  </ul>
+  <div class="info-box"><div class="label">복구 시간</div><p>일반적인 복구는 <strong>10~20분</strong> 정도 소요됩니다. J-Flash(2단계)가 필요한 경우 더 오래 걸릴 수 있습니다.</p></div>
+</div>
+
+</div><!-- content-area -->
+
+<footer class="page-footer">
+  <div class="footer-line"></div>
+  <p>Type 1 &amp; Type 2 복구 프로세스 — 기술 가이드<br>Engineering Systems · 2026년 3월</p>
+</footer>
+
+</div><!-- page-wrapper -->
+
+<!-- ===== SCRIPTS ===== -->
+<script>
+  // Fade-in on scroll
+  (function(){
+    var obs = new IntersectionObserver(function(entries){
+      entries.forEach(function(e){
+        if(e.isIntersecting){ e.target.classList.add('visible'); obs.unobserve(e.target); }
+      });
+    }, {threshold: 0.1});
+    document.querySelectorAll('.fade-in').forEach(function(el){ obs.observe(el); });
+  })();
+
+  // TOC scroll sync
+  (function(){
+    var sections = document.querySelectorAll('.section-card[id]');
+    var links = document.querySelectorAll('.toc-sidebar nav a');
+    function update(){
+      var cur = '';
+      var sy = window.scrollY + window.innerHeight * 0.35;
+      sections.forEach(function(s){ if(s.offsetTop <= sy) cur = s.getAttribute('id'); });
+      links.forEach(function(a){
+        a.classList.toggle('active', a.getAttribute('data-section') === cur);
+      });
+    }
+    window.addEventListener('scroll', update, {passive:true});
+    update();
+  })();
+</script>
+
+</body>
+</html>

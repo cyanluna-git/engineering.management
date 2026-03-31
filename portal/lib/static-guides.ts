@@ -11,6 +11,19 @@ export interface StaticGuideDocument {
   detailHtml: string;
 }
 
+export type StaticGuideLocale = "en" | "ko";
+
+export interface StaticGuideChrome {
+  locale: StaticGuideLocale;
+  backToGuides: string;
+  openAdmin: string;
+  staticHtmlGuide: string;
+  summaryIntro: string;
+  jumpToDetail: string;
+  languageLabel: string;
+  languageOptions: Record<StaticGuideLocale, string>;
+}
+
 const STATIC_GUIDE_UPDATED_AT = "2026-03-31T00:00:00Z";
 const STATIC_GUIDE_BASE_PATH = path.join(
   process.cwd(),
@@ -19,6 +32,7 @@ const STATIC_GUIDE_BASE_PATH = path.join(
   "type1-recovery",
 );
 const STATIC_GUIDE_ASSET_PREFIX = "/guides-assets/type1-recovery";
+const STATIC_GUIDE_LOCALES: StaticGuideLocale[] = ["en", "ko"];
 
 const STATIC_GUIDES: Guide[] = [
   {
@@ -150,15 +164,60 @@ export function isStaticGuide(id: string): boolean {
   return STATIC_GUIDES.some((guide) => guide.id === id);
 }
 
+export function normalizeStaticGuideLocale(
+  value: string | undefined,
+): StaticGuideLocale {
+  return value === "ko" ? "ko" : "en";
+}
+
+export function getStaticGuideLocales(): readonly StaticGuideLocale[] {
+  return STATIC_GUIDE_LOCALES;
+}
+
+export function getStaticGuideChrome(locale: StaticGuideLocale): StaticGuideChrome {
+  if (locale === "ko") {
+    return {
+      locale,
+      backToGuides: "가이드 목록으로",
+      openAdmin: "관리 CMS 열기",
+      staticHtmlGuide: "정적 HTML 가이드",
+      summaryIntro:
+        "상단에는 요약본을 먼저 보여주고, 아래로 스크롤하면 원본 HTML 기반의 상세 복구 절차를 이어서 확인할 수 있습니다.",
+      jumpToDetail: "상세 절차로 이동",
+      languageLabel: "언어",
+      languageOptions: {
+        en: "English",
+        ko: "한국어",
+      },
+    };
+  }
+
+  return {
+    locale,
+    backToGuides: "Back to Guides",
+    openAdmin: "Open Admin CMS",
+    staticHtmlGuide: "Static HTML Guide",
+    summaryIntro:
+      "Summary comes first. Scroll down for the full technical recovery procedure rendered from the original HTML source.",
+    jumpToDetail: "Jump to Detailed Procedure",
+    languageLabel: "Language",
+    languageOptions: {
+      en: "English",
+      ko: "한국어",
+    },
+  };
+}
+
 export async function getStaticGuideDocument(
   id: string,
+  locale: StaticGuideLocale = "en",
 ): Promise<StaticGuideDocument | undefined> {
   const guide = getStaticGuide(id);
   if (!guide) return undefined;
 
   const [summary, detail] = await Promise.all([
-    loadGuideHtml("summary.html"),
-    loadGuideHtml("detail.html"),
+    loadGuideHtml(locale === "ko" ? "summary.ko.html" : "summary.html"),
+    loadGuideHtml(locale === "ko" ? "detail.ko.html" : "detail.html"),
   ]);
 
   return {

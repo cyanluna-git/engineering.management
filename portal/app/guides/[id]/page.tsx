@@ -4,14 +4,22 @@ import { notFound } from "next/navigation";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { getGuide } from "@/lib/guides-store";
-import { getStaticGuideDocument } from "@/lib/static-guides";
+import {
+  getStaticGuideChrome,
+  getStaticGuideDocument,
+  getStaticGuideLocales,
+  normalizeStaticGuideLocale,
+} from "@/lib/static-guides";
 
 export default async function GuideDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams?: Promise<{ lang?: string }>;
 }) {
   const { id } = await params;
+  const resolvedSearchParams = searchParams ? await searchParams : undefined;
   const guide = await getGuide(id);
 
   if (!guide) {
@@ -19,7 +27,9 @@ export default async function GuideDetailPage({
   }
 
   if (guide.format === "static-html") {
-    const document = await getStaticGuideDocument(id);
+    const locale = normalizeStaticGuideLocale(resolvedSearchParams?.lang);
+    const chrome = getStaticGuideChrome(locale);
+    const document = await getStaticGuideDocument(id, locale);
     if (!document) {
       notFound();
     }
@@ -32,14 +42,14 @@ export default async function GuideDetailPage({
             className="inline-flex items-center gap-1.5 text-sm text-slate-500 transition hover:text-red-600"
           >
             <ArrowLeft className="h-4 w-4" />
-            Back to Guides
+            {chrome.backToGuides}
           </Link>
           <Link
             href="/guides/admin"
             className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-red-200 hover:text-red-600"
           >
             <ShieldCheck className="h-4 w-4" />
-            Open Admin CMS
+            {chrome.openAdmin}
           </Link>
         </div>
 
@@ -51,22 +61,44 @@ export default async function GuideDetailPage({
             <span>Updated {new Date(guide.updated_at).toLocaleDateString()}</span>
             <span>by {guide.author}</span>
             <span className="rounded-full bg-amber-50 px-2.5 py-1 font-medium text-amber-700">
-              Static HTML Guide
+              {chrome.staticHtmlGuide}
             </span>
           </div>
           <h1 className="mt-4 text-3xl font-semibold tracking-tight text-slate-950">
             {document.title}
           </h1>
           <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-600">
-            Summary comes first. Scroll down for the full technical recovery
-            procedure rendered from the original HTML source.
+            {chrome.summaryIntro}
           </p>
-          <a
-            href="#type1-recovery-detail"
-            className="mt-5 inline-flex items-center rounded-full bg-slate-950 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-800"
-          >
-            Jump to Detailed Procedure
-          </a>
+          <div className="mt-5 flex flex-wrap items-center gap-3">
+            <a
+              href="#type1-recovery-detail"
+              className="inline-flex items-center rounded-full bg-slate-950 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-800"
+            >
+              {chrome.jumpToDetail}
+            </a>
+            <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-2 py-1 text-xs font-medium text-slate-500">
+              <span className="px-2 uppercase tracking-[0.18em] text-slate-400">
+                {chrome.languageLabel}
+              </span>
+              {getStaticGuideLocales().map((option) => {
+                const active = option === locale;
+                return (
+                  <Link
+                    key={option}
+                    href={`/guides/${id}?lang=${option}`}
+                    className={`rounded-full px-3 py-1.5 transition ${
+                      active
+                        ? "bg-slate-950 text-white"
+                        : "text-slate-600 hover:bg-slate-100"
+                    }`}
+                  >
+                    {chrome.languageOptions[option]}
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
         </div>
 
         <style dangerouslySetInnerHTML={{ __html: document.summaryCss }} />
