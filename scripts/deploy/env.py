@@ -51,7 +51,7 @@ DEFAULT_OUTPUT = ".env.remote"
 # Server profile: transform rules for generating .env.remote from .env
 # ---------------------------------------------------------------------------
 
-SERVER_DOMAIN_DEFAULT = "eob.10.182.252.32.sslip.io"
+SERVER_DOMAIN_DEFAULT = "pcas-portal.10.182.252.32.sslip.io"
 
 # Static overrides applied when --profile server is used
 SERVER_OVERRIDES: Dict[str, str] = {
@@ -69,17 +69,28 @@ def build_domain_overrides(domain: str) -> Dict[str, str]:
     # Derive base domain (e.g. eob.10.182.252.32.sslip.io → 10.182.252.32.sslip.io)
     base = domain.split(".", 1)[1] if "." in domain else domain
     cors = ",".join([
+        "http://localhost:3000",
         "http://localhost:3004",
         f"http://{domain}",
         f"https://{domain}",
+        f"https://eob.{base}",
         f"https://oqc.{base}",
         f"https://jarvis.{base}",
     ])
     return {
-        "SAML_ENTITY_ID": f"https://{domain}",
-        "SAML_ACS_URL": f"https://{domain}/api/auth/sso/callback",
-        "SAML_SLO_URL": f"https://{domain}/api/auth/logout",
+        "SAML_ENTITY_ID": f"https://{domain}/eob",
+        "SAML_ACS_URL": f"https://{domain}/eob/api/auth/sso/callback",
+        "SAML_SLO_URL": f"https://{domain}/eob/api/auth/logout",
         "CORS_ORIGINS": cors,
+        "VITE_APP_BASE": "/eob/",
+        "VITE_API_URL": "/eob/api",
+        "VITE_OQC_URL": "/oqc/",
+        "VITE_JARVIS_URL": "/jarvis/",
+        "NEXT_PUBLIC_EOB_URL": "/eob/",
+        "NEXT_PUBLIC_OQC_URL": "/oqc/",
+        "NEXT_PUBLIC_JARVIS_URL": "/jarvis/",
+        "PORTAL_DOMAIN": domain,
+        "BASE_DOMAIN": base,
     }
 
 

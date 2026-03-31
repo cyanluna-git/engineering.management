@@ -10,13 +10,16 @@ export interface PortalService {
 }
 
 const BASE_DOMAIN = process.env.NEXT_PUBLIC_BASE_DOMAIN || "10.182.252.32.sslip.io";
+const EOB_URL = process.env.NEXT_PUBLIC_EOB_URL || `https://eob.${BASE_DOMAIN}`;
+const OQC_URL = process.env.NEXT_PUBLIC_OQC_URL || `https://oqc.${BASE_DOMAIN}`;
+const JARVIS_URL = process.env.NEXT_PUBLIC_JARVIS_URL || `https://jarvis.${BASE_DOMAIN}`;
 
 export const PORTAL_SERVICES: PortalService[] = [
   {
     id: "eob-dashboard",
     name: "Engineering Operation Board",
     description: "Project management, resource planning, and work tracking for EUV Program IS",
-    url: `https://eob.${BASE_DOMAIN}`,
+    url: EOB_URL,
     icon: "LayoutDashboard",
     color: "bg-blue-600",
     category: "engineering",
@@ -26,7 +29,7 @@ export const PORTAL_SERVICES: PortalService[] = [
     id: "oqc",
     name: "Outbound Quality Control",
     description: "Automated test execution and equipment commissioning quality system",
-    url: `https://oqc.${BASE_DOMAIN}`,
+    url: OQC_URL,
     icon: "ClipboardCheck",
     color: "bg-emerald-600",
     category: "engineering",
@@ -36,7 +39,7 @@ export const PORTAL_SERVICES: PortalService[] = [
     id: "jarvis",
     name: "IS Software Portal",
     description: "Jira and Confluence driven software delivery, release, sprint, and knowledge visibility portal",
-    url: `https://jarvis.${BASE_DOMAIN}`,
+    url: JARVIS_URL,
     icon: "BrainCircuit",
     color: "bg-purple-600",
     category: "engineering",

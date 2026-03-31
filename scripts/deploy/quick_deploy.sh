@@ -18,6 +18,12 @@ REMOTE_PATH="/data/eob/edwards_project"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 NO_CACHE=""
+FRONTEND_BUILD_ARGS=(
+  --build-arg "VITE_APP_BASE=/eob/"
+  --build-arg "VITE_API_URL=/eob/api"
+  --build-arg "VITE_OQC_URL=/oqc/"
+  --build-arg "VITE_JARVIS_URL=/jarvis/"
+)
 
 # ── Colors ──
 GREEN='\033[32m'
@@ -81,9 +87,7 @@ deploy_service() {
   else
     dockerfile_dir="$PROJECT_ROOT/backend"
   fi
-  local build_args=""
   if [[ "$service" == "frontend" ]]; then
-    build_args="--target production"
     # Copy root .env to frontend dir so Vite picks up VITE_* vars at build time
     # (Vite reads .env from the project root during build)
     local copied_env=false
@@ -92,7 +96,11 @@ deploy_service() {
       copied_env=true
     fi
   fi
-  docker build $NO_CACHE $build_args -t "$image:latest" "$dockerfile_dir" 2>&1 | tail -5
+  if [[ "$service" == "frontend" ]]; then
+    docker build $NO_CACHE --target production "${FRONTEND_BUILD_ARGS[@]}" -t "$image:latest" "$dockerfile_dir" 2>&1 | tail -5
+  else
+    docker build $NO_CACHE -t "$image:latest" "$dockerfile_dir" 2>&1 | tail -5
+  fi
   # Clean up copied .env (don't leave secrets in frontend dir)
   if [[ "${copied_env:-false}" == true ]]; then
     rm -f "$dockerfile_dir/.env"
@@ -140,4 +148,4 @@ ELAPSED=$((END_TIME - START_TIME))
 
 echo -e "\n${CYAN}━━━ Quick Deploy Complete (${ELAPSED}s) ━━━${RESET}"
 echo -e "  ${GREEN}✓${RESET} Target: $TARGET"
-echo -e "  ${GREEN}✓${RESET} https://eob.10.182.252.32.sslip.io"
+echo -e "  ${GREEN}✓${RESET} https://pcas-portal.10.182.252.32.sslip.io"

@@ -8,7 +8,7 @@ set -euo pipefail
 # ─────────────────────────────────────────────────────────────
 SERVER_IP="10.182.252.32"
 USERNAME="atlasAdmin"
-DOMAIN="eob.10.182.252.32.sslip.io"
+DOMAIN="pcas-portal.10.182.252.32.sslip.io"
 REMOTE_PATH="/data/eob/edwards_project"
 SKIP_BACKUP=false
 SKIP_BUILD=false
@@ -220,8 +220,8 @@ info "  ✓ Upload complete."
 # Step 5: Stop containers and extract
 echo ""
 info "[5/8] Extracting archive..."
-ssh "$USERNAME@$SERVER_IP" "docker stop edwards-api edwards-web 2>/dev/null || true"
-ssh "$USERNAME@$SERVER_IP" "docker rm   edwards-api edwards-web 2>/dev/null || true"
+ssh "$USERNAME@$SERVER_IP" "docker stop edwards-api edwards-web pcas-portal pcas-edge-proxy 2>/dev/null || true"
+ssh "$USERNAME@$SERVER_IP" "docker rm   edwards-api edwards-web pcas-portal pcas-edge-proxy 2>/dev/null || true"
 ssh "$USERNAME@$SERVER_IP" \
   "cd $REMOTE_PATH && tar -xzf /tmp/$ARCHIVE_NAME --strip-components=1 && rm /tmp/$ARCHIVE_NAME"
 info "  ✓ Archive extracted."
@@ -244,8 +244,10 @@ sleep 5
 ssh "$USERNAME@$SERVER_IP" "cd $REMOTE_PATH && docker-compose ps"
 ssh "$USERNAME@$SERVER_IP" "curl --fail --silent --show-error --max-time 10 http://localhost:8004/health >/dev/null"
 ssh "$USERNAME@$SERVER_IP" "curl --fail --silent --show-error --max-time 10 http://localhost:3004 >/dev/null"
+ssh "$USERNAME@$SERVER_IP" "curl --fail --silent --show-error --max-time 10 http://localhost:3000 >/dev/null"
 info "  ✓ Backend /health responded."
 info "  ✓ Frontend responded on localhost:3004."
+info "  ✓ Portal responded on localhost:3000."
 
 echo ""
 print_header "          🚀 Deployment Complete! 🚀"

@@ -26,7 +26,7 @@ services:
       SECRET_KEY: ${SECRET_KEY:?SECRET_KEY is required}
       DEBUG: ${DEBUG:-false}
       LOG_LEVEL: ${LOG_LEVEL:-info}
-      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3004,http://eob.10.182.252.32.sslip.io}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000,http://localhost:3004,https://pcas-portal.10.182.252.32.sslip.io,https://eob.10.182.252.32.sslip.io}
       # SSL Cert for Zscaler
       SSL_CERT_FILE: "/usr/local/share/ca-certificates/zscaler.crt"
       REQUESTS_CA_BUNDLE: "/usr/local/share/ca-certificates/zscaler.crt"
@@ -48,8 +48,10 @@ services:
       dockerfile: Dockerfile
       target: production
       args:
-        VITE_OQC_URL: ${VITE_OQC_URL:-}
-        VITE_JARVIS_URL: ${VITE_JARVIS_URL:-}
+        VITE_APP_BASE: ${VITE_APP_BASE:-/eob/}
+        VITE_API_URL: ${VITE_API_URL:-/eob/api}
+        VITE_OQC_URL: ${VITE_OQC_URL:-/oqc/}
+        VITE_JARVIS_URL: ${VITE_JARVIS_URL:-/jarvis/}
         VITE_TESTRIG_URL: ${VITE_TESTRIG_URL:-}
     container_name: edwards-web
     restart: unless-stopped
@@ -68,8 +70,39 @@ services:
     restart: unless-stopped
     environment:
       NEXT_PUBLIC_BASE_DOMAIN: ${NEXT_PUBLIC_BASE_DOMAIN:-10.182.252.32.sslip.io}
+      NEXT_PUBLIC_EOB_URL: ${NEXT_PUBLIC_EOB_URL:-/eob/}
+      NEXT_PUBLIC_OQC_URL: ${NEXT_PUBLIC_OQC_URL:-/oqc/}
+      NEXT_PUBLIC_JARVIS_URL: ${NEXT_PUBLIC_JARVIS_URL:-/jarvis/}
     ports:
       - "${PORTAL_PORT:-3000}:3000"
+    networks:
+      - edwards_net
+
+  edge-proxy:
+    profiles:
+      - edge-proxy
+    build:
+      context: ./nginx
+      dockerfile: Dockerfile
+    container_name: pcas-edge-proxy
+    restart: unless-stopped
+    environment:
+      PORTAL_DOMAIN: ${PORTAL_DOMAIN:-pcas-portal.10.182.252.32.sslip.io}
+      BASE_DOMAIN: ${BASE_DOMAIN:-10.182.252.32.sslip.io}
+      OQC_UPSTREAM: ${OQC_UPSTREAM:-https://oqc.10.182.252.32.sslip.io/}
+      JARVIS_UPSTREAM: ${JARVIS_UPSTREAM:-https://jarvis.10.182.252.32.sslip.io/}
+      NGINX_CERT_DOMAIN: ${PORTAL_DOMAIN:-pcas-portal.10.182.252.32.sslip.io}
+      NGINX_SSL_CERT: /etc/nginx/ssl/nginx-selfsigned.crt
+      NGINX_SSL_KEY: /etc/nginx/ssl/nginx-selfsigned.key
+    ports:
+      - "${EDGE_HTTP_PORT:-80}:80"
+      - "${EDGE_HTTPS_PORT:-443}:443"
+    depends_on:
+      - portal
+      - frontend
+      - backend
+    volumes:
+      - ./nginx/ssl:/etc/nginx/ssl
     networks:
       - edwards_net
 

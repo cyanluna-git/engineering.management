@@ -2,6 +2,7 @@ import React from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
+import { withBasePath } from "@/lib/base-path";
 import { useAuth } from "@/hooks/useAuth";
 import { usePermissions } from "@/hooks/usePermissions";
 import { LanguageToggle } from "@/components/LanguageToggle";
@@ -73,7 +74,7 @@ export function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
 
   const handleLogout = () => {
     logout();
-    window.location.href = "/login";
+    window.location.href = withBasePath("/login");
   };
 
   const renderNavItem = (item: NavItem) => {

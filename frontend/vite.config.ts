@@ -5,6 +5,7 @@ import path from 'path'
 
 // https://vite.dev/config/
 export default defineConfig({
+  base: process.env.VITE_APP_BASE || '/',
   plugins: [react(), tailwindcss()],
   resolve: {
     alias: {
@@ -74,6 +75,7 @@ export default defineConfig({
     // Allow the specific sslip.io host
     allowedHosts: [
       'eob.10.182.252.32.sslip.io',
+      'pcas-portal.10.182.252.32.sslip.io',
       'VTISAZUAPP218',
       'localhost',
       '127.0.0.1',

@@ -19,10 +19,14 @@ import json
 DEPLOY_ROOT_INCLUDE = {
     'backend',
     'frontend',
+    'portal',
+    'nginx',
+    'scripts',
     'docker-compose.yml',
     '.env.example',
     '.env.remote',
     '.env.remote.example',
+    'nginx_remote_proxy.conf',
 }
 
 DEPLOY_EXCLUDE_PARTS = {
@@ -331,8 +335,12 @@ def build_docker_images(project_dir):
     created_stub = False
     try:
         if not stub_env.exists():
+            source_env_remote = project_dir / '.env.remote'
             source_env = Path(original_cwd) / '.env'
-            if source_env.exists():
+            if source_env_remote.exists():
+                shutil.copy2(source_env_remote, stub_env)
+                print_info("Copied .env.remote to build directory for docker-compose")
+            elif source_env.exists():
                 shutil.copy2(source_env, stub_env)
                 print_info("Copied .env to build directory for docker-compose")
             else:
@@ -385,6 +393,26 @@ def build_docker_images(project_dir):
         )
         print_colored("  ✓ Frontend image built", Colors.GREEN)
 
+        # Build portal image
+        print_info("Building portal Docker image...")
+        subprocess.run(
+            [*compose_cmd, 'build', 'portal'],
+            check=True,
+            capture_output=False,
+            env=docker_env,
+        )
+        print_colored("  ✓ Portal image built", Colors.GREEN)
+
+        # Build optional edge proxy image
+        print_info("Building edge proxy Docker image...")
+        subprocess.run(
+            [*compose_cmd, '--profile', 'edge-proxy', 'build', 'edge-proxy'],
+            check=True,
+            capture_output=False,
+            env=docker_env,
+        )
+        print_colored("  ✓ Edge proxy image built", Colors.GREEN)
+
         return True
 
     except subprocess.CalledProcessError as e:
@@ -411,6 +439,8 @@ def export_docker_images(project_dir):
     images_to_export = [
         ('edwards_project-backend:latest', 'edwards-backend.tar.gz'),
         ('edwards_project-frontend:latest', 'edwards-frontend.tar.gz'),
+        ('edwards_project-portal:latest', 'edwards-portal.tar.gz'),
+        ('edwards_project-edge-proxy:latest', 'edwards-edge-proxy.tar.gz'),
         ('postgres:15', 'postgres-15.tar.gz'),
     ]
     
@@ -464,25 +494,39 @@ echo "Loading Docker images..."
 
 cd "$(dirname "$0")"
 
-echo "[1/3] Loading PostgreSQL image..."
+echo "[1/5] Loading PostgreSQL image..."
 if [ -f postgres-15.tar.gz ]; then
     docker load < postgres-15.tar.gz
 else
     echo "  ⚠ postgres-15.tar.gz not found, skipping..."
 fi
 
-echo "[2/3] Loading backend image..."
+echo "[2/5] Loading backend image..."
 if [ -f edwards-backend.tar.gz ]; then
     docker load < edwards-backend.tar.gz
 else
     echo "  ⚠ edwards-backend.tar.gz not found, skipping..."
 fi
 
-echo "[3/3] Loading frontend image..."
+echo "[3/5] Loading frontend image..."
 if [ -f edwards-frontend.tar.gz ]; then
     docker load < edwards-frontend.tar.gz
 else
     echo "  ⚠ edwards-frontend.tar.gz not found, skipping..."
+fi
+
+echo "[4/5] Loading portal image..."
+if [ -f edwards-portal.tar.gz ]; then
+    docker load < edwards-portal.tar.gz
+else
+    echo "  ⚠ edwards-portal.tar.gz not found, skipping..."
+fi
+
+echo "[5/5] Loading edge proxy image..."
+if [ -f edwards-edge-proxy.tar.gz ]; then
+    docker load < edwards-edge-proxy.tar.gz
+else
+    echo "  ⚠ edwards-edge-proxy.tar.gz not found, skipping..."
 fi
 
 echo "✓ All available images loaded successfully!"
@@ -502,25 +546,39 @@ Set-Location $ScriptDir
 
 Write-Host "Loading Docker images..."
 
-Write-Host "[1/3] Loading PostgreSQL image..."
+Write-Host "[1/5] Loading PostgreSQL image..."
 if (Test-Path "postgres-15.tar.gz") {
     docker load -i postgres-15.tar.gz
 } else {
     Write-Host "  ⚠ postgres-15.tar.gz not found, skipping..."
 }
 
-Write-Host "[2/3] Loading backend image..."
+Write-Host "[2/5] Loading backend image..."
 if (Test-Path "edwards-backend.tar.gz") {
     docker load -i edwards-backend.tar.gz
 } else {
     Write-Host "  ⚠ edwards-backend.tar.gz not found, skipping..."
 }
 
-Write-Host "[3/3] Loading frontend image..."
+Write-Host "[3/5] Loading frontend image..."
 if (Test-Path "edwards-frontend.tar.gz") {
     docker load -i edwards-frontend.tar.gz
 } else {
     Write-Host "  ⚠ edwards-frontend.tar.gz not found, skipping..."
+}
+
+Write-Host "[4/5] Loading portal image..."
+if (Test-Path "edwards-portal.tar.gz") {
+    docker load -i edwards-portal.tar.gz
+} else {
+    Write-Host "  ⚠ edwards-portal.tar.gz not found, skipping..."
+}
+
+Write-Host "[5/5] Loading edge proxy image..."
+if (Test-Path "edwards-edge-proxy.tar.gz") {
+    docker load -i edwards-edge-proxy.tar.gz
+} else {
+    Write-Host "  ⚠ edwards-edge-proxy.tar.gz not found, skipping..."
 }
 
 Write-Host "✓ All available images loaded successfully!"
@@ -590,6 +648,7 @@ docker-compose exec -T db psql -U postgres -d edwards < /path/to/backup.sql
 ```
 
 ### Step 8: Access application
+- Portal: http://vm_ip:3000
 - Frontend: http://vm_ip:3004
 - Backend API: http://vm_ip:8004/api/docs
 - Default login: admin@edwards.com / password
@@ -600,6 +659,8 @@ docker-compose exec -T db psql -U postgres -d edwards < /path/to/backup.sql
 ```bash
 docker-compose logs -f backend
 docker-compose logs -f frontend
+docker-compose logs -f portal
+docker-compose logs -f edge-proxy
 docker-compose logs -f db
 ```
 
@@ -725,7 +786,7 @@ def generate_summary(build_dir, archive_path):
   ✓ Frontend source and runtime assets
   ✓ Docker Compose configuration
   ✓ Environment templates / remote env file
-  ✓ Docker images (postgres, backend, frontend)
+  ✓ Docker images (postgres, backend, frontend, portal, edge-proxy)
   ✓ Deployment scripts (load_images.sh, DEPLOY_ON_VM.md)
 
 🚫 Excluded from Archive:

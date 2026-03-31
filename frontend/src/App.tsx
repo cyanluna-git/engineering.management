@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { useAuth } from './hooks/useAuth';
 import { MainLayout, PortalLayout } from './components/layout';
 import { LoginPage, RegisterPage } from './pages';
+import { ROUTER_BASENAME } from './lib/base-path';
 
 import './App.css';
 
@@ -44,7 +45,7 @@ function App() {
   }
 
   return (
-    <Router>
+    <Router basename={ROUTER_BASENAME}>
       <Routes>
         {isAuthenticated ? (
           <>

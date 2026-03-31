@@ -1,6 +1,7 @@
 import axios from 'axios';
 import type { AxiosRequestConfig } from 'axios';
 import type { Token } from '@/types';
+import { withBasePath } from '@/lib/base-path';
 
 // Standardized API error response type
 export interface ApiError {
@@ -80,7 +81,7 @@ apiClient.interceptors.response.use(
         if (originalRequest.url === '/auth/refresh') {
           localStorage.removeItem(AUTH_TOKEN_KEY);
           localStorage.removeItem(REFRESH_TOKEN_KEY);
-          window.location.href = '/login';
+          window.location.href = withBasePath('/login');
         }
         return Promise.reject(error);
       }
@@ -88,7 +89,7 @@ apiClient.interceptors.response.use(
       const refreshToken = localStorage.getItem(REFRESH_TOKEN_KEY);
       if (!refreshToken) {
         localStorage.removeItem(AUTH_TOKEN_KEY);
-        window.location.href = '/login';
+        window.location.href = withBasePath('/login');
         return Promise.reject(error);
       }
 
@@ -124,7 +125,7 @@ apiClient.interceptors.response.use(
         processQueue(refreshError, null);
         localStorage.removeItem(AUTH_TOKEN_KEY);
         localStorage.removeItem(REFRESH_TOKEN_KEY);
-        window.location.href = '/login';
+        window.location.href = withBasePath('/login');
         return Promise.reject(refreshError);
       } finally {
         isRefreshing = false;
