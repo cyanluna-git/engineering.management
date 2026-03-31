@@ -13,6 +13,8 @@ export interface Guide {
   author: string;
   created_at: string;
   updated_at: string;
+  format?: "markdown" | "static-html";
+  readonly?: boolean;
 }
 
 export interface GuideListQuery {

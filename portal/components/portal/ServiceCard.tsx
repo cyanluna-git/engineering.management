@@ -32,8 +32,6 @@ const cardClassName = cn(
 
 function CardContent({ service }: { service: PortalService }) {
   const Icon = ICON_MAP[service.icon] || LayoutDashboard;
-  const destinationLabel =
-    service.destination === "internal" ? "Internal Route" : "External Service";
   return (
     <>
       <div className="absolute inset-x-0 top-0 h-24 bg-[radial-gradient(circle_at_top_left,rgba(220,38,38,0.12),transparent_48%),radial-gradient(circle_at_top_right,rgba(15,23,42,0.04),transparent_45%)]" />
@@ -46,9 +44,6 @@ function CardContent({ service }: { service: PortalService }) {
         <Icon className="h-7 w-7" />
       </div>
       <div className="relative space-y-2">
-        <span className="inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-medium uppercase tracking-[0.16em] text-slate-500">
-          {destinationLabel}
-        </span>
         <h3 className="text-xl font-semibold leading-none tracking-tight text-slate-950">
           {service.name}
         </h3>

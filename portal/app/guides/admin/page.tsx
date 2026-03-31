@@ -48,6 +48,7 @@ export default function GuideAdminPage() {
     () => guides.find((guide) => guide.id === draft.id) || null,
     [draft.id, guides],
   );
+  const activeGuideReadonly = Boolean(activeGuide?.readonly);
 
   async function loadGuides(nextSelectedId?: string | null) {
     const response = await fetch("/api/guides");
@@ -246,9 +247,16 @@ export default function GuideAdminPage() {
                     <p className="text-sm font-semibold text-slate-900">
                       {guide.title}
                     </p>
-                    <p className="mt-1 text-xs text-slate-500">
-                      {guide.category} · {guide.author}
-                    </p>
+                    <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-500">
+                      <span>
+                        {guide.category} · {guide.author}
+                      </span>
+                      {guide.readonly ? (
+                        <span className="rounded-full bg-amber-50 px-2 py-0.5 font-medium text-amber-700">
+                          Read-only
+                        </span>
+                      ) : null}
+                    </div>
                   </button>
                 );
               })
@@ -263,6 +271,16 @@ export default function GuideAdminPage() {
           </div>
 
           <div className="mt-5 space-y-4">
+            {activeGuideReadonly ? (
+              <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                This guide is sourced from static HTML files and cannot be edited
+                from the CMS. Update the source under
+                <code className="mx-1 rounded bg-white px-1.5 py-0.5 text-xs">
+                  portal/content/static-guides
+                </code>
+                instead.
+              </div>
+            ) : null}
             <div className="grid gap-4 sm:grid-cols-2">
               <label className="space-y-2 text-sm text-slate-600">
                 <span>Title</span>
@@ -271,6 +289,7 @@ export default function GuideAdminPage() {
                   onChange={(event) =>
                     setDraft((current) => ({ ...current, title: event.target.value }))
                   }
+                  disabled={activeGuideReadonly}
                   className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm shadow-sm outline-none transition focus:border-red-300 focus:ring-2 focus:ring-red-100"
                 />
               </label>
@@ -284,6 +303,7 @@ export default function GuideAdminPage() {
                       category: event.target.value,
                     }))
                   }
+                  disabled={activeGuideReadonly}
                   className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm shadow-sm outline-none transition focus:border-red-300 focus:ring-2 focus:ring-red-100"
                 >
                   {GUIDE_CATEGORY_OPTIONS.map((category) => (
@@ -302,18 +322,20 @@ export default function GuideAdminPage() {
                 onChange={(event) =>
                   setDraft((current) => ({ ...current, author: event.target.value }))
                 }
+                disabled={activeGuideReadonly}
                 className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm shadow-sm outline-none transition focus:border-red-300 focus:ring-2 focus:ring-red-100"
               />
             </label>
 
             <label className="space-y-2 text-sm text-slate-600">
-              <span>Markdown Body</span>
+              <span>{activeGuideReadonly ? "Read-only Summary" : "Markdown Body"}</span>
               <textarea
                 value={draft.content}
                 onChange={(event) =>
                   setDraft((current) => ({ ...current, content: event.target.value }))
                 }
                 rows={18}
+                disabled={activeGuideReadonly}
                 className="w-full rounded-[28px] border border-slate-200 bg-white px-4 py-4 text-sm leading-7 shadow-sm outline-none transition focus:border-red-300 focus:ring-2 focus:ring-red-100"
               />
             </label>
@@ -322,7 +344,7 @@ export default function GuideAdminPage() {
           <div className="mt-6 flex flex-wrap gap-3">
             <button
               onClick={() => saveGuide()}
-              disabled={saving}
+              disabled={saving || activeGuideReadonly}
               className="rounded-2xl bg-slate-950 px-4 py-3 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {saving ? "Saving..." : draft.id ? "Save Changes" : "Publish Guide"}
@@ -335,7 +357,7 @@ export default function GuideAdminPage() {
             </button>
             <button
               onClick={() => deleteGuide()}
-              disabled={!draft.id || saving}
+              disabled={!draft.id || saving || activeGuideReadonly}
               className="inline-flex items-center gap-2 rounded-2xl border border-red-200 px-4 py-3 text-sm font-medium text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
             >
               <Trash2 className="h-4 w-4" />

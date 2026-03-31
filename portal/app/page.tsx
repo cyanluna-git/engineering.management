@@ -66,8 +66,13 @@ export default function PortalPage() {
             <p className="text-xs font-semibold uppercase tracking-[0.32em] text-red-500">
               Unified Access
             </p>
+            <img
+              src="/branding/edwards-logo-color.png"
+              alt="Edwards"
+              className="mt-4 h-12 w-auto object-contain sm:h-13"
+            />
             <h1 className="mt-4 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">
-              PCAS Engineering Portal
+              Edwards Portal
             </h1>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600 sm:text-base">
               Launch your engineering services, quality systems, and AI tools

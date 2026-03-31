@@ -1,0 +1,825 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Type 1 & Type 2 Recovery Process — Technical Guide</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    /* ===== RESET ===== */
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+    html { scroll-behavior: smooth; font-size: 16px; }
+    body {
+      background: #f8fafc;
+      color: #1e293b;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      line-height: 1.75;
+      -webkit-font-smoothing: antialiased;
+    }
+    ::-webkit-scrollbar { width: 5px; }
+    ::-webkit-scrollbar-track { background: #f1f5f9; }
+    ::-webkit-scrollbar-thumb { background: #0f766e; border-radius: 3px; }
+
+    /* ===== TOC SIDEBAR ===== */
+    .toc-sidebar {
+      position: fixed; left: 0; top: 50%;
+      transform: translateY(-50%);
+      z-index: 1000; width: 250px;
+      padding: 24px 16px 24px 20px;
+      transition: transform 0.35s cubic-bezier(0.4,0,0.2,1);
+    }
+    .toc-sidebar .toc-label {
+      font-size: 0.6rem; font-weight: 700;
+      letter-spacing: 0.15em; text-transform: uppercase;
+      color: #0f766e; margin-bottom: 14px; padding-left: 14px;
+    }
+    .toc-sidebar nav ul { list-style: none; }
+    .toc-sidebar nav li { margin-bottom: 1px; }
+    .toc-sidebar nav a {
+      display: block; padding: 6px 12px 6px 14px;
+      font-size: 0.72rem; font-weight: 400;
+      color: #94a3b8; text-decoration: none;
+      border-left: 2px solid transparent;
+      border-radius: 0 5px 5px 0;
+      transition: all 0.25s ease; line-height: 1.45;
+    }
+    .toc-sidebar nav a:hover { color: #475569; background: rgba(15,118,110,0.05); }
+    .toc-sidebar nav a.active {
+      color: #0f766e; font-weight: 600;
+      border-left-color: #0f766e;
+      background: rgba(15,118,110,0.06);
+    }
+    .toc-sidebar nav a.sub { padding-left: 26px; font-size: 0.68rem; }
+
+    /* ===== MAIN ===== */
+    .page-wrapper { margin-left: 250px; min-height: 100vh; }
+
+    /* ===== HERO ===== */
+    .hero {
+      position: relative; width: 100%; min-height: 100vh;
+      display: flex; align-items: center; justify-content: center;
+      overflow: hidden;
+      background: linear-gradient(160deg, #f0fdfa 0%, #e6f7f4 40%, #f0fdfa 100%);
+    }
+    .hero::before {
+      content: ''; position: absolute; top: -40%; right: -25%;
+      width: 800px; height: 800px; border-radius: 50%;
+      background: radial-gradient(circle, rgba(15,118,110,0.06) 0%, transparent 70%);
+    }
+    .hero::after {
+      content: ''; position: absolute; bottom: -30%; left: -15%;
+      width: 600px; height: 600px; border-radius: 50%;
+      background: radial-gradient(circle, rgba(245,158,11,0.05) 0%, transparent 70%);
+    }
+    .hero-content {
+      position: relative; z-index: 2;
+      max-width: 780px; padding: 60px 48px; text-align: center;
+    }
+    .hero-badge {
+      display: inline-block; padding: 5px 18px;
+      font-size: 0.65rem; font-weight: 700;
+      letter-spacing: 0.18em; text-transform: uppercase;
+      color: #0f766e; border: 1px solid rgba(15,118,110,0.3);
+      border-radius: 100px; margin-bottom: 28px;
+      background: rgba(15,118,110,0.06);
+    }
+    .hero-title {
+      font-size: 2.8rem; font-weight: 900; color: #1e293b;
+      line-height: 1.2; margin-bottom: 20px; letter-spacing: -0.02em;
+    }
+    .hero-title .accent {
+      background: linear-gradient(135deg, #0f766e, #14b8a6);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .hero-subtitle {
+      font-size: 1.05rem; color: #64748b; line-height: 1.65;
+      margin-bottom: 40px; font-weight: 300;
+    }
+    .hero-meta { display: flex; flex-wrap: wrap; justify-content: center; gap: 32px; }
+    .meta-item { text-align: center; }
+    .meta-label {
+      font-size: 0.58rem; font-weight: 700;
+      letter-spacing: 0.15em; text-transform: uppercase;
+      color: #94a3b8; margin-bottom: 3px;
+    }
+    .meta-value { font-size: 0.82rem; color: #334155; font-weight: 500; }
+    .hero-divider {
+      width: 60px; height: 2px; margin: 36px auto 0;
+      background: linear-gradient(90deg, #0f766e, #f59e0b); border-radius: 2px;
+    }
+    .hero-scroll-hint {
+      position: absolute; bottom: 36px; left: 50%; transform: translateX(-50%);
+      display: flex; flex-direction: column; align-items: center; gap: 6px;
+      color: #94a3b8; font-size: 0.65rem;
+      letter-spacing: 0.1em; text-transform: uppercase;
+      animation: gentleBounce 2.5s ease-in-out infinite;
+    }
+    .hero-scroll-hint .scroll-line {
+      width: 1px; height: 28px;
+      background: linear-gradient(to bottom, #94a3b8, transparent);
+    }
+    @keyframes gentleBounce {
+      0%, 100% { transform: translateX(-50%) translateY(0); }
+      50% { transform: translateX(-50%) translateY(5px); }
+    }
+
+    /* ===== STATS ===== */
+    .stats-banner {
+      display: grid; grid-template-columns: repeat(4,1fr);
+      max-width: 880px; margin: -50px auto 0;
+      position: relative; z-index: 10;
+      border-radius: 14px; overflow: hidden;
+      border: 1px solid #e2e8f0; background: #fff;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.06);
+    }
+    .stat-card { padding: 28px 20px; text-align: center; position: relative; }
+    .stat-card:not(:last-child)::after {
+      content: ''; position: absolute; right: 0; top: 25%; height: 50%;
+      width: 1px; background: #e2e8f0;
+    }
+    .stat-number {
+      font-size: 2rem; font-weight: 800;
+      background: linear-gradient(135deg, #f59e0b, #d97706);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      background-clip: text; line-height: 1.1; margin-bottom: 6px;
+    }
+    .stat-label { font-size: 0.72rem; color: #64748b; font-weight: 400; }
+
+    /* ===== CONTENT ===== */
+    .content-area { max-width: 820px; margin: 0 auto; padding: 70px 44px 100px; }
+
+    /* ===== SECTION CARD ===== */
+    .section-card {
+      background: #fff; border: 1px solid #e2e8f0;
+      border-radius: 16px; padding: 48px 44px;
+      margin-bottom: 32px; position: relative;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+      transition: border-color 0.4s ease, box-shadow 0.4s ease;
+    }
+    .section-card:hover {
+      border-color: #cbd5e1;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.06);
+    }
+    .section-card::before {
+      content: ''; position: absolute; top: 0; left: 36px; right: 36px;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(15,118,110,0.15), transparent);
+    }
+    .section-number {
+      font-size: 0.6rem; font-weight: 700;
+      letter-spacing: 0.2em; text-transform: uppercase;
+      color: #0f766e; margin-bottom: 10px; display: block;
+    }
+    .section-heading {
+      font-size: 1.5rem; font-weight: 800; color: #1e293b;
+      margin-bottom: 24px; line-height: 1.3;
+    }
+    .section-heading::after {
+      content: ''; display: block; width: 36px; height: 3px;
+      background: linear-gradient(90deg, #0f766e, #f59e0b);
+      border-radius: 3px; margin-top: 14px;
+    }
+    .section-card p {
+      font-size: 0.95rem; line-height: 1.85; color: #475569;
+      margin-bottom: 16px; font-weight: 400;
+    }
+    .section-card ul, .section-card ol {
+      margin: 0 0 16px 20px; color: #475569; font-size: 0.95rem;
+    }
+    .section-card li { margin-bottom: 6px; }
+    .section-card strong { color: #1e293b; font-weight: 600; }
+    .section-card code {
+      background: #f1f5f9; padding: 1px 6px; border-radius: 3px;
+      font-size: 0.85rem; font-family: 'Consolas','Monaco',monospace; color: #0f766e;
+    }
+
+    /* ===== TABLE ===== */
+    .section-card table {
+      width: 100%; border-collapse: collapse;
+      margin: 12px 0 20px; font-size: 0.85rem;
+    }
+    .section-card th {
+      background: #0f766e; color: #fff;
+      text-align: left; padding: 8px 14px; font-weight: 600;
+    }
+    .section-card td {
+      padding: 8px 14px; border-bottom: 1px solid #e2e8f0; color: #475569;
+    }
+    .section-card tbody tr:hover { background: #f8fafc; }
+
+    /* ===== PROCEDURE STEP ===== */
+    .proc-step {
+      display: flex; gap: 14px; align-items: flex-start;
+      margin: 12px 0; padding: 6px 0;
+    }
+    .step-badge {
+      flex-shrink: 0; width: 28px; height: 28px;
+      background: linear-gradient(135deg, #f59e0b, #d97706);
+      color: #fff; border-radius: 50%;
+      text-align: center; line-height: 28px;
+      font-size: 0.75rem; font-weight: 700; margin-top: 1px;
+    }
+    .step-content { flex: 1; color: #475569; font-size: 0.95rem; }
+    .step-content ul { margin: 6px 0 0 16px; }
+
+    /* ===== SCREENSHOT ===== */
+    .figure-wrapper {
+      margin: 20px 0; border-radius: 12px; overflow: hidden;
+      border: 1px solid #e2e8f0; background: #fff;
+      transition: border-color 0.4s ease, box-shadow 0.4s ease;
+    }
+    .figure-wrapper:hover {
+      border-color: #cbd5e1;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.06);
+    }
+    .figure-wrapper img {
+      width: 100%; display: block;
+      transition: transform 0.5s cubic-bezier(0.4,0,0.2,1);
+    }
+    .figure-wrapper:hover img { transform: scale(1.02); }
+    .figure-caption {
+      padding: 10px 16px; font-size: 0.7rem; color: #94a3b8;
+      text-align: center; background: #f8fafc;
+      border-top: 1px solid #e2e8f0;
+    }
+
+    /* ===== DECISION ===== */
+    .decision { display: flex; gap: 12px; margin: 16px 0; }
+    .decision-ok, .decision-nok {
+      flex: 1; padding: 14px 16px; border-radius: 10px; font-size: 0.85rem;
+    }
+    .decision-ok {
+      background: #f0fdf4; border: 1px solid #bbf7d0; color: #166534;
+    }
+    .decision-ok strong { color: #16a34a; }
+    .decision-nok {
+      background: #fef2f2; border: 1px solid #fecaca; color: #991b1b;
+    }
+    .decision-nok strong { color: #dc2626; }
+
+    /* ===== BOXES ===== */
+    .warning-box {
+      background: #fef2f2; border-left: 4px solid #dc2626;
+      border-radius: 0 8px 8px 0; padding: 16px 20px; margin: 20px 0;
+    }
+    .warning-box .label {
+      font-weight: 700; color: #dc2626; font-size: 0.65rem;
+      text-transform: uppercase; letter-spacing: 0.12em; margin-bottom: 6px;
+    }
+    .warning-box p, .warning-box ul { font-size: 0.88rem; color: #991b1b; }
+    .warning-box ul { margin-left: 16px; }
+    .warning-box strong { color: #7f1d1d; }
+
+    .info-box {
+      background: #f0fdfa; border-left: 4px solid #0f766e;
+      border-radius: 0 8px 8px 0; padding: 16px 20px; margin: 20px 0;
+      font-size: 0.88rem; color: #115e59;
+    }
+    .info-box .label {
+      font-weight: 700; color: #0f766e; font-size: 0.65rem;
+      text-transform: uppercase; letter-spacing: 0.12em; margin-bottom: 6px;
+    }
+
+    .tip-box {
+      background: #fffbeb; border-left: 4px solid #f59e0b;
+      border-radius: 0 8px 8px 0; padding: 16px 20px; margin: 20px 0;
+      font-size: 0.88rem; color: #92400e;
+    }
+    .tip-box .label {
+      font-weight: 700; color: #d97706; font-size: 0.65rem;
+      text-transform: uppercase; letter-spacing: 0.12em; margin-bottom: 6px;
+    }
+    .tip-box ol { margin-left: 16px; color: #92400e; }
+
+    /* ===== DIVIDER ===== */
+    .section-divider {
+      width: 100%; max-width: 180px; height: 1px;
+      margin: 0 auto 32px;
+      background: linear-gradient(90deg, transparent, #cbd5e1, transparent);
+    }
+
+    /* ===== CONCLUSION ===== */
+    .section-card.conclusion { border-color: rgba(245,158,11,0.3); }
+    .section-card.conclusion:hover {
+      border-color: rgba(245,158,11,0.5);
+      box-shadow: 0 4px 24px rgba(245,158,11,0.08);
+    }
+    .section-card.conclusion::before {
+      background: linear-gradient(90deg, transparent, rgba(245,158,11,0.25), transparent);
+    }
+    .section-card.conclusion .section-heading::after {
+      background: linear-gradient(90deg, #f59e0b, #0f766e);
+    }
+
+    /* ===== FOOTER ===== */
+    .page-footer {
+      text-align: center; padding: 40px 24px 56px;
+      border-top: 1px solid #e2e8f0;
+    }
+    .page-footer .footer-line {
+      width: 36px; height: 2px;
+      background: linear-gradient(90deg, #0f766e, #f59e0b);
+      margin: 0 auto 16px; border-radius: 2px;
+    }
+    .page-footer p { font-size: 0.7rem; color: #94a3b8; line-height: 1.7; }
+
+    /* ===== ANIMATION ===== */
+    .fade-in {
+      opacity: 0; transform: translateY(20px);
+      transition: opacity 0.6s ease, transform 0.6s ease;
+    }
+    .fade-in.visible { opacity: 1; transform: translateY(0); }
+
+    /* ===== RESPONSIVE ===== */
+    @media (max-width: 1100px) {
+      .toc-sidebar { transform: translateX(-100%) translateY(-50%); }
+      .page-wrapper { margin-left: 0; }
+    }
+    @media (max-width: 768px) {
+      html { font-size: 15px; }
+      .hero-title { font-size: 2rem; }
+      .hero-content { padding: 40px 20px; }
+      .stats-banner { grid-template-columns: repeat(2,1fr); margin: -36px 16px 0; }
+      .content-area { padding: 40px 18px 60px; }
+      .section-card { padding: 28px 22px; border-radius: 12px; }
+      .decision { flex-direction: column; }
+    }
+
+    /* ===== PRINT ===== */
+    @media print {
+      body { background: #fff !important; }
+      .toc-sidebar, .hero-scroll-hint { display: none !important; }
+      .page-wrapper { margin-left: 0 !important; }
+      .hero { min-height: auto !important; padding: 40px 20px; page-break-after: always; }
+      .hero::before, .hero::after { display: none; }
+      .section-card { box-shadow: none !important; break-inside: avoid; page-break-inside: avoid; }
+      .figure-wrapper { break-inside: avoid; }
+      .stats-banner { box-shadow: none !important; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ===== SIDEBAR ===== -->
+<aside class="toc-sidebar" id="toc">
+  <div class="toc-label">Procedure</div>
+  <nav><ul>
+    <li><a href="#intro" data-section="intro">Introduction</a></li>
+    <li><a href="#prep" data-section="prep">Preparation</a></li>
+    <li><a href="#setup" data-section="setup">1. Setup Environment</a></li>
+    <li><a href="#esp-install" data-section="esp-install" class="sub">ESP Install</a></li>
+    <li><a href="#basic-sample" data-section="basic-sample" class="sub">2-1. Basic Sample</a></li>
+    <li><a href="#abatement" data-section="abatement" class="sub">2-2. Abatement</a></li>
+    <li><a href="#flash-memory" data-section="flash-memory" class="sub">2-3. Flash Memory</a></li>
+    <li><a href="#recovery" data-section="recovery">2. Recovery Procedure</a></li>
+    <li><a href="#step1-esp" data-section="step1-esp" class="sub">Step 1: ESP Diagnostic</a></li>
+    <li><a href="#firmware-upload" data-section="firmware-upload" class="sub">Firmware Upload</a></li>
+    <li><a href="#step2-jflash" data-section="step2-jflash" class="sub">Step 2: J-Flash</a></li>
+    <li><a href="#step3-putty" data-section="step3-putty" class="sub">Step 3: PuTTY</a></li>
+  </ul></nav>
+</aside>
+
+<div class="page-wrapper">
+
+<!-- ===== HERO ===== -->
+<section class="hero">
+  <div class="hero-content">
+    <div class="hero-badge">Technical Guide</div>
+    <h1 class="hero-title">Type 1 &amp; Type 2<br><span class="accent">Recovery Process</span></h1>
+    <p class="hero-subtitle">Step-by-step guide for diagnosing and recovering controllers experiencing network disconnection, ping loss, or file upload errors using ESP, JTAG, and PuTTY tools.</p>
+    <div class="hero-meta">
+      <div class="meta-item"><div class="meta-label">Date</div><div class="meta-value">March 2026</div></div>
+      <div class="meta-item"><div class="meta-label">Audience</div><div class="meta-value">Field Engineers</div></div>
+      <div class="meta-item"><div class="meta-label">Recovery Time</div><div class="meta-value">10 – 20 min</div></div>
+      <div class="meta-item"><div class="meta-label">Target</div><div class="meta-value">Type 1 / Type 2</div></div>
+    </div>
+    <div class="hero-divider"></div>
+  </div>
+  <div class="hero-scroll-hint">
+    <span>Scroll</span>
+    <div class="scroll-line"></div>
+  </div>
+</section>
+
+<!-- ===== STATS ===== -->
+<div class="stats-banner fade-in">
+  <div class="stat-card"><div class="stat-number">5</div><div class="stat-label">Recovery Steps</div></div>
+  <div class="stat-card"><div class="stat-number">3</div><div class="stat-label">ESP Projects</div></div>
+  <div class="stat-card"><div class="stat-number">64KB</div><div class="stat-label">Protected Memory</div></div>
+  <div class="stat-card"><div class="stat-number">~15m</div><div class="stat-label">Avg Recovery</div></div>
+</div>
+
+<div class="content-area">
+
+<!-- ==================== INTRODUCTION ==================== -->
+<div class="section-card fade-in" id="intro">
+  <span class="section-number">Overview</span>
+  <h2 class="section-heading">Introduction</h2>
+  <p>This document provides a step-by-step guide on the hardware and software used to recover controller issues such as network disconnection, ping loss, and file upload errors.</p>
+  <p>The recovery process involves diagnosing the issue, and if the Digi module memory is found to be corrupted, using tools such as <strong>ESP</strong> and <strong>JTAG programmers</strong> to reflash the module.</p>
+  <div class="warning-box">
+    <div class="label">Critical — Memory Protection</div>
+    <p>The last <strong>64 KB</strong> of flash memory contains unique configuration data including the <strong>MAC address</strong>. This block must be <strong>excluded from overwriting</strong>. Destroying it makes the PLC permanently unusable.</p>
+    <p>After recovery, settings must be reset in the ATE environment (e.g., switching from static IP to DHCP).</p>
+  </div>
+</div>
+
+<div class="section-divider"></div>
+
+<!-- ==================== PREPARATION ==================== -->
+<div class="section-card fade-in" id="prep">
+  <span class="section-number">Preparation</span>
+  <h2 class="section-heading">Required Equipment</h2>
+
+  <p><strong>Hardware</strong></p>
+  <table>
+    <thead><tr><th>Item</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr><td><strong>SEGGER J-Link PLUS Classic</strong></td><td>Must be Plus model (not Base) — required for J-Flash license</td></tr>
+      <tr><td><strong>FTDI USB to RJ12 cable</strong></td><td>For serial communication with the controller</td></tr>
+    </tbody>
+  </table>
+
+  <div class="figure-wrapper">
+    <img src="images/p02_img00.png" alt="SEGGER J-Link PLUS">
+    <div class="figure-caption">SEGGER J-Link PLUS Classic with JTAG ribbon cable</div>
+  </div>
+  <div class="figure-wrapper">
+    <img src="images/p02_img01.png" alt="FTDI cable">
+    <div class="figure-caption">FTDI USB to RJ12 cable</div>
+  </div>
+
+  <p><strong>Software</strong> — Download from <code>General &gt; Utilities &amp; Tools &gt; Controller recovery</code></p>
+  <table>
+    <thead><tr><th>Tool</th><th>Purpose</th></tr></thead>
+    <tbody>
+      <tr><td><strong>PuTTY</strong></td><td>UART serial — boot logs, text-based config</td></tr>
+      <tr><td><strong>J-Link &amp; J-Flash</strong> v5.10I</td><td>Write firmware via JTAG/SWD</td></tr>
+      <tr><td><strong>Digi ESP</strong></td><td>Board configuration &amp; firmware development</td></tr>
+      <tr><td><strong>SVN</strong> (TortoiseSVN)</td><td>Firmware version management</td></tr>
+      <tr><td><strong>FTDI Driver</strong></td><td>CDM2123620_Setup — USB-to-UART driver</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="section-divider"></div>
+
+<!-- ==================== SETUP ==================== -->
+<div class="section-card fade-in" id="setup">
+  <span class="section-number">Section 1</span>
+  <h2 class="section-heading">Setup Digi Environment</h2>
+
+  <h3 id="esp-install" style="color:#0f766e;font-size:1.1rem;margin:20px 0 14px;">Step 1: Digi ESP Install</h3>
+
+  <div class="proc-step"><div class="step-badge">a</div><div class="step-content">Download and mount <code>NET+OS 7.iso</code>, run <code>setup.exe</code> (<strong>Run as administrator</strong>)</div></div>
+
+  <div class="figure-wrapper"><img src="images/p03_img00.png" alt="Software folder"><div class="figure-caption">Controller recovery software folder</div></div>
+
+  <div class="proc-step"><div class="step-badge">b</div><div class="step-content">Enter license key: <strong>1M711-1W79T-81KB1</strong></div></div>
+
+  <div class="figure-wrapper"><img src="images/p04_img01.png" alt="Setup Wizard"><div class="figure-caption">Digi NET+OS 7.5.0 Setup Wizard</div></div>
+  <div class="figure-wrapper"><img src="images/p04_img02.png" alt="License key"><div class="figure-caption">Enter Product Key: 1M711-1W79T-81KB1</div></div>
+
+  <div class="proc-step"><div class="step-badge">c</div><div class="step-content">Register with name, company, email and country</div></div>
+  <div class="proc-step"><div class="step-badge">d</div><div class="step-content">If online registration fails → press <strong>Skip</strong></div></div>
+
+  <div class="figure-wrapper"><img src="images/p05_img01.png" alt="Registration"><div class="figure-caption">Online Registration — press Skip if it fails</div></div>
+
+  <div class="proc-step"><div class="step-badge">e</div><div class="step-content">Install method: <strong>Typical</strong><ul><li>Platform: <strong>ConnectCore 9P 9215</strong></li><li>Debugger: <strong>Digi JTAG Link</strong></li></ul></div></div>
+
+  <div class="figure-wrapper"><img src="images/p06_img01.png" alt="Typical install"><div class="figure-caption">Select Typical Install</div></div>
+  <div class="figure-wrapper"><img src="images/p06_img02.png" alt="Platform debugger"><div class="figure-caption">Platform: ConnectCore 9P 9215 / Debugger: Digi JTAG Link</div></div>
+
+  <div class="proc-step"><div class="step-badge">f</div><div class="step-content">Accept package updates (e.g., Ethernet packages)</div></div>
+  <div class="proc-step"><div class="step-badge">g</div><div class="step-content">After install, <strong>run as administrator</strong>. <code>netos75</code> installs in <code>C:\</code></div></div>
+</div>
+
+<div class="section-divider"></div>
+
+<!-- ===== 2-1. Basic Sample ===== -->
+<div class="section-card fade-in" id="basic-sample">
+  <span class="section-number">Section 1 — Project 2-1</span>
+  <h2 class="section-heading">Basic Sample</h2>
+  <p>Used to verify whether the controller's Ethernet port is operating normally.</p>
+
+  <div class="info-box"><div class="label">Condition</div><p>IP Ping OK but PLC connection <strong>unavailable</strong></p></div>
+
+  <div class="proc-step"><div class="step-badge">a</div><div class="step-content">File → New → <strong>NET+OS Sample Project</strong></div></div>
+  <div class="proc-step"><div class="step-badge">b</div><div class="step-content">Platform: <strong>ConnectCore 9P 9215</strong> / Debugger: <strong>Digi JTAG Link</strong></div></div>
+
+  <div class="figure-wrapper"><img src="images/p08_img01.png" alt="Sample project"><div class="figure-caption">NET+OS Sample Project settings</div></div>
+
+  <div class="proc-step"><div class="step-badge">c</div><div class="step-content">Select <strong>Basic Sample</strong></div></div>
+  <div class="proc-step"><div class="step-badge">d</div><div class="step-content">Set IP: <strong>192.168.2.200</strong> / Subnet: <strong>255.255.255.0</strong> / Auto IP: checked</div></div>
+
+  <div class="figure-wrapper"><img src="images/p09_img00.png" alt="Sample Selection"><div class="figure-caption">Select Basic Sample</div></div>
+  <div class="figure-wrapper"><img src="images/p09_img01.png" alt="Network Config"><div class="figure-caption">Network Configuration — IP: 192.168.2.200</div></div>
+
+  <div class="proc-step"><div class="step-badge">e</div><div class="step-content">Next → Finish</div></div>
+  <div class="proc-step"><div class="step-badge">f</div><div class="step-content">Build: Right-click project → <strong>NET+OS Build</strong></div></div>
+</div>
+
+<div class="section-divider"></div>
+
+<!-- ===== 2-2. Abatement ===== -->
+<div class="section-card fade-in" id="abatement">
+  <span class="section-number">Section 1 — Project 2-2</span>
+  <h2 class="section-heading">Abatement</h2>
+  <p>Used to boot the Type 1 controller and transition it to the <strong>Run</strong> state.</p>
+
+  <div class="info-box"><div class="label">Condition</div><p>IP Ping OK and PLC connection <strong>available</strong></p></div>
+
+  <div class="proc-step"><div class="step-badge">a</div><div class="step-content">File → <strong>Import</strong> → General → <strong>Existing Projects into Workspace</strong></div></div>
+
+  <div class="figure-wrapper"><img src="images/p12_img01.png" alt="Import dialog"><div class="figure-caption">Import → Existing Projects into Workspace</div></div>
+
+  <div class="proc-step"><div class="step-badge">b</div><div class="step-content">Browse to Abatement folder from downloaded Export</div></div>
+
+  <div class="tip-box"><div class="label">Important</div><p><strong>Do not change the folder location</strong> after the path has been configured.</p></div>
+
+  <div class="figure-wrapper"><img src="images/p13_img00.png" alt="Select root"><div class="figure-caption">Select root directory — Abatement folder</div></div>
+
+  <div class="proc-step"><div class="step-badge">c</div><div class="step-content"><strong>SVN Checkout</strong>: Create folder (e.g., <code>D:\Type1</code>) → right-click → SVN Checkout<br>URL: <code>https://seukeappeas010/svn/.../DigiUpdate</code> → download <code>netos75-abatement</code></div></div>
+
+  <div class="figure-wrapper"><img src="images/p14_img00.png" alt="SVN Checkout"><div class="figure-caption">SVN Checkout dialog</div></div>
+  <div class="figure-wrapper"><img src="images/p14_img01.png" alt="Repository"><div class="figure-caption">Repository — netos75-abatement folder</div></div>
+
+  <div class="proc-step"><div class="step-badge">d</div><div class="step-content">Properties → NET+OS → Set directory to <code>netos75-abatement</code></div></div>
+
+  <div class="figure-wrapper"><img src="images/p15_img00.png" alt="NET+OS dir"><div class="figure-caption">Properties → NET+OS Directory</div></div>
+
+  <div class="proc-step"><div class="step-badge">e</div><div class="step-content">C/C++ Build: <code>make -k -s -j8</code>, parallel build enabled</div></div>
+  <div class="proc-step"><div class="step-badge">f</div><div class="step-content">Build → success: <code>image.bin</code> in Debug folder</div></div>
+
+  <div class="figure-wrapper"><img src="images/p18_img01.png" alt="Build success"><div class="figure-caption">Build success — image.bin generated</div></div>
+
+  <div class="tip-box"><div class="label">Build Error — Missing Libraries</div>
+    <ol>
+      <li>Right-click project → <strong>Properties</strong></li>
+      <li><strong>C/C++ General → Paths and Symbols</strong></li>
+      <li>Click <strong>Add → File system</strong> → add missing library folder</li>
+    </ol>
+  </div>
+
+  <div class="figure-wrapper"><img src="images/p19_img01.png" alt="Problems"><div class="figure-caption">Problems tab — error details</div></div>
+  <div class="figure-wrapper"><img src="images/p21_img00.png" alt="Paths"><div class="figure-caption">Paths and Symbols — adding include directories</div></div>
+</div>
+
+<div class="section-divider"></div>
+
+<!-- ===== 2-3. Flash Memory ===== -->
+<div class="section-card fade-in" id="flash-memory">
+  <span class="section-number">Section 1 — Project 2-3</span>
+  <h2 class="section-heading">Flash Memory Sample</h2>
+  <p>Used to initialize specific values stored in the flash memory.</p>
+
+  <div class="info-box"><div class="label">Condition</div><p>IP Ping OK but PLC connection <strong>unavailable</strong></p></div>
+
+  <div class="proc-step"><div class="step-badge">a</div><div class="step-content">New → NET+OS Sample Project → Select <strong>Flash Memory Sample</strong></div></div>
+  <div class="proc-step"><div class="step-badge">b</div><div class="step-content">IP: <strong>192.168.2.200</strong> (same as Basic Sample)</div></div>
+
+  <div class="figure-wrapper"><img src="images/p23_img00.png" alt="Flash Memory"><div class="figure-caption">Select Flash Memory Sample</div></div>
+
+  <div class="proc-step"><div class="step-badge">c</div><div class="step-content"><strong>Comment out specific lines in <code>root.c</code></strong> — or replace with attached version. Without this, execution takes too long.</div></div>
+
+  <div class="figure-wrapper"><img src="images/p25_img00.png" alt="root.c"><div class="figure-caption">root.c — comment out these lines</div></div>
+  <div class="figure-wrapper"><img src="images/p25_img01.png" alt="root.c detail"><div class="figure-caption">root.c — detailed view of commented sections</div></div>
+
+  <div class="proc-step"><div class="step-badge">d</div><div class="step-content">Build → success: <code>image.bin</code> generated in Console</div></div>
+
+  <div class="figure-wrapper"><img src="images/p26_img01.png" alt="Build success"><div class="figure-caption">Flash Memory Sample build success</div></div>
+</div>
+
+<div class="section-divider"></div>
+
+<!-- ==================== RECOVERY PROCEDURE ==================== -->
+<div class="section-card fade-in" id="recovery">
+  <span class="section-number">Section 2</span>
+  <h2 class="section-heading">Recovery Procedure</h2>
+  <p>The recovery procedures for Type 1 and Type 2 systems are <strong>identical</strong>.</p>
+  <ul>
+    <li>Diagnosis is first attempted via the ESP program</li>
+    <li>If ESP Flash Memory step fails → forced reinitialization using <strong>J-Flash &amp; PuTTY</strong></li>
+    <li>After J-Flash → return to ESP connection and upload firmware &amp; <code>T5.cod</code></li>
+  </ul>
+</div>
+
+<div class="section-divider"></div>
+
+<!-- ===== Step 1: ESP ===== -->
+<div class="section-card fade-in" id="step1-esp">
+  <span class="section-number">Recovery — Step 1</span>
+  <h2 class="section-heading">ESP Program Connection &amp; Diagnostic</h2>
+
+  <div class="proc-step"><div class="step-badge">a</div><div class="step-content">Connect <strong>J-Link module</strong> and <strong>LAN cable</strong></div></div>
+  <div class="proc-step"><div class="step-badge">b</div><div class="step-content">Launch the <strong>ESP program</strong></div></div>
+  <div class="proc-step"><div class="step-badge">c</div><div class="step-content"><strong>Build Basic Sample</strong>: Build → Debug → Resume (F8)</div></div>
+  <div class="proc-step"><div class="step-badge">d</div><div class="step-content">Connection status turns <strong>green</strong> → <code>ping 192.168.2.200</code></div></div>
+
+  <div class="decision">
+    <div class="decision-ok"><strong>✓ Ping Successful</strong><br>Ethernet working → proceed to step e</div>
+    <div class="decision-nok"><strong>✗ Ping Fails</strong><br>Ethernet faulty → <strong>recovery not possible</strong></div>
+  </div>
+
+  <div class="figure-wrapper"><img src="images/p28_img01.png" alt="Debug ping"><div class="figure-caption">Debug connected (green) + successful ping test</div></div>
+
+  <div class="proc-step"><div class="step-badge">e</div><div class="step-content"><strong>Build Abatement</strong>: Build → Debug → Resume (F8)</div></div>
+  <div class="proc-step"><div class="step-badge">f</div><div class="step-content">Run until controller boots into <strong>RUN</strong> state</div></div>
+
+  <div class="decision">
+    <div class="decision-ok"><strong>✓ Ping Works</strong><br>Connect to PLC at <code>192.168.2.200</code>, check <code>config</code> and <code>T5.cod</code></div>
+    <div class="decision-nok"><strong>✗ Fails / Halts</strong><br>Flash memory suspected → proceed to step h</div>
+  </div>
+
+  <div class="figure-wrapper"><img src="images/p29_img00.png" alt="Abatement running"><div class="figure-caption">Abatement project running — monitoring boot state</div></div>
+
+  <div class="proc-step"><div class="step-badge">g</div><div class="step-content"><code>192.168.2.200</code> → File Management → verify <code>T5.cod</code>. Upload if missing.</div></div>
+
+  <div class="figure-wrapper"><img src="images/p30_img00.png" alt="File Management"><div class="figure-caption">PLC File Management — T5.cod and t5.hot</div></div>
+</div>
+
+<div class="section-divider"></div>
+
+<!-- ===== Firmware Upload ===== -->
+<div class="section-card fade-in" id="firmware-upload">
+  <span class="section-number">Recovery — Firmware</span>
+  <h2 class="section-heading">Firmware Upload</h2>
+
+  <div class="proc-step"><div class="step-badge">1</div><div class="step-content">Connect to <code>192.168.2.200</code> → <strong>Upload Firmware</strong></div></div>
+  <div class="proc-step"><div class="step-badge">2</div><div class="step-content">Select firmware from <code>D37904612D</code> folder</div></div>
+  <div class="proc-step"><div class="step-badge">3</div><div class="step-content">Upload <strong>rom.bin</strong> → Reboot PLC</div></div>
+  <div class="proc-step"><div class="step-badge">4</div><div class="step-content">Restore connection via Abatement</div></div>
+  <div class="proc-step"><div class="step-badge">5</div><div class="step-content">Upload <strong>image.bin</strong> → Reboot PLC → <strong>Recovery Complete</strong></div></div>
+
+  <div class="figure-wrapper"><img src="images/p31_img00.png" alt="Upload"><div class="figure-caption">Upload Firmware — select rom.bin</div></div>
+  <div class="figure-wrapper"><img src="images/p31_img01.png" alt="rom.bin"><div class="figure-caption">Select rom.bin from D37904612D folder</div></div>
+  <div class="figure-wrapper"><img src="images/p32_img00.png" alt="image.bin"><div class="figure-caption">After reboot, upload image.bin</div></div>
+
+  <div class="info-box"><div class="label">Recovery Complete</div><p>If completed successfully, disconnect the J-Link module after rebooting the PLC.</p></div>
+
+  <div class="warning-box"><div class="label">After Flash Init</div><p>If you returned after flash memory initialization, you <strong>must also re-upload the firmware</strong>.</p></div>
+
+  <p><strong>Flash Memory step (if firmware upload path fails):</strong></p>
+
+  <div class="proc-step"><div class="step-badge">h</div><div class="step-content"><strong>Build Flash Memory project</strong>: Build → Debug → set breakpoints → Resume (F8)</div></div>
+  <div class="proc-step"><div class="step-badge">i</div><div class="step-content">Execution stops at <code>applicationStart()</code> breakpoint</div></div>
+
+  <div class="figure-wrapper"><img src="images/p33_img00.png" alt="Breakpoints"><div class="figure-caption">root.c execution — breakpoint locations</div></div>
+
+  <div class="proc-step"><div class="step-badge">j</div><div class="step-content">Resume (F8) → wait <strong>3–4 minutes</strong> for flash erase. <strong>Do not interrupt power.</strong></div></div>
+
+  <div class="decision">
+    <div class="decision-ok"><strong>✓ Flash Erased</strong><br>Return to step e → upload <code>rom.bin</code> → <code>image.bin</code></div>
+    <div class="decision-nok"><strong>✗ Fails</strong><br>Proceed to <strong>Step 2 (J-Flash)</strong></div>
+  </div>
+</div>
+
+<div class="section-divider"></div>
+
+<!-- ===== Step 2: J-Flash ===== -->
+<div class="section-card fade-in" id="step2-jflash">
+  <span class="section-number">Recovery — Step 2</span>
+  <h2 class="section-heading">J-Flash Connection &amp; Programming</h2>
+  <p>Forcibly reprogram flash memory — <strong>excluding</strong> the configuration section with MAC address and serial IDs.</p>
+
+  <div class="warning-box"><div class="label">Precondition — Power Supply</div>
+    <p>Apply power to <strong>pin 1 (0V)</strong>, <strong>pin 2 (+24V)</strong>, <strong>pin 4 (0V)</strong> on socket <strong>PL24</strong></p>
+  </div>
+
+  <div class="figure-wrapper"><img src="images/p34_img00.png" alt="PL24"><div class="figure-caption">PL24 power socket pinout</div></div>
+
+  <div class="proc-step"><div class="step-badge">a</div><div class="step-content">J-Flash → change project to <strong><code>Production_config.jflash</code></strong> → Start</div></div>
+
+  <div class="figure-wrapper"><img src="images/p34_img01.png" alt="J-Flash welcome"><div class="figure-caption">Open existing project: Production_config.jflash</div></div>
+
+  <div class="proc-step"><div class="step-badge">b</div><div class="step-content">File → Open Data File → <strong><code>Version N factory partial image Rev3.mot</code></strong></div></div>
+
+  <div class="figure-wrapper"><img src="images/p34_img02.png" alt="Open data file"><div class="figure-caption">Open data file — Version N factory partial image Rev3.mot</div></div>
+
+  <div class="proc-step"><div class="step-badge">c</div><div class="step-content">Target → Connect → Device: <strong>Digi NS9360</strong></div></div>
+
+  <div class="figure-wrapper"><img src="images/p35_img01.png" alt="Device selection"><div class="figure-caption">Target device — Manufacturer: Digi, Model: NS9360</div></div>
+
+  <p><strong>For J-Flash v5.10I or lower:</strong></p>
+  <ul>
+    <li>Target → <strong>Program and Verify</strong> (F6) → confirm → close (<strong>do not save</strong>)</li>
+  </ul>
+
+  <div class="figure-wrapper"><img src="images/p36_img00.png" alt="v5.10I"><div class="figure-caption">J-Flash v5.10I — Target menu</div></div>
+  <div class="figure-wrapper"><img src="images/p36_img01.png" alt="Success"><div class="figure-caption">Programmed and verified successfully</div></div>
+
+  <p><strong>For J-Flash higher than v5.10I:</strong></p>
+
+  <div class="warning-box"><div class="label">Critical Warning</div>
+    <p>If options are misconfigured, the <strong>final memory region will also be erased</strong> — making the PLC <strong>permanently unusable</strong>.</p>
+  </div>
+
+  <ul>
+    <li>Target → <strong>Production Programming</strong> (F7)</li>
+    <li>Erase: <strong>"affected sectors"</strong> (NOT "Erase chip")</li>
+    <li>Program: checked / Verify: optional</li>
+  </ul>
+
+  <div class="figure-wrapper"><img src="images/p37_img00.png" alt="v8 Production"><div class="figure-caption">J-Flash v8 — Production Programming with correct settings</div></div>
+  <div class="figure-wrapper"><img src="images/p37_img01.png" alt="Production settings"><div class="figure-caption">Erase: "affected sectors" only — NEVER full erase</div></div>
+
+  <div class="warning-box"><div class="label">Never Do This</div>
+    <ul>
+      <li><strong>NEVER</strong> "All Sector Erase" or "Erase chip"</li>
+      <li>Permanently destroys MAC address and serial IDs in final 64KB block</li>
+    </ul>
+  </div>
+</div>
+
+<div class="section-divider"></div>
+
+<!-- ===== Step 3: PuTTY ===== -->
+<div class="section-card fade-in" id="step3-putty">
+  <span class="section-number">Recovery — Step 3</span>
+  <h2 class="section-heading">PuTTY Serial Monitoring</h2>
+  <p>Monitor boot status and interact with the Digi module via serial communication.</p>
+
+  <ul>
+    <li><strong>Monitor boot status</strong> — verify boot, FTP activation, network init</li>
+    <li><strong>Console commands</strong> — MAC address modification, factory reset</li>
+  </ul>
+
+  <div class="tip-box"><div class="label">Precondition</div>
+    <p>Connect RJ12 cable to <strong>COM3</strong> on PLC. Check <strong>Device Manager → Ports</strong>. If not recognized, install FTDI driver (<code>CDM2123620_Setup</code>).</p>
+  </div>
+
+  <div class="figure-wrapper"><img src="images/p38_img00.png" alt="Device Manager"><div class="figure-caption">Device Manager — COM port recognition</div></div>
+
+  <div class="proc-step"><div class="step-badge">a</div><div class="step-content">PuTTY settings: <strong>Serial</strong> / <strong>COM4</strong> / <strong>9600</strong> baud → <strong>Reboot PLC</strong></div></div>
+
+  <div class="figure-wrapper"><img src="images/p39_img01.png" alt="PuTTY config"><div class="figure-caption">PuTTY Configuration — Serial, COM4, 9600</div></div>
+
+  <div class="proc-step"><div class="step-badge">b</div><div class="step-content">Observe <strong>boot messages</strong></div></div>
+  <div class="proc-step"><div class="step-badge">c</div><div class="step-content">When <code>"Press any key to stop booting within 5 secs"</code> → press any key</div></div>
+  <div class="proc-step"><div class="step-badge">d</div><div class="step-content">Configure: <code>M</code> to Modify → <code>Y</code> to reset defaults → <strong>Enter</strong> for remaining</div></div>
+  <div class="proc-step"><div class="step-badge">e</div><div class="step-content"><code>"FTP download server is ready"</code> → success → <strong>Close PuTTY</strong></div></div>
+
+  <div class="figure-wrapper"><img src="images/p40_img00.png" alt="FTP ready"><div class="figure-caption">"FTP download server is ready" = successful reset</div></div>
+
+  <div class="proc-step"><div class="step-badge">f</div><div class="step-content">Return to <strong>Step 1, step e</strong> (Abatement) → re-upload firmware</div></div>
+</div>
+
+<div class="section-divider"></div>
+
+<!-- ===== CONCLUSION ===== -->
+<div class="section-card conclusion fade-in" id="conclusion">
+  <span class="section-number">Summary</span>
+  <h2 class="section-heading">Post-Recovery Checklist</h2>
+  <ul>
+    <li>Verify <code>T5.cod</code> file is present via File Management</li>
+    <li>Confirm controller boots normally without J-Link connected</li>
+    <li>Check PLC connection at <code>192.168.2.200</code></li>
+    <li>Disconnect J-Link module after final reboot</li>
+    <li>If ATE environment — switch from static IP to DHCP</li>
+  </ul>
+  <div class="info-box"><div class="label">Recovery Time</div><p>A standard recovery takes <strong>10–20 minutes</strong>. Cases requiring J-Flash (Step 2) may take slightly longer.</p></div>
+</div>
+
+</div><!-- content-area -->
+
+<footer class="page-footer">
+  <div class="footer-line"></div>
+  <p>Type 1 &amp; Type 2 Recovery Process — Technical Guide<br>Engineering Systems · March 2026</p>
+</footer>
+
+</div><!-- page-wrapper -->
+
+<!-- ===== SCRIPTS ===== -->
+<script>
+  // Fade-in on scroll
+  (function(){
+    var obs = new IntersectionObserver(function(entries){
+      entries.forEach(function(e){
+        if(e.isIntersecting){ e.target.classList.add('visible'); obs.unobserve(e.target); }
+      });
+    }, {threshold: 0.1});
+    document.querySelectorAll('.fade-in').forEach(function(el){ obs.observe(el); });
+  })();
+
+  // TOC scroll sync
+  (function(){
+    var sections = document.querySelectorAll('.section-card[id]');
+    var links = document.querySelectorAll('.toc-sidebar nav a');
+    function update(){
+      var cur = '';
+      var sy = window.scrollY + window.innerHeight * 0.35;
+      sections.forEach(function(s){ if(s.offsetTop <= sy) cur = s.getAttribute('id'); });
+      links.forEach(function(a){
+        a.classList.toggle('active', a.getAttribute('data-section') === cur);
+      });
+    }
+    window.addEventListener('scroll', update, {passive:true});
+    update();
+  })();
+</script>
+
+</body>
+</html>

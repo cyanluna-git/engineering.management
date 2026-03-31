@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getGuide, updateGuide, deleteGuide } from "@/lib/guides-store";
+import {
+  deleteGuide,
+  getGuide,
+  isGuideReadonly,
+  updateGuide,
+} from "@/lib/guides-store";
 import { requireGuideWriteAccess } from "@/lib/guide-write-guard";
 
 function isNonEmptyString(value: unknown): value is string {
@@ -19,6 +24,12 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   if (denied) return denied;
 
   const { id } = await params;
+  if (isGuideReadonly(id)) {
+    return NextResponse.json(
+      { error: "This guide is read-only and managed from static HTML source files." },
+      { status: 403 },
+    );
+  }
   const body = await request.json().catch(() => null);
   if (!body || typeof body !== "object") {
     return NextResponse.json(
@@ -56,6 +67,12 @@ export async function DELETE(_request: NextRequest, { params }: { params: Promis
   if (denied) return denied;
 
   const { id } = await params;
+  if (isGuideReadonly(id)) {
+    return NextResponse.json(
+      { error: "This guide is read-only and managed from static HTML source files." },
+      { status: 403 },
+    );
+  }
   if (!(await deleteGuide(id))) return NextResponse.json({ error: "Not found" }, { status: 404 });
   return new NextResponse(null, { status: 204 });
 }

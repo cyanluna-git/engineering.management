@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "PCAS Engineering Portal",
-  description: "Edwards PCAS unified service portal",
+  title: "Edwards Portal",
+  description: "Edwards unified service portal",
 };
 
 export default function RootLayout({
@@ -17,7 +17,7 @@ export default function RootLayout({
         <header className="sticky top-0 z-20 border-b border-red-100/80 bg-white/90 px-6 py-3 backdrop-blur">
           <div className="mx-auto flex max-w-6xl items-center justify-between">
             <a href="/" className="text-sm font-semibold tracking-tight text-slate-700">
-              PCAS Portal
+              Edwards Portal
             </a>
             <div />
           </div>

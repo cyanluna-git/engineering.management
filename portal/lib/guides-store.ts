@@ -7,6 +7,11 @@ import {
   type GuideListQuery,
   type GuideUpdateInput,
 } from "@/lib/guides-schema";
+import {
+  getStaticGuide,
+  isStaticGuide,
+  listStaticGuides,
+} from "@/lib/static-guides";
 
 export type {
   Guide,
@@ -235,11 +240,38 @@ export async function listGuides(
   category?: string,
   search?: string,
 ): Promise<Guide[]> {
-  return getGuideStore().list({ category, search });
+  const [storedGuides, staticGuides] = await Promise.all([
+    getGuideStore().list({ category, search }),
+    Promise.resolve(listStaticGuides()),
+  ]);
+
+  const normalizedCategory = category?.trim();
+  const normalizedSearch = search?.trim().toLowerCase();
+
+  const filteredStaticGuides = staticGuides.filter((guide) => {
+    if (normalizedCategory && guide.category !== normalizedCategory) {
+      return false;
+    }
+
+    if (!normalizedSearch) {
+      return true;
+    }
+
+    return (
+      guide.title.toLowerCase().includes(normalizedSearch) ||
+      guide.content.toLowerCase().includes(normalizedSearch) ||
+      guide.author.toLowerCase().includes(normalizedSearch)
+    );
+  });
+
+  return [...filteredStaticGuides, ...storedGuides].sort(
+    (a, b) =>
+      new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime(),
+  );
 }
 
 export async function getGuide(id: string): Promise<Guide | undefined> {
-  return getGuideStore().get(id);
+  return getStaticGuide(id) ?? getGuideStore().get(id);
 }
 
 export async function createGuide(input: GuideCreateInput): Promise<Guide> {
@@ -250,11 +282,17 @@ export async function updateGuide(
   id: string,
   input: GuideUpdateInput,
 ): Promise<Guide | undefined> {
+  if (isStaticGuide(id)) return undefined;
   return getGuideStore().update(id, input);
 }
 
 export async function deleteGuide(id: string): Promise<boolean> {
+  if (isStaticGuide(id)) return false;
   return getGuideStore().delete(id);
+}
+
+export function isGuideReadonly(id: string): boolean {
+  return isStaticGuide(id);
 }
 
 export function getGuideCategoryOptions(): readonly string[] {
