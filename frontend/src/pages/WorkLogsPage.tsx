@@ -3,17 +3,20 @@
  * Main page for managing work time entries
  * Now with tabs: Entry (calendar view) and Table (list view)
  */
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { format, startOfWeek, addWeeks, subWeeks } from 'date-fns';
+import { format, startOfWeek, addWeeks, addDays, subWeeks } from 'date-fns';
 import { useTranslation } from 'react-i18next';
 import { useApiError } from '@/hooks/useApiError';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui';
 import { WeeklyCalendarGrid } from '@/components/worklogs/WeeklyCalendarGrid';
 import { WorkLogEntryModal } from '@/components/worklogs/WorkLogEntryModal';
 import { LeaveEntryModal } from '@/components/worklogs/LeaveEntryModal';
+import { MeetingImportPreviewModal } from '@/components/worklogs/MeetingImportPreviewModal';
 import { WorkLogTableView } from '@/components/worklogs/WorkLogTableView';
 import { MyMonthlyRateCard, WorkLogMonthlyRateView } from '@/components/worklogs/WorkLogMonthlyRateView';
 import { AIWorklogModal } from '@/components/worklogs/AIWorklogModal';
@@ -22,11 +25,16 @@ import {
     useCreateWorklog,
     useUpdateWorklog,
     useDeleteWorklog,
-    useCopyWeek
+    useCopyWeek,
+    useCalendarConnectionStatus,
+    useStartCalendarConnect,
+    usePreviewMeetingImport,
+    useCommitMeetingImport,
 } from '@/hooks/useWorklogs';
 import { useAIHealth } from '@/hooks/useAIWorklog';
 import { useProjects } from '@/hooks/useProjects';
 import { useAuth } from '@/hooks/useAuth';
+import type { MeetingImportDraft } from '@/api/worklogs';
 import type { WorkLog, WorkLogCreate, WorkLogUpdate } from '@/types';
 
 export function WorkLogsPage() {
@@ -44,6 +52,10 @@ export function WorkLogsPage() {
     const [isAIModalOpen, setIsAIModalOpen] = useState(false);
     const [selectedDateForAI, setSelectedDateForAI] = useState<Date | null>(null);
     const [movingWorklogId, setMovingWorklogId] = useState<number | null>(null);
+    const [meetingImportItems, setMeetingImportItems] = useState<MeetingImportDraft[]>([]);
+    const [meetingImportSkippedCount, setMeetingImportSkippedCount] = useState(0);
+    const [isMeetingImportModalOpen, setIsMeetingImportModalOpen] = useState(false);
+    const [calendarNotice, setCalendarNotice] = useState<string | null>(null);
 
     // Calculate week range for API query
     const weekRange = {
@@ -70,6 +82,29 @@ export function WorkLogsPage() {
     const updateMutation = useUpdateWorklog();
     const deleteMutation = useDeleteWorklog();
     const copyWeekMutation = useCopyWeek();
+    const calendarStatusQuery = useCalendarConnectionStatus();
+    const startCalendarConnectMutation = useStartCalendarConnect();
+    const previewMeetingImportMutation = usePreviewMeetingImport();
+    const commitMeetingImportMutation = useCommitMeetingImport();
+
+    useEffect(() => {
+        const params = new URLSearchParams(window.location.search);
+        const calendarState = params.get('calendar');
+        if (!calendarState) {
+            return;
+        }
+
+        const noticeMap: Record<string, string> = {
+            connected: t('meetingImport.notice.connected'),
+            'account-mismatch': t('meetingImport.notice.accountMismatch'),
+        };
+        setCalendarNotice(noticeMap[calendarState] ?? t('errors.generic'));
+        params.delete('calendar');
+        const nextQuery = params.toString();
+        const nextUrl = `${window.location.pathname}${nextQuery ? `?${nextQuery}` : ''}`;
+        window.history.replaceState({}, document.title, nextUrl);
+        calendarStatusQuery.refetch();
+    }, [calendarStatusQuery.refetch, t]);
 
     // Navigation handlers
     const goToPreviousWeek = () => setWeekStart((prev: Date) => subWeeks(prev, 1));
@@ -153,6 +188,70 @@ export function WorkLogsPage() {
         }
     };
 
+    const meetingImportWeekRange = useMemo(
+        () => ({
+            start_date: format(weekStart, 'yyyy-MM-dd'),
+            end_date: format(addDays(weekStart, 6), 'yyyy-MM-dd'),
+        }),
+        [weekStart],
+    );
+
+    const handleCalendarConnect = async () => {
+        try {
+            const redirectUrl = `${window.location.origin}/worklogs`;
+            const response = await startCalendarConnectMutation.mutateAsync(redirectUrl);
+            window.location.assign(response.authorization_url);
+        } catch (error: unknown) {
+            alert(getErrorMessage(error));
+        }
+    };
+
+    const handleMeetingImport = async () => {
+        if (!calendarStatusQuery.data?.has_calendar_scope) {
+            await handleCalendarConnect();
+            return;
+        }
+
+        try {
+            const response = await previewMeetingImportMutation.mutateAsync(meetingImportWeekRange);
+            setMeetingImportItems(response.items);
+            setMeetingImportSkippedCount(response.skipped_count);
+            setIsMeetingImportModalOpen(true);
+        } catch (error: unknown) {
+            alert(getErrorMessage(error));
+        }
+    };
+
+    const handleMeetingImportConfirm = async (selectedItems: MeetingImportDraft[]) => {
+        try {
+            const response = await commitMeetingImportMutation.mutateAsync({
+                items: selectedItems.map((item) => ({
+                    external_event_id: item.external_event_id,
+                    date: item.date,
+                    hours: item.hours,
+                    description: item.description,
+                    project_id: item.project_id ?? undefined,
+                    work_type_category_id: item.work_type_category_id ?? undefined,
+                    is_sudden_work: false,
+                    is_business_trip: false,
+                })),
+            });
+
+            setCalendarNotice(
+                t('meetingImport.notice.imported', {
+                    count: response.created.length,
+                    skipped: response.skipped_existing,
+                }),
+            );
+            setIsMeetingImportModalOpen(false);
+            setMeetingImportItems([]);
+            setMeetingImportSkippedCount(0);
+            refetch();
+        } catch (error: unknown) {
+            alert(getErrorMessage(error));
+        }
+    };
+
     // Leave submit handler
     const handleLeaveSubmit = async (worklogs: WorkLogCreate[]) => {
         try {
@@ -175,6 +274,31 @@ export function WorkLogsPage() {
             <div className="flex items-center justify-between">
                 <h1 className="text-2xl font-bold">{t('title')}</h1>
                 <div className="flex items-center gap-2">
+                    {activeTab === 'entry' && (
+                        <>
+                            <Badge
+                                variant={calendarStatusQuery.data?.has_calendar_scope ? 'default' : 'outline'}
+                                className="hidden md:inline-flex"
+                            >
+                                {calendarStatusQuery.data?.has_calendar_scope
+                                    ? t('meetingImport.status.connected')
+                                    : t('meetingImport.status.notConnected')}
+                            </Badge>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={handleMeetingImport}
+                                disabled={
+                                    startCalendarConnectMutation.isPending ||
+                                    previewMeetingImportMutation.isPending
+                                }
+                            >
+                                {calendarStatusQuery.data?.has_calendar_scope
+                                    ? `📥 ${t('buttons.meetingImport')}`
+                                    : `🔗 ${t('buttons.connectCalendar')}`}
+                            </Button>
+                        </>
+                    )}
                     <Button variant="outline" size="sm" onClick={() => setIsLeaveModalOpen(true)}>
                         🏖️ {t('buttons.registerLeave')}
                     </Button>
@@ -204,6 +328,11 @@ export function WorkLogsPage() {
 
                 {/* Entry Tab - Calendar View */}
                 <TabsContent value="entry" className="space-y-4 mt-4">
+                    {calendarNotice && (
+                        <Alert>
+                            <AlertDescription>{calendarNotice}</AlertDescription>
+                        </Alert>
+                    )}
                     <MyMonthlyRateCard />
 
                     {/* Week Navigation */}
@@ -315,6 +444,19 @@ export function WorkLogsPage() {
                     onComplete={refetch}
                 />
             )}
+
+            <MeetingImportPreviewModal
+                isOpen={isMeetingImportModalOpen}
+                items={meetingImportItems}
+                skippedCount={meetingImportSkippedCount}
+                isSubmitting={commitMeetingImportMutation.isPending}
+                onClose={() => {
+                    setIsMeetingImportModalOpen(false);
+                    setMeetingImportItems([]);
+                    setMeetingImportSkippedCount(0);
+                }}
+                onConfirm={handleMeetingImportConfirm}
+            />
         </div>
     );
 }

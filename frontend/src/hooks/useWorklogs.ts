@@ -12,9 +12,18 @@ import {
     copyWeek,
     getDailySummary,
     getMonthlyCompletionRates,
+    previewMeetingImport,
+    commitMeetingImport,
     WorkLogListParams,
     MonthlyCompletionParams,
+    MeetingImportPreviewRequest,
+    MeetingImportCommitRequest,
 } from '@/api/worklogs';
+import {
+    getCalendarConnectionStatus,
+    startCalendarConnect,
+    disconnectCalendarConnect,
+} from '@/api/client';
 
 // Query keys
 const WORKLOGS_KEY = 'worklogs';
@@ -123,6 +132,7 @@ import { getWorklogsTable, WorkLogTableParams } from '@/api/worklogs';
 
 const WORKLOGS_TABLE_KEY = 'worklogs-table';
 const MONTHLY_COMPLETION_KEY = 'monthly-worklog-completion';
+const CALENDAR_CONNECTION_KEY = 'calendar-connection';
 
 export function useWorklogsTable(params: WorkLogTableParams & { enabled?: boolean } = {}) {
     const { enabled = true, ...queryParams } = params;
@@ -143,5 +153,48 @@ export function useMonthlyWorklogCompletion(
         queryFn: () => getMonthlyCompletionRates(queryParams),
         enabled,
         staleTime: 1000 * 60 * 5,
+    });
+}
+
+export function useCalendarConnectionStatus() {
+    return useQuery({
+        queryKey: [CALENDAR_CONNECTION_KEY],
+        queryFn: () => getCalendarConnectionStatus(),
+        staleTime: 1000 * 60,
+    });
+}
+
+export function useStartCalendarConnect() {
+    return useMutation({
+        mutationFn: (redirectUrl?: string) => startCalendarConnect(redirectUrl),
+    });
+}
+
+export function useDisconnectCalendarConnect() {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: () => disconnectCalendarConnect(),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: [CALENDAR_CONNECTION_KEY] });
+        },
+    });
+}
+
+export function usePreviewMeetingImport() {
+    return useMutation({
+        mutationFn: (data: MeetingImportPreviewRequest) => previewMeetingImport(data),
+    });
+}
+
+export function useCommitMeetingImport() {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: (data: MeetingImportCommitRequest) => commitMeetingImport(data),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: [WORKLOGS_KEY] });
+            queryClient.invalidateQueries({ queryKey: [DAILY_SUMMARY_KEY] });
+        },
     });
 }

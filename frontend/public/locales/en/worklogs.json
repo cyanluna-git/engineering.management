@@ -8,7 +8,9 @@
   "buttons": {
     "registerLeave": "Register Leave",
     "copyLastWeek": "Copy Last Week",
-    "today": "Today"
+    "today": "Today",
+    "meetingImport": "Meeting Import",
+    "connectCalendar": "Connect Calendar"
   },
   "weekNavigation": {
     "weekTotal": "Week Total:",
@@ -25,6 +27,38 @@
     "generic": "An error occurred",
     "copyFailed": "Failed to copy week",
     "leaveFailed": "Failed to register leave"
+  },
+  "meetingImport": {
+    "status": {
+      "connected": "Calendar connected",
+      "notConnected": "Calendar not connected"
+    },
+    "notice": {
+      "connected": "Microsoft Calendar connected. You can import your meetings now.",
+      "accountMismatch": "Calendar connection was cancelled because the signed-in Microsoft account did not match your current user.",
+      "imported": "Imported {{count}} meetings into worklogs. Skipped existing: {{skipped}}."
+    },
+    "previewTitle": "Meeting Import Preview ({{count}})",
+    "previewDescription": "Review the meetings detected for this week before saving them to your worklog.",
+    "alertTitle": "Review before import",
+    "alertDescription": "{{skipped}} meetings were skipped automatically. Already imported items and drafts without a mapped work type cannot be selected.",
+    "empty": "No importable meetings were found in this range.",
+    "selectedCount": "{{count}} selected",
+    "confirmButton": "Import {{count}} item(s)",
+    "importing": "Importing...",
+    "unmapped": "Not mapped",
+    "none": "None",
+    "badges": {
+      "imported": "Already imported",
+      "manualReview": "Manual review",
+      "ready": "Ready"
+    },
+    "fields": {
+      "project": "Project",
+      "workType": "Work Type",
+      "location": "Location",
+      "attendees": "Attendees"
+    }
   },
   "entry": {
     "project": "Project",

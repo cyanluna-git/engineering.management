@@ -1370,10 +1370,10 @@ def init_data(db: Session):
         for p in projects_data:
             proj = Project(
                 id=str(uuid.uuid4()),
-                code=p["code"],
                 name=p["name"],
                 status=p["status"],
                 customer=p.get("customer"),
+                description=f"Legacy project code: {p['code']}",
                 pm_id=pm_id,
             )
             db.add(proj)

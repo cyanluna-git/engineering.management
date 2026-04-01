@@ -58,6 +58,8 @@ class WorkLog(WorkLogBase):
     user_id: str
     created_at: DateTimeType
     updated_at: DateTimeType
+    external_source: Optional[str] = None
+    external_event_id: Optional[str] = None
 
     # Nested project info (optional)
     project_code: Optional[str] = None
@@ -134,3 +136,69 @@ class MonthlyCompletionResponse(BaseModel):
     month: str
     business_days: int
     entries: List[MonthlyCompletionEntry]
+
+
+class MeetingImportPreviewRequest(BaseModel):
+    """Preview Microsoft calendar meetings that can become worklogs."""
+
+    start_date: DateType
+    end_date: DateType
+
+
+class MeetingImportDraft(BaseModel):
+    """A single imported meeting draft before confirmation."""
+
+    external_source: str
+    external_event_id: str
+    subject: str
+    date: DateType
+    start_at: DateTimeType
+    end_at: DateTimeType
+    hours: float
+    description: str
+    location: Optional[str] = None
+    attendee_count: int = 0
+    online_meeting: bool = False
+    project_id: Optional[str] = None
+    project_code: Optional[str] = None
+    project_name: Optional[str] = None
+    work_type_category_id: Optional[int] = None
+    work_type_category_code: Optional[str] = None
+    work_type_category_name: Optional[str] = None
+    matched_project_keyword: Optional[str] = None
+    matched_work_type_keyword: Optional[str] = None
+    already_imported: bool = False
+    existing_worklog_id: Optional[int] = None
+
+
+class MeetingImportPreviewResponse(BaseModel):
+    """Preview response for a batch of imported meetings."""
+
+    items: List[MeetingImportDraft]
+    skipped_count: int = 0
+
+
+class MeetingImportCommitItem(BaseModel):
+    """Single confirmed meeting draft to persist as a worklog."""
+
+    external_event_id: str
+    date: DateType
+    hours: float = Field(..., gt=0, le=24)
+    description: str
+    project_id: Optional[str] = None
+    work_type_category_id: Optional[int] = None
+    is_sudden_work: bool = False
+    is_business_trip: bool = False
+
+
+class MeetingImportCommitRequest(BaseModel):
+    """Confirmed meeting drafts to save."""
+
+    items: List[MeetingImportCommitItem] = Field(..., min_length=1)
+
+
+class MeetingImportCommitResponse(BaseModel):
+    """Persist result for meeting import."""
+
+    created: List[WorkLog]
+    skipped_existing: int

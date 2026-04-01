@@ -420,11 +420,6 @@
   <h2 class="section-heading">Introduction</h2>
   <p>This document provides a step-by-step guide on the hardware and software used to recover controller issues such as network disconnection, ping loss, and file upload errors.</p>
   <p>The recovery process involves diagnosing the issue, and if the Digi module memory is found to be corrupted, using tools such as <strong>ESP</strong> and <strong>JTAG programmers</strong> to reflash the module.</p>
-  <div class="warning-box">
-    <div class="label">Critical — Memory Protection</div>
-    <p>The last <strong>64 KB</strong> of flash memory contains unique configuration data including the <strong>MAC address</strong>. This block must be <strong>excluded from overwriting</strong>. Destroying it makes the PLC permanently unusable.</p>
-    <p>After recovery, settings must be reset in the ATE environment (e.g., switching from static IP to DHCP).</p>
-  </div>
 </div>
 
 <div class="section-divider"></div>
@@ -669,7 +664,7 @@
 
   <div class="figure-wrapper"><img src="images/p33_img00.png" alt="Breakpoints"><div class="figure-caption">root.c execution — breakpoint locations</div></div>
 
-  <div class="proc-step"><div class="step-badge">j</div><div class="step-content">Resume (F8) → wait <strong>3–4 minutes</strong> for flash erase. <strong>Do not interrupt power.</strong></div></div>
+  <div class="proc-step"><div class="step-badge">j</div><div class="step-content">Resume (F8) → wait <strong>3–4 minutes</strong> for flash erase</div></div>
 
   <div class="decision">
     <div class="decision-ok"><strong>✓ Flash Erased</strong><br>Return to step e → upload <code>rom.bin</code> → <code>image.bin</code></div>
@@ -713,25 +708,14 @@
 
   <p><strong>For J-Flash higher than v5.10I:</strong></p>
 
-  <div class="warning-box"><div class="label">Critical Warning</div>
-    <p>If options are misconfigured, the <strong>final memory region will also be erased</strong> — making the PLC <strong>permanently unusable</strong>.</p>
-  </div>
-
   <ul>
     <li>Target → <strong>Production Programming</strong> (F7)</li>
-    <li>Erase: <strong>"affected sectors"</strong> (NOT "Erase chip")</li>
+    <li>Erase: <strong>"affected sectors"</strong></li>
     <li>Program: checked / Verify: optional</li>
   </ul>
 
   <div class="figure-wrapper"><img src="images/p37_img00.png" alt="v8 Production"><div class="figure-caption">J-Flash v8 — Production Programming with correct settings</div></div>
-  <div class="figure-wrapper"><img src="images/p37_img01.png" alt="Production settings"><div class="figure-caption">Erase: "affected sectors" only — NEVER full erase</div></div>
-
-  <div class="warning-box"><div class="label">Never Do This</div>
-    <ul>
-      <li><strong>NEVER</strong> "All Sector Erase" or "Erase chip"</li>
-      <li>Permanently destroys MAC address and serial IDs in final 64KB block</li>
-    </ul>
-  </div>
+  <div class="figure-wrapper"><img src="images/p37_img01.png" alt="Production settings"><div class="figure-caption">Production Programming settings</div></div>
 </div>
 
 <div class="section-divider"></div>

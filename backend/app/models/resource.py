@@ -13,6 +13,7 @@ from sqlalchemy import (
     Date,
     Text,
     Float,
+    UniqueConstraint,
 )
 from sqlalchemy.orm import relationship
 from app.core.database import Base
@@ -74,6 +75,14 @@ class WorkLog(Base):
     """실적 기록"""
 
     __tablename__ = "worklogs"
+    __table_args__ = (
+        UniqueConstraint(
+            "user_id",
+            "external_source",
+            "external_event_id",
+            name="uq_worklogs_user_external_event",
+        ),
+    )
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     date = Column(Date, nullable=False)
@@ -93,6 +102,8 @@ class WorkLog(Base):
     description = Column(Text, nullable=True)
     is_sudden_work = Column(Boolean, default=False)
     is_business_trip = Column(Boolean, default=False)
+    external_source = Column(String(50), nullable=True)
+    external_event_id = Column(String(255), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 

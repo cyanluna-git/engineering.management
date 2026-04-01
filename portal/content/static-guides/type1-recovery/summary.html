@@ -309,11 +309,6 @@
   <div class="card-label">Overview</div>
   <h2>Introduction</h2>
   <p>This guide covers the recovery of Type 1 &amp; Type 2 controllers experiencing network disconnection, ping loss, or file upload errors. When Digi module memory is corrupted, ESP and JTAG programmers are used to reflash the module.</p>
-
-  <div class="warning-box">
-    <div class="label">Critical — Memory Protection</div>
-    <p>The last <strong>64 KB</strong> of flash memory contains the <strong>MAC address</strong> and unique serial IDs. This block must <strong>never</strong> be overwritten — destroying it makes the PLC permanently unusable.</p>
-  </div>
 </div>
 
 <!-- ===== EQUIPMENT ===== -->
@@ -415,27 +410,6 @@
       </div>
     </div>
 
-  </div>
-</div>
-
-<!-- ===== WARNINGS ===== -->
-<div class="card">
-  <div class="card-label">Safety</div>
-  <h2>Critical Warnings</h2>
-
-  <div class="warning-box">
-    <div class="label">Never Do This</div>
-    <ul>
-      <li><strong>NEVER</strong> perform "All Sector Erase" in J-Flash — permanently destroys MAC address and serial IDs</li>
-      <li><strong>NEVER</strong> use full image files — always use <strong>PARTIAL</strong> image only</li>
-      <li><strong>NEVER</strong> interrupt power during flash erase (Step 4, 3–4 min wait)</li>
-    </ul>
-  </div>
-
-  <div class="info-box">
-    <div class="label">J-Flash Version Note</div>
-    <p><strong>v5.10I or lower:</strong> Target → Program and Verify (F6)</p>
-    <p><strong>Higher than v5.10I:</strong> Use Production Programming — set Erase to <strong>"affected sectors"</strong> only</p>
   </div>
 </div>
 

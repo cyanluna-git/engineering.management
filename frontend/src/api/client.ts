@@ -171,6 +171,38 @@ export const ssoRegister = async (data: SSORegistrationData): Promise<Token> => 
   return response.data;
 };
 
+export interface CalendarConnectionStatus {
+  connected: boolean;
+  provider: string;
+  provider_email: string | null;
+  granted_scopes: string[];
+  has_calendar_scope: boolean;
+  token_expires_at: string | null;
+  connected_at: string | null;
+  updated_at: string | null;
+}
+
+export interface CalendarConnectStartResponse {
+  authorization_url: string;
+}
+
+export const getCalendarConnectionStatus = async (): Promise<CalendarConnectionStatus> => {
+  const response = await apiClient.get<CalendarConnectionStatus>('/auth/oidc/calendar/status');
+  return response.data;
+};
+
+export const startCalendarConnect = async (redirect_url?: string): Promise<CalendarConnectStartResponse> => {
+  const response = await apiClient.post<CalendarConnectStartResponse>('/auth/oidc/calendar/connect', {
+    redirect_url: redirect_url ?? null,
+  });
+  return response.data;
+};
+
+export const disconnectCalendarConnect = async (): Promise<CalendarConnectionStatus> => {
+  const response = await apiClient.delete<CalendarConnectionStatus>('/auth/oidc/calendar/connect');
+  return response.data;
+};
+
 export interface ReleaseNotesAckResponse {
   success: boolean;
   seen_release_note_version: string;

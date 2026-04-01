@@ -27,9 +27,9 @@ services:
       DEBUG: ${DEBUG:-false}
       LOG_LEVEL: ${LOG_LEVEL:-info}
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000,http://localhost:3004,https://pcas-portal.10.182.252.32.sslip.io,https://eob.10.182.252.32.sslip.io}
-      # SSL Cert for Zscaler
-      SSL_CERT_FILE: "/usr/local/share/ca-certificates/zscaler.crt"
-      REQUESTS_CA_BUNDLE: "/usr/local/share/ca-certificates/zscaler.crt"
+      # Use the system CA bundle after update-ca-certificates merges public and custom roots.
+      SSL_CERT_FILE: "/etc/ssl/certs/ca-certificates.crt"
+      REQUESTS_CA_BUNDLE: "/etc/ssl/certs/ca-certificates.crt"
     ports:
       - "${BACKEND_PORT:-8004}:8004"
     depends_on:

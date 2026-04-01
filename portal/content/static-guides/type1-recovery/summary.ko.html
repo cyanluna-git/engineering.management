@@ -309,11 +309,6 @@
   <div class="card-label">개요</div>
   <h2>소개</h2>
   <p>이 가이드는 네트워크 단절, ping 손실, 파일 업로드 오류가 발생한 Type 1 및 Type 2 컨트롤러의 복구 절차를 다룹니다. Digi 모듈 메모리가 손상된 경우 ESP와 JTAG 프로그래머를 사용해 모듈을 다시 플래시합니다.</p>
-
-  <div class="warning-box">
-    <div class="label">중요 — 메모리 보호</div>
-    <p>플래시 메모리의 마지막 <strong>64 KB</strong>에는 <strong>MAC 주소</strong>와 고유 시리얼 ID가 저장되어 있습니다. 이 영역은 <strong>절대</strong> 덮어쓰면 안 되며, 손상되면 PLC를 영구적으로 사용할 수 없게 됩니다.</p>
-  </div>
 </div>
 
 <!-- ===== EQUIPMENT ===== -->
@@ -415,27 +410,6 @@
       </div>
     </div>
 
-  </div>
-</div>
-
-<!-- ===== WARNINGS ===== -->
-<div class="card">
-  <div class="card-label">주의 사항</div>
-  <h2>중요 경고</h2>
-
-  <div class="warning-box">
-    <div class="label">절대 하지 말 것</div>
-    <ul>
-      <li><strong>절대</strong> J-Flash에서 "All Sector Erase"를 수행하지 마십시오. MAC 주소와 시리얼 ID가 영구적으로 손상됩니다.</li>
-      <li><strong>절대</strong> full image 파일을 사용하지 마십시오. 항상 <strong>PARTIAL</strong> 이미지 파일만 사용합니다.</li>
-      <li><strong>절대</strong> 플래시 삭제 중 전원을 끄지 마십시오. (4단계, 3~4분 대기)</li>
-    </ul>
-  </div>
-
-  <div class="info-box">
-    <div class="label">J-Flash 버전 메모</div>
-    <p><strong>v5.10I 이하:</strong> Target → Program and 확인(F6)</p>
-    <p><strong>v5.10I 초과:</strong> Production Programming 사용, Erase는 <strong>"affected sectors"</strong>만 설정</p>
   </div>
 </div>
 

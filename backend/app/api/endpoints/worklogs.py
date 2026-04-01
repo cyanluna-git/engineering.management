@@ -23,7 +23,13 @@ from app.schemas.worklog import (
     WorkLogWithUser,
     FrequentSelections,
     MonthlyCompletionResponse,
+    MeetingImportPreviewRequest,
+    MeetingImportPreviewResponse,
+    MeetingImportCommitRequest,
+    MeetingImportCommitResponse,
 )
+from app.services.graph_calendar_service import CalendarConnectionError
+from app.services.meeting_import_service import MeetingImportService
 from app.services.worklog_service import WorkLogService
 
 router = APIRouter()
@@ -80,6 +86,8 @@ async def list_worklogs(
             "description": wl.description,
             "is_sudden_work": wl.is_sudden_work,
             "is_business_trip": wl.is_business_trip,
+            "external_source": wl.external_source,
+            "external_event_id": wl.external_event_id,
             "created_at": wl.created_at,
             "updated_at": wl.updated_at,
             "project_code": get_io_number(wl.project) if wl.project else None,
@@ -155,6 +163,8 @@ async def list_worklogs_table(
             "description": wl.description,
             "is_sudden_work": wl.is_sudden_work,
             "is_business_trip": wl.is_business_trip,
+            "external_source": wl.external_source,
+            "external_event_id": wl.external_event_id,
             "created_at": wl.created_at,
             "updated_at": wl.updated_at,
             "project_code": get_io_number(wl.project) if wl.project else None,
@@ -299,6 +309,8 @@ async def create_worklog(
             "description": new_worklog.description,
             "is_sudden_work": new_worklog.is_sudden_work,
             "is_business_trip": new_worklog.is_business_trip,
+            "external_source": new_worklog.external_source,
+            "external_event_id": new_worklog.external_event_id,
             "created_at": new_worklog.created_at,
             "updated_at": new_worklog.updated_at,
             "project_code": get_io_number(new_worklog.project) if new_worklog.project else None,
@@ -367,6 +379,8 @@ async def get_worklog(
         "description": worklog.description,
         "is_sudden_work": worklog.is_sudden_work,
         "is_business_trip": worklog.is_business_trip,
+        "external_source": worklog.external_source,
+        "external_event_id": worklog.external_event_id,
         "created_at": worklog.created_at,
         "updated_at": worklog.updated_at,
         "project_code": get_io_number(worklog.project) if worklog.project else None,
@@ -407,6 +421,8 @@ async def update_worklog(
             "description": updated_worklog.description,
             "is_sudden_work": updated_worklog.is_sudden_work,
             "is_business_trip": updated_worklog.is_business_trip,
+            "external_source": updated_worklog.external_source,
+            "external_event_id": updated_worklog.external_event_id,
             "created_at": updated_worklog.created_at,
             "updated_at": updated_worklog.updated_at,
             "project_code": (
@@ -471,6 +487,8 @@ async def copy_last_week_worklogs(
                 "description": wl.description,
                 "is_sudden_work": wl.is_sudden_work,
                 "is_business_trip": wl.is_business_trip,
+                "external_source": wl.external_source,
+                "external_event_id": wl.external_event_id,
                 "created_at": wl.created_at,
                 "updated_at": wl.updated_at,
                 "project_code": get_io_number(wl.project) if wl.project else None,
@@ -480,3 +498,37 @@ async def copy_last_week_worklogs(
         )
 
     return result
+
+
+@router.post("/meeting-import/preview", response_model=MeetingImportPreviewResponse)
+async def preview_meeting_import(
+    body: MeetingImportPreviewRequest,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    """Preview self calendar meetings as worklog drafts."""
+    service = MeetingImportService(db)
+    try:
+        return service.preview(
+            user=current_user,
+            start_date=body.start_date,
+            end_date=body.end_date,
+        )
+    except CalendarConnectionError as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+
+@router.post("/meeting-import/commit", response_model=MeetingImportCommitResponse)
+async def commit_meeting_import(
+    body: MeetingImportCommitRequest,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    """Persist confirmed meeting drafts as self worklogs."""
+    service = MeetingImportService(db)
+    try:
+        return service.commit(user=current_user, items=body.items)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc

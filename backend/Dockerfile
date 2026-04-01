@@ -9,6 +9,7 @@ WORKDIR /app
 
 # Install system dependencies for pyodbc
 RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates \
     curl \
     gnupg2 \
     unixodbc-dev \
@@ -34,6 +35,7 @@ WORKDIR /app
 
 # Install ODBC driver in runtime
 RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates \
     curl \
     gnupg2 \
     unixodbc \
@@ -47,7 +49,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # Install Custom Certificates (Zscaler) if present
 COPY certs/zscaler.crt /usr/local/share/ca-certificates/zscaler.crt
-RUN if [ -f /usr/local/share/ca-certificates/zscaler.crt ]; then \
+RUN update-ca-certificates \
+    && if [ -f /usr/local/share/ca-certificates/zscaler.crt ]; then \
         update-ca-certificates; \
     fi
 

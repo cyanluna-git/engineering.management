@@ -327,6 +327,8 @@ export interface WorkLog {
     description?: string
     is_sudden_work: boolean
     is_business_trip: boolean
+    external_source?: string
+    external_event_id?: string
     created_at?: string
     updated_at?: string
     project_code?: string

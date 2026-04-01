@@ -63,8 +63,8 @@ def create_refresh_token(data: dict) -> str:
 
 
 def create_registration_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
-    """Create a short-lived JWT registration token for SSO self-registration.
-    Contains SAML-verified email and name. Default 10 minute expiry."""
+    """Create a short-lived JWT registration token for Microsoft sign-in self-registration.
+    Contains IdP-verified email and name. Default 10 minute expiry."""
     to_encode = data.copy()
     if expires_delta:
         expire = datetime.now(timezone.utc) + expires_delta

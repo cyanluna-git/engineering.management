@@ -66,21 +66,36 @@ class Settings(BaseSettings):
     CSV_BACKUP_PATH: str = "backups/latest"
     MIGRATION_REPORT_PATH: str = "reports"
 
-    # SSO / SAML 2.0
-    SAML_ENABLED: bool = False
-    SAML_ENTITY_ID: str = "https://eob.10.182.252.32.sslip.io"
-    SAML_ACS_URL: str = "https://eob.10.182.252.32.sslip.io/api/auth/sso/callback"
-    SAML_SLO_URL: str = "https://eob.10.182.252.32.sslip.io/api/auth/logout"
-    # Identity Provider (IdP) Settings - To be provided by Admin
-    SAML_IDP_ENTITY_ID: str = ""
-    SAML_IDP_SSO_URL: str = ""
-    SAML_IDP_X509_CERT: str = ""  # Base64 encoded cert
-    SAML_STRICT: bool = True
-    SAML_DEBUG: bool = True
+    # OIDC / MSAL
+    OIDC_ENABLED: bool = False
+    OIDC_CLIENT_ID: str = ""
+    OIDC_CLIENT_SECRET: str = ""
+    OIDC_TENANT_ID: str = ""
+    OIDC_AUTHORITY: str = ""
+    OIDC_REDIRECT_URI: str = "http://localhost:8004/api/auth/oidc/callback"
+    OIDC_POST_LOGOUT_REDIRECT_URI: str = "http://localhost:3004/login"
+    OIDC_SCOPES: str = "openid,profile,email,offline_access,User.Read"
+    OIDC_ALLOWED_EXTRA_SCOPES: str = "Calendars.Read"
 
     @property
     def cors_origins_list(self) -> list[str]:
         return [origin.strip() for origin in self.CORS_ORIGINS.split(",")]
+
+    @property
+    def oidc_scopes_list(self) -> list[str]:
+        return [
+            scope.strip()
+            for scope in self.OIDC_SCOPES.split(",")
+            if scope.strip()
+        ]
+
+    @property
+    def oidc_allowed_extra_scopes_list(self) -> list[str]:
+        return [
+            scope.strip()
+            for scope in self.OIDC_ALLOWED_EXTRA_SCOPES.split(",")
+            if scope.strip()
+        ]
 
     @model_validator(mode="after")
     def validate_required(self) -> "Settings":

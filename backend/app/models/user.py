@@ -59,6 +59,7 @@ class User(Base):
     absences = relationship(
         "Absence", back_populates="user", foreign_keys="Absence.user_id"
     )
+    oauth_connections = relationship("UserOAuthConnection", back_populates="user")
 
 
 class UserHistory(Base):

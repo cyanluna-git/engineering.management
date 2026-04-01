@@ -26,6 +26,7 @@ from app.models.hiring_plan import HiringPlan
 from app.models.work_type import WorkTypeCategory, WorkTypeLegacyMapping
 from app.models.ai_summary import AISummary
 from app.models.portal_access_log import PortalAccessLog
+from app.models.oauth_connection import UserOAuthConnection
 from app.models.weekly_report import WeeklyReport
 from app.models.absence import Absence
 from app.models.generated_report import GeneratedReport
@@ -71,6 +72,8 @@ __all__ = [
     "AISummary",
     # Portal
     "PortalAccessLog",
+    # OAuth
+    "UserOAuthConnection",
     # Weekly Reports
     "WeeklyReport",
     # Absence

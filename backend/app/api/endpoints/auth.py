@@ -2,12 +2,15 @@
 Authentication endpoints
 """
 
+import json
 import logging
-import traceback
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone
+from urllib.parse import parse_qsl, quote, urlencode, urlparse, urlunparse
+
 from fastapi import APIRouter, Depends, HTTPException, status, Request, Response
-from fastapi.responses import RedirectResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.security import OAuth2PasswordRequestForm
+from jose import JWTError, jwt
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
@@ -24,8 +27,12 @@ from app.core.security import (
 )
 from app.core.config import settings
 from app.services.auth_service import authenticate_user
-from app.services.sso_service import SSOService
+from app.services.oidc_service import OIDCService
+from app.services.oauth_connection_service import OAuthConnectionService
 from app.schemas.auth import (
+    CalendarConnectionStatusResponse,
+    CalendarConnectStartRequest,
+    CalendarConnectStartResponse,
     Token,
     TokenRefreshRequest,
     UserResponse,
@@ -40,6 +47,8 @@ from sqlalchemy.orm import joinedload
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
+
+OIDC_FLOW_COOKIE_NAME = "eob_oidc_flow"
 
 
 @router.post("/login", response_model=Token)
@@ -268,155 +277,287 @@ def _validate_redirect_url(redirect_url: str | None) -> str | None:
     parsed = urlparse(redirect_url)
     allowed_patterns = [
         ".10.182.252.32.sslip.io",
+        ".atlascopco.group",
+        ".edwardsvacuum.com",
         "localhost",
     ]
     hostname = parsed.hostname or ""
     if any(hostname.endswith(p) or hostname == p.lstrip(".") for p in allowed_patterns):
         return redirect_url
-    logger.warning(f"SSO redirect blocked for disallowed domain: {hostname}")
+    logger.warning(f"Auth redirect blocked for disallowed domain: {hostname}")
     return None
 
 
-@router.get("/sso/login")
-async def sso_login(request: Request, redirect: str | None = None):
-    """
-    Initiate SAML SSO login process.
-    Redirects user to the Identity Provider (Entra ID).
-    Optional `redirect` param: after SSO, redirect tokens to this URL instead of EOB frontend.
-    """
-    if not settings.SAML_ENABLED:
-        raise HTTPException(status_code=400, detail="SSO is not enabled")
-
-    # Determine if we are using HTTPS
-    # In production (not DEBUG), we should generally assume HTTPS if being accessed via the proxy
-    is_https = request.url.scheme == 'https' or (not settings.DEBUG and not "localhost" in request.url.netloc)
-
-    request_data = {
-        'https': 'on' if is_https else 'off',
-        'http_host': request.url.netloc,
-        'script_name': request.url.path,
-        'server_port': request.url.port or (443 if is_https else 80),
-        'get_data': dict(request.query_params),
-        'post_data': {},
-        'query_string': request.url.query
-    }
-
-    auth = SSOService.init_saml_auth(request_data)
-
-    # Store validated redirect URL in RelayState so it survives the SAML round-trip.
-    # Pass explicit return_to to prevent python3-saml from defaulting RelayState
-    # to the current URL (/api/auth/sso/login), which causes an infinite redirect loop.
-    validated_redirect = _validate_redirect_url(redirect)
-    sso_url = auth.login(return_to=validated_redirect or "")
-
-    return RedirectResponse(sso_url)
+def _append_query_params(url: str, **params: str) -> str:
+    """Append or replace query parameters while preserving existing ones."""
+    parsed = urlparse(url)
+    query = dict(parse_qsl(parsed.query, keep_blank_values=True))
+    query.update({key: value for key, value in params.items() if value is not None})
+    return urlunparse(parsed._replace(query=urlencode(query)))
 
 
-@router.post("/sso/callback")
-async def sso_callback(request: Request, db: Session = Depends(get_db)):
-    """
-    SAML Assertion Consumer Service (ACS) endpoint.
-    Handles the POST response from Entra ID after user authentication.
-    """
-    if not settings.SAML_ENABLED:
-        raise HTTPException(status_code=400, detail="SSO is not enabled")
-        
-    form_data = await request.form()
-    # Consistent HTTPS detection
-    is_https = request.url.scheme == 'https' or (not settings.DEBUG and not "localhost" in request.url.netloc)
-    
-    request_data = {
-        'https': 'on' if is_https else 'off',
-        'http_host': request.url.netloc,
-        'script_name': request.url.path,
-        'server_port': request.url.port or (443 if is_https else 80),
-        'get_data': dict(request.query_params),
-        'post_data': dict(form_data),
-        'query_string': request.url.query
-    }
-    
-    auth = SSOService.init_saml_auth(request_data)
-    auth.process_response()
-    
-    errors = auth.get_errors()
-    if errors:
-        logger.error(f"SAML Error: {errors}")
-        logger.error(f"Last Error Reason: {auth.get_last_error_reason()}")
-        raise HTTPException(status_code=401, detail=f"SAML Authentication failed: {errors}")
-    
-    if not auth.is_authenticated():
-        raise HTTPException(status_code=401, detail="SAML User not authenticated")
-    
-    # Extract user info
-    user_info = SSOService.extract_user_attributes(auth)
-    email = user_info.get("email")
-    
-    if not email:
-        raise HTTPException(status_code=400, detail="Email not found in SAML assertion")
-    
-    # Match user in DB (Case-insensitive)
-    from sqlalchemy import func
-    from urllib.parse import quote
-    user = db.query(User).filter(func.lower(User.email) == func.lower(email)).first()
+def _parse_requested_scopes(scopes: str | None) -> list[str]:
+    """Parse comma or space separated scope list."""
+    if not scopes:
+        return []
+    normalized = scopes.replace(",", " ")
+    return [scope.strip() for scope in normalized.split() if scope.strip()]
 
-    # Build frontend base URL for error redirects
+
+def _frontend_base_url(request: Request) -> str:
+    """Resolve the frontend base URL used for auth redirects."""
     if settings.DEBUG:
-        frontend_base = "http://localhost:3004"
-    else:
-        scheme = "https" if request.url.scheme == "https" or not settings.DEBUG else "http"
-        frontend_base = f"{scheme}://{request.url.netloc}"
+        return "http://localhost:3004"
+    scheme = "https" if request.url.scheme == "https" or not settings.DEBUG else "http"
+    return f"{scheme}://{request.url.netloc}"
+
+
+def _create_oidc_flow_token(flow: dict, redirect_url: str | None) -> str:
+    """Sign the transient OIDC auth-code flow state into a short-lived JWT cookie."""
+    payload = {
+        "type": "oidc_flow",
+        "flow": flow,
+        "redirect_url": redirect_url,
+        "flow_type": flow.get("_app_flow_type", "login"),
+        "link_user_id": flow.get("_app_link_user_id"),
+        "exp": datetime.now(timezone.utc) + timedelta(minutes=10),
+    }
+    return jwt.encode(payload, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
+
+
+def _decode_oidc_flow_token(token: str | None) -> dict | None:
+    """Decode and validate the transient OIDC auth-code flow state cookie."""
+    if not token:
+        return None
+    try:
+        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+    except JWTError:
+        return None
+    if payload.get("type") != "oidc_flow":
+        return None
+    return payload
+
+
+def _set_flow_cookie(response: RedirectResponse, flow_token: str) -> None:
+    """Persist auth-code flow state securely across the OIDC round-trip."""
+    response.set_cookie(
+        key=OIDC_FLOW_COOKIE_NAME,
+        value=flow_token,
+        httponly=True,
+        secure=not settings.DEBUG,
+        samesite="lax",
+        max_age=600,
+        path="/",
+    )
+
+
+def _clear_flow_cookie(response: RedirectResponse) -> None:
+    """Remove the transient OIDC flow cookie after callback completes."""
+    response.delete_cookie(
+        key=OIDC_FLOW_COOKIE_NAME,
+        path="/",
+        secure=not settings.DEBUG,
+        httponly=True,
+        samesite="lax",
+    )
+
+
+async def _start_oidc_login(request: Request, redirect: str | None = None, scopes: str | None = None):
+    """Start the OIDC authorization-code flow and persist state in a secure cookie."""
+    if not settings.OIDC_ENABLED:
+        raise HTTPException(status_code=400, detail="OIDC is not enabled")
+
+    validated_redirect = _validate_redirect_url(redirect)
+    try:
+        flow = OIDCService.initiate_auth_code_flow(
+            extra_scopes=_parse_requested_scopes(scopes),
+            redirect_uri=settings.OIDC_REDIRECT_URI.strip(),
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+    response = RedirectResponse(flow["auth_uri"])
+    _set_flow_cookie(response, _create_oidc_flow_token(flow, validated_redirect))
+    return response
+
+
+async def _start_oidc_calendar_connect(current_user: User, redirect_url: str | None = None):
+    """Start incremental consent for Microsoft Calendar access and persist flow in a cookie."""
+    validated_redirect = _validate_redirect_url(redirect_url)
+    try:
+        flow = OIDCService.initiate_auth_code_flow(
+            extra_scopes=["Calendars.Read"],
+            redirect_uri=settings.OIDC_REDIRECT_URI.strip(),
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+    flow["_app_flow_type"] = "calendar_connect"
+    flow["_app_link_user_id"] = current_user.id
+
+    response = JSONResponse(
+        CalendarConnectStartResponse(authorization_url=flow["auth_uri"]).model_dump()
+    )
+    _set_flow_cookie(response, _create_oidc_flow_token(flow, validated_redirect))
+    return response
+
+
+async def _handle_oidc_callback(request: Request, db: Session):
+    """Complete the OIDC auth-code flow, then issue EOB JWTs and redirect to the frontend."""
+    if not settings.OIDC_ENABLED:
+        raise HTTPException(status_code=400, detail="OIDC is not enabled")
+
+    flow_payload = _decode_oidc_flow_token(request.cookies.get(OIDC_FLOW_COOKIE_NAME))
+    if flow_payload is None:
+        raise HTTPException(status_code=400, detail="Missing or invalid OIDC flow state")
+
+    auth_response = dict(request.query_params)
+    try:
+        token_result = OIDCService.exchange_code_for_token(
+            flow=flow_payload["flow"],
+            auth_response=auth_response,
+            redirect_uri=settings.OIDC_REDIRECT_URI.strip(),
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+    if token_result.get("error"):
+        logger.error("OIDC token exchange failed: %s", token_result)
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=f"OIDC authentication failed: {token_result.get('error_description') or token_result['error']}",
+        )
+
+    user_info = OIDCService.extract_user_attributes(token_result)
+    email = user_info.get("email")
+    if not email:
+        raise HTTPException(status_code=400, detail="Email not found in OIDC claims")
+
+    flow_type = flow_payload.get("flow_type") or "login"
+    if flow_type == "calendar_connect":
+        link_user_id = flow_payload.get("link_user_id")
+        if not link_user_id:
+            raise HTTPException(status_code=400, detail="Missing linked user for calendar connect")
+
+        linked_user = db.query(User).filter(User.id == link_user_id).first()
+        if linked_user is None or not linked_user.is_active:
+            raise HTTPException(status_code=400, detail="Linked user is missing or inactive")
+
+        if linked_user.email.lower() != email.lower():
+            logger.warning(
+                "OIDC calendar connect email mismatch: expected %s but got %s",
+                linked_user.email,
+                email,
+            )
+            frontend_base = _frontend_base_url(request)
+            redirect_target = _validate_redirect_url(flow_payload.get("redirect_url"))
+            base_target = redirect_target or f"{frontend_base}/worklogs"
+            response = RedirectResponse(
+                url=_append_query_params(base_target, calendar="account-mismatch"),
+                status_code=status.HTTP_302_FOUND,
+            )
+            _clear_flow_cookie(response)
+            return response
+
+        OAuthConnectionService.upsert_microsoft_connection(
+            db,
+            user=linked_user,
+            provider_subject=user_info.get("provider_id"),
+            provider_email=email,
+            tenant_id=user_info.get("tenant_id"),
+            granted_scopes=OIDCService.granted_scopes(token_result),
+            refresh_token=token_result.get("refresh_token"),
+            access_token=token_result.get("access_token"),
+            expires_in_seconds=token_result.get("expires_in"),
+        )
+
+        frontend_base = _frontend_base_url(request)
+        redirect_target = _validate_redirect_url(flow_payload.get("redirect_url"))
+        base_target = redirect_target or f"{frontend_base}/worklogs"
+        response = RedirectResponse(
+            url=_append_query_params(base_target, calendar="connected"),
+            status_code=status.HTTP_302_FOUND,
+        )
+        _clear_flow_cookie(response)
+        return response
+
+    from sqlalchemy import func
+
+    user = db.query(User).filter(func.lower(User.email) == func.lower(email)).first()
+    frontend_base = _frontend_base_url(request)
 
     if not user:
-        logger.info(f"SSO: Unregistered user {email}, redirecting to registration")
-        reg_token = create_registration_token({
-            "email": email,
-            "name": user_info.get("name", ""),
-        })
-        return RedirectResponse(
+        logger.info("OIDC: Unregistered user %s, redirecting to registration", email)
+        reg_token = create_registration_token(
+            {
+                "email": email,
+                "name": user_info.get("name", ""),
+                "provider_id": user_info.get("provider_id", ""),
+            }
+        )
+        response = RedirectResponse(
             url=f"{frontend_base}/register?token={reg_token}",
             status_code=status.HTTP_302_FOUND,
         )
+        _clear_flow_cookie(response)
+        return response
 
     if not user.is_active:
-        logger.warning(f"SSO Login attempt for inactive user: {email}")
-        return RedirectResponse(
+        logger.warning("OIDC login attempt for inactive user: %s", email)
+        response = RedirectResponse(
             url=f"{frontend_base}/login?error=inactive&email={quote(email)}",
             status_code=status.HTTP_302_FOUND,
         )
+        _clear_flow_cookie(response)
+        return response
 
-    # Create tokens
+    OAuthConnectionService.upsert_microsoft_connection(
+        db,
+        user=user,
+        provider_subject=user_info.get("provider_id"),
+        provider_email=email,
+        tenant_id=user_info.get("tenant_id"),
+        granted_scopes=OIDCService.granted_scopes(token_result),
+        refresh_token=token_result.get("refresh_token"),
+        access_token=token_result.get("access_token"),
+        expires_in_seconds=token_result.get("expires_in"),
+    )
+
     access_token = create_access_token(
         data={"sub": user.id, "role": user.role},
         expires_delta=timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES),
     )
     refresh_token = create_refresh_token(data={"sub": user.id, "role": user.role})
-    
-    # Check for cross-app redirect via RelayState (e.g., POP requesting auth).
-    # Ignore RelayState that points to our own SSO endpoints to prevent redirect loops.
-    relay_state = form_data.get("RelayState", "")
-    if relay_state and "/auth/sso/" in relay_state:
-        relay_state = ""
-    redirect_target = _validate_redirect_url(relay_state) if relay_state else None
 
+    redirect_target = _validate_redirect_url(flow_payload.get("redirect_url"))
     if redirect_target:
-        # External app redirect: send tokens to the requesting app
         redirect_url = f"{redirect_target.rstrip('/')}/#token={access_token}&refresh={refresh_token}"
-        logger.info(f"SSO Login successful for {email}, redirecting to external app: {redirect_target}")
-        return RedirectResponse(url=redirect_url, status_code=status.HTTP_302_FOUND)
-
-    # Default: redirect to EOB frontend with tokens in URL fragment
-    if settings.DEBUG:
-        frontend_url = (
-            f"http://localhost:3004/#token={access_token}&refresh={refresh_token}"
-        )
     else:
-        scheme = "https" if request.url.scheme == "https" or not settings.DEBUG else "http"
-        frontend_url = (
-            f"{scheme}://{request.url.netloc}/#token={access_token}&refresh={refresh_token}"
-        )
+        redirect_url = f"{frontend_base}/#token={access_token}&refresh={refresh_token}"
 
-    logger.info(f"SSO Login successful for {email}, redirecting to frontend")
-    return RedirectResponse(url=frontend_url, status_code=status.HTTP_302_FOUND)
+    response = RedirectResponse(url=redirect_url, status_code=status.HTTP_302_FOUND)
+    _clear_flow_cookie(response)
+    return response
+
+
+@router.get("/sso/login")
+@router.get("/oidc/login")
+async def sso_login(request: Request, redirect: str | None = None, scopes: str | None = None):
+    """
+    Initiate the Microsoft Entra ID auth-code flow.
+    `/sso/login` remains as a compatibility alias for the frontend.
+    """
+    return await _start_oidc_login(request, redirect=redirect, scopes=scopes)
+
+
+@router.get("/sso/callback")
+@router.get("/oidc/callback")
+async def sso_callback(request: Request, db: Session = Depends(get_db)):
+    """
+    Authentication callback endpoint.
+    `/sso/callback` remains as a compatibility alias, but the flow is OIDC-only.
+    """
+    return await _handle_oidc_callback(request, db)
 
 
 @router.post("/sso/register", response_model=Token)
@@ -491,3 +632,36 @@ async def sso_register(body: SSORegistrationRequest, db: Session = Depends(get_d
 
     logger.info(f"SSO self-registration successful for {email}")
     return Token(access_token=access_token, refresh_token=refresh_token, token_type="bearer")
+
+
+@router.get("/oidc/calendar/status", response_model=CalendarConnectionStatusResponse)
+async def get_calendar_connection_status(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Return the persisted Microsoft Calendar consent status for the current user."""
+    connection = OAuthConnectionService.get_connection(db, user_id=current_user.id)
+    return CalendarConnectionStatusResponse(**OAuthConnectionService.serialize_status(connection))
+
+
+@router.post("/oidc/calendar/connect", response_model=CalendarConnectStartResponse)
+async def start_calendar_connect(
+    body: CalendarConnectStartRequest,
+    current_user: User = Depends(get_current_user),
+):
+    """Start incremental consent for Microsoft Calendar access."""
+    return await _start_oidc_calendar_connect(current_user, redirect_url=body.redirect_url)
+
+
+@router.delete("/oidc/calendar/connect", response_model=CalendarConnectionStatusResponse)
+async def disconnect_calendar_connect(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Disconnect the stored Microsoft Calendar delegated token for the current user."""
+    OAuthConnectionService.disconnect_microsoft_connection(db, user_id=current_user.id)
+    return CalendarConnectionStatusResponse(
+        **OAuthConnectionService.serialize_status(
+            OAuthConnectionService.get_connection(db, user_id=current_user.id)
+        )
+    )

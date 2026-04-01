@@ -3,6 +3,7 @@ Authentication Schemas - Pydantic models for auth endpoints
 """
 
 from typing import Optional
+from datetime import datetime
 from pydantic import BaseModel, EmailStr
 
 
@@ -86,10 +87,35 @@ class ReleaseNotesAckResponse(BaseModel):
 
 
 class SSORegistrationRequest(BaseModel):
-    """SSO self-registration request - for unregistered SAML users"""
+    """SSO self-registration request for unregistered Microsoft sign-in users."""
 
     registration_token: str
     name: str
     korean_name: str
     department_id: str
     position_id: str
+
+
+class CalendarConnectStartRequest(BaseModel):
+    """Request to start delegated Microsoft Calendar consent."""
+
+    redirect_url: Optional[str] = None
+
+
+class CalendarConnectStartResponse(BaseModel):
+    """Authorization URL for Microsoft Calendar consent."""
+
+    authorization_url: str
+
+
+class CalendarConnectionStatusResponse(BaseModel):
+    """Persisted Microsoft Calendar connection state for the current user."""
+
+    connected: bool
+    provider: str
+    provider_email: Optional[str] = None
+    granted_scopes: list[str]
+    has_calendar_scope: bool
+    token_expires_at: Optional[datetime] = None
+    connected_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None

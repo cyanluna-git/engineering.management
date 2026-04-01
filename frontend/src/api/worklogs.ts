@@ -115,6 +115,60 @@ export interface WorkLogTableParams extends WorkLogListParams {
     sub_team_id?: string;
 }
 
+export interface MeetingImportDraft {
+    external_source: string;
+    external_event_id: string;
+    subject: string;
+    date: string;
+    start_at: string;
+    end_at: string;
+    hours: number;
+    description: string;
+    location?: string | null;
+    attendee_count: number;
+    online_meeting: boolean;
+    project_id?: string | null;
+    project_code?: string | null;
+    project_name?: string | null;
+    work_type_category_id?: number | null;
+    work_type_category_code?: string | null;
+    work_type_category_name?: string | null;
+    matched_project_keyword?: string | null;
+    matched_work_type_keyword?: string | null;
+    already_imported: boolean;
+    existing_worklog_id?: number | null;
+}
+
+export interface MeetingImportPreviewRequest {
+    start_date: string;
+    end_date: string;
+}
+
+export interface MeetingImportPreviewResponse {
+    items: MeetingImportDraft[];
+    skipped_count: number;
+}
+
+export interface MeetingImportCommitItem {
+    external_event_id: string;
+    date: string;
+    hours: number;
+    description: string;
+    project_id?: string | null;
+    work_type_category_id?: number | null;
+    is_sudden_work?: boolean;
+    is_business_trip?: boolean;
+}
+
+export interface MeetingImportCommitRequest {
+    items: MeetingImportCommitItem[];
+}
+
+export interface MeetingImportCommitResponse {
+    created: WorkLog[];
+    skipped_existing: number;
+}
+
 export interface MonthlyCompletionEntry {
     user_id: string;
     user_name: string;
@@ -154,6 +208,20 @@ export const getMonthlyCompletionRates = async (
     params: MonthlyCompletionParams
 ): Promise<MonthlyCompletionResponse> => {
     const response = await apiClient.get('/worklogs/completion/monthly', { params });
+    return response.data;
+};
+
+export const previewMeetingImport = async (
+    data: MeetingImportPreviewRequest,
+): Promise<MeetingImportPreviewResponse> => {
+    const response = await apiClient.post('/worklogs/meeting-import/preview', data);
+    return response.data;
+};
+
+export const commitMeetingImport = async (
+    data: MeetingImportCommitRequest,
+): Promise<MeetingImportCommitResponse> => {
+    const response = await apiClient.post('/worklogs/meeting-import/commit', data);
     return response.data;
 };
 

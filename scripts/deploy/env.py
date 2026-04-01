@@ -57,7 +57,6 @@ SERVER_DOMAIN_DEFAULT = "pcas-portal.10.182.252.32.sslip.io"
 SERVER_OVERRIDES: Dict[str, str] = {
     "DEBUG": "false",
     "LOG_LEVEL": "info",
-    "SAML_DEBUG": "false",
 }
 
 # Keys to remove from server env (managed by docker-compose or dev-only)
@@ -81,9 +80,8 @@ def build_domain_overrides(domain: str) -> Dict[str, str]:
         f"https://{jarvis_domain}",
     ])
     return {
-        "SAML_ENTITY_ID": f"https://{eob_domain}",
-        "SAML_ACS_URL": f"https://{eob_domain}/api/auth/sso/callback",
-        "SAML_SLO_URL": f"https://{eob_domain}/api/auth/logout",
+        "OIDC_REDIRECT_URI": f"https://{eob_domain}/api/auth/oidc/callback",
+        "OIDC_POST_LOGOUT_REDIRECT_URI": f"https://{eob_domain}/login",
         "CORS_ORIGINS": cors,
         "VITE_APP_BASE": "/",
         "VITE_API_URL": "/api",
@@ -436,7 +434,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     parser.add_argument(
         "--domain",
         default=SERVER_DOMAIN_DEFAULT,
-        help=f"Server domain for SAML/CORS URLs (default: {SERVER_DOMAIN_DEFAULT})",
+        help=f"Server domain for OIDC/CORS URLs (default: {SERVER_DOMAIN_DEFAULT})",
     )
     parser.add_argument(
         "--env-source",
