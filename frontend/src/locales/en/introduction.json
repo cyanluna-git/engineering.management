@@ -1,8 +1,8 @@
 {
   "hero": {
-    "badge": "EUV Program IS · Engineering Resource Management",
+    "badge": "Engineering Operations · Resource Planning · Delivery Visibility",
     "title": "Engineering Operation Board",
-    "subtitle": "Unified platform for worklog tracking, resource forecasting, and milestone management — replacing scattered SharePoint & Excel workflows.",
+    "subtitle": "An engineering operations platform that connects worklogs, resource planning, project visibility, and execution reporting into one operating layer.",
     "stats": {
       "users": "Active Users",
       "projects": "Projects Tracked",
@@ -10,63 +10,68 @@
     },
     "scrollCue": "Scroll to explore",
     "author": "Gerald Park",
-    "authorRole": "AC-AVI · Edwards Vacuum"
+    "authorRole": "Engineering Operations Builder",
+    "loginCta": "Sign in"
+  },
+  "controls": {
+    "enterFullscreen": "Fullscreen mode",
+    "exitFullscreen": "Exit fullscreen"
   },
   "why": {
     "sectionLabel": "The Problem",
     "title": "Why We Built This",
-    "subtitle": "Engineering managers relied on scattered tools — SharePoint lists, Excel trackers, email chains — making resource visibility and reporting a constant pain.",
+    "subtitle": "Daily inputs, monthly planning, project progress, and cost classification lived in different tools, which made operational judgment slow and heavy.",
     "cards": {
       "scattered": {
         "title": "Scattered Data",
-        "description": "Worklogs in Excel, resource plans in SharePoint, project info in email. No single source of truth for engineering operations.",
+        "description": "Worklogs lived in Excel, planning lived in SharePoint, and project context lived in mail threads and meeting notes. There was no single source of truth for engineering operations.",
         "stat": "5+ tools per manager"
       },
       "manual": {
         "title": "Manual Tracking",
-        "description": "Monthly FTE reporting required hours of manual data collection and spreadsheet manipulation across multiple files.",
+        "description": "Plan-versus-actual reporting required rebuilding the same view from multiple files every month. The real cost was not just calculation, but repeated reassembly of context.",
         "stat": "40+ hrs/month wasted"
       },
       "visibility": {
         "title": "Limited Visibility",
-        "description": "No real-time view of team capacity, project allocation, or resource conflicts. Decisions based on outdated snapshots.",
+        "description": "Team capacity, project allocation, and resource conflicts could not be seen in one place. Decisions depended on stale snapshots and tribal memory.",
         "stat": "2-3 week data lag"
       }
     }
   },
   "what": {
-    "sectionLabel": "Architecture",
-    "title": "How It's Built",
-    "subtitle": "A modern full-stack application designed for the engineering organization's specific workflows and data structures.",
+    "sectionLabel": "System Overview",
+    "title": "What Operating Stack It Uses",
+    "subtitle": "Instead of solving input, planning, reporting, and governance separately, this full-stack system connects them into one operational flow.",
     "layers": {
       "frontend": {
         "label": "Frontend — User Interface",
         "items": {
-          "portal": { "title": "Unified Portal", "desc": "Single entry point to EOB, OQC, Jarvis, and other engineering services." },
-          "dashboard": { "title": "Dashboard", "desc": "Real-time charts, heatmaps, and AI weekly summaries for engineering visibility." },
-          "resourceMatrix": { "title": "Resource Matrix", "desc": "Monthly FTE allocation view with scenario-based capacity monitoring." }
+          "portal": { "title": "Unified Portal", "desc": "A home base that connects multiple operational tools and workflows through one entry point." },
+          "dashboard": { "title": "Operations Dashboard", "desc": "Real-time charts, heatmaps, and weekly summaries that let teams read execution context quickly." },
+          "resourceMatrix": { "title": "Resource Matrix", "desc": "A single workspace for monthly FTE allocation and scenario-based capacity planning." }
         }
       },
       "backend": {
         "label": "Backend — Business Logic & API",
         "items": {
-          "api": { "title": "REST API", "desc": "Layered architecture API server. SSO authentication and role-based access control." },
-          "classification": { "title": "Cost Classification Engine", "desc": "Priority-ordered rules auto-classify timesheet entries into cost buckets." }
+          "api": { "title": "Operations API", "desc": "A layered API server that ties together SSO, permissions, and the project-resource-reporting flow." },
+          "classification": { "title": "Work & Cost Classification Engine", "desc": "Context and priority rules automatically organize inputs into the operational classification model." }
         }
       },
       "data": {
         "label": "Data — Unified Database",
         "items": {
-          "schema": { "title": "Organization & Project Hierarchy", "desc": "Hierarchical management of organizational structure and project structure." },
-          "dimensions": { "title": "Financial Dimensions", "desc": "Funding entities, IO, activity codes, and cost buckets for inter-company cost tracking." },
-          "sync": { "title": "Data Sync", "desc": "Data integration pipeline with external systems and automated backups." }
+          "schema": { "title": "Organization & Project Hierarchy", "desc": "Operational modeling of organization and project structures for reporting and delivery visibility." },
+          "dimensions": { "title": "Financial Dimensions", "desc": "IO, activity codes, and cost buckets tied together so recharge and cost ownership stay consistent." },
+          "sync": { "title": "Sync & Backup", "desc": "External system integration and automated backups to keep operations data continuous." }
         }
       },
       "infra": {
         "label": "Infrastructure — Deployment & Operations",
         "items": {
-          "deploy": { "title": "One-Click Deploy", "desc": "Automated deployment pipeline for build, upload, and restart." },
-          "server": { "title": "Production Server", "desc": "SSL termination, reverse proxy, and container-based operations." }
+          "deploy": { "title": "Deployment Automation", "desc": "An operational pipeline that keeps build, upload, and restart steps consistent." },
+          "server": { "title": "Production Runtime", "desc": "SSL, reverse proxy, and containerized runtime for stable internal-service quality." }
         }
       }
     }
@@ -74,38 +79,44 @@
   "how": {
     "sectionLabel": "Core Capabilities",
     "title": "What It Does",
-    "subtitle": "Six key capabilities that transform how the engineering organization tracks work, plans resources, and manages projects.",
+    "subtitle": "These capabilities are not a feature list. Together they close the loop between input, planning, execution, and reporting in engineering operations.",
     "features": {
       "worklog": {
         "title": "Smart Worklog Tracking",
-        "description": "Daily time entry with AI-powered natural language parsing. Heatmap visualization and weekly summaries generated automatically."
+        "description": "Turns natural-language inputs into structured work records and makes repeated patterns or missing signals visible in daily operations.",
+        "tag": "AI Input"
       },
       "resource": {
         "title": "FTE Resource Planning",
-        "description": "Monthly allocation matrix with scenario planning. TBD positions for future hiring. Sum-per-user constraint enforced by database trigger."
+        "description": "Handles monthly allocation and scenario planning in the same matrix, including future hiring and vacancy assumptions.",
+        "tag": "FTE Matrix"
       },
       "project": {
         "title": "Project & Milestone Management",
-        "description": "Track NPI, ETO, and support projects through PCP gates (G3→G5→G6). Internal IO and recharge IO mapping for cost tracking."
+        "description": "Tracks project lifecycle and gate status inside the operating context so schedule and resource decisions do not drift apart.",
+        "tag": "Milestone Flow"
       },
       "financial": {
         "title": "Financial Classification",
-        "description": "Auto-classify work into cost buckets (Direct Product, Direct Project, Indirect, Overhead) with inter-company recharge logic across VSS, SUN, and LOCAL_KR."
+        "description": "Automatically connects operational inputs to cost responsibility structures so reporting and finance tracking stay aligned.",
+        "tag": "Cost Logic"
       },
       "reports": {
         "title": "Plan vs Actual Reports",
-        "description": "Compare planned FTE against actual worklogs at department, project, and user levels. Monthly variance heatmaps and recharge reports."
+        "description": "Drills down plan-versus-actual gaps at department, project, and user level so execution issues become operational signals, not just report artifacts.",
+        "tag": "Plan vs Actual"
       },
       "ai": {
         "title": "AI-Powered Summaries",
-        "description": "Weekly team activity summaries generated by Atlas Copco AIBrain (GPT-5). Cached for fast retrieval with period alignment."
+        "description": "Compresses weekly team activity into a readable operating summary so managers can understand flow faster and reduce repeated reporting work.",
+        "tag": "AI Summary"
       }
     }
   },
   "benefits": {
     "sectionLabel": "Impact",
     "title": "Measurable Results",
-    "subtitle": "Concrete improvements in how the engineering team operates, measured from pilot deployment.",
+    "subtitle": "The point is not prettier screens. The real value is faster operational judgment, less repeated reporting work, and easier conversations between plans and execution.",
     "quantitative": {
       "title": "Quantitative Impact",
       "metrics": {
@@ -136,19 +147,19 @@
       "items": {
         "singleSource": {
           "title": "Single Source of Truth",
-          "description": "All engineering resource data — worklogs, allocations, project milestones — in one unified database."
+          "description": "Worklogs, allocations, projects, and gate status are connected in one operating context, so teams no longer jump across files to interpret reality."
         },
         "selfService": {
           "title": "Self-Service Reporting",
-          "description": "Managers generate their own reports instead of waiting for data requests. Real-time dashboards always available."
+          "description": "Managers can inspect the data directly and make decisions immediately instead of waiting on data owners or manual file compilation."
         },
         "compliance": {
           "title": "Financial Compliance",
-          "description": "Automated cost classification and recharge tracking ensure consistent GL coding across all engineering work."
+          "description": "Operational inputs stay close to financial classification logic, which improves recharge consistency and cost traceability."
         },
         "scalable": {
           "title": "Scalable Architecture",
-          "description": "Dockerized deployment with SSO integration. Ready to onboard additional teams and business units."
+          "description": "The platform was shaped as an operational base that can extend to more teams, business units, and future enterprise integrations."
         }
       }
     },
@@ -195,40 +206,40 @@
   "next": {
     "sectionLabel": "Roadmap",
     "title": "What's Next",
-    "subtitle": "Planned enhancements to expand coverage and deepen analytical capabilities.",
+    "subtitle": "The next step is not just adding screens. It is connecting this platform to a wider operating system for the organization.",
     "phases": {
       "phase1": {
         "label": "Phase 1 — Active",
         "title": "Core Platform",
-        "description": "Worklog tracking, resource planning, project management, financial classification, AI summaries. Currently serving the EUV Program IS team.",
+        "description": "Stabilizing worklogs, resource planning, project operations, classification, and summaries as one operational product.",
         "status": "active"
       },
       "phase2": {
         "label": "Phase 2 — Planned",
         "title": "Advanced Analytics",
-        "description": "Trend analysis, predictive resource forecasting, automated variance alerts, and enhanced plan-vs-actual reporting.",
+        "description": "Deeper trend analysis, predictive planning, and automated variance signals that turn operations data into a stronger decision tool.",
         "status": "planned"
       },
       "phase3": {
         "label": "Phase 3 — Planned",
         "title": "Multi-Team Expansion",
-        "description": "Onboard additional engineering teams. Cross-team resource sharing, consolidated dashboards, and unified recharge reporting.",
+        "description": "Onboarding additional engineering teams so shared resources and common operating standards can run on the same platform.",
         "status": "planned"
       },
       "phase4": {
         "label": "Phase 4 — Future",
-        "title": "AI-Driven PLM Expansion",
-        "description": "Potential expansion into Product Lifecycle Management capabilities with AI-powered decision automation.",
+        "title": "Enterprise Integration Expansion",
+        "description": "Connect Microsoft 365, SAP, and other operational systems so engineering operations data can flow into a wider decision-making environment.",
         "status": "future"
       }
     },
     "considerations": {
       "title": "Key Considerations",
       "items": [
-        "Data migration strategy for teams transitioning from existing SharePoint workflows",
-        "SSO/SAML configuration for each Edwards subsidiary and business unit",
-        "Recharge IO mapping rules per business unit require finance team alignment",
-        "Classification rule tuning based on accumulated worklog patterns"
+        "A data migration path that lets SharePoint and Excel based teams transition without disruption",
+        "An SSO and permission model that can accommodate subsidiary and business-unit level policies",
+        "IO and recharge mapping rules aligned with finance ownership",
+        "Continuous improvement of classification rules and AI summary quality based on accumulated operations data"
       ]
     }
   },

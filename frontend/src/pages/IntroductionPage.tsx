@@ -125,7 +125,7 @@ export function IntroductionPage() {
       <button
         onClick={toggleFullscreen}
         className="fixed top-4 right-4 z-50 p-2 bg-white/90 backdrop-blur-sm border border-gray-200 rounded-lg shadow-sm hover:bg-gray-50 transition-colors"
-        title={isFullscreen ? 'Exit fullscreen' : 'Fullscreen mode'}
+        title={isFullscreen ? t('controls.exitFullscreen') : t('controls.enterFullscreen')}
       >
         {isFullscreen
           ? <Minimize2 className="w-4 h-4 text-gray-600" />
@@ -166,7 +166,7 @@ export function IntroductionPage() {
                 to="/login"
                 className="inline-flex items-center gap-2 px-8 py-3 rounded-xl bg-white text-blue-700 font-semibold text-lg shadow-lg shadow-white/10 hover:bg-blue-50 transition-all duration-200"
               >
-                Sign In
+                {t('hero.loginCta')}
                 <ChevronDown className="w-4 h-4 rotate-[-90deg]" />
               </Link>
             </div>
@@ -285,20 +285,22 @@ export function IntroductionPage() {
 
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
             {([
-              { key: 'worklog', icon: Clock, color: 'text-blue-600', bg: 'bg-blue-50', border: 'border-blue-100', tag: 'AI Parser' },
-              { key: 'resource', icon: Calendar, color: 'text-emerald-600', bg: 'bg-emerald-50', border: 'border-emerald-100', tag: 'FTE Matrix' },
-              { key: 'project', icon: FolderKanban, color: 'text-violet-600', bg: 'bg-violet-50', border: 'border-violet-100', tag: 'PCP Gates' },
-              { key: 'financial', icon: DollarSign, color: 'text-orange-600', bg: 'bg-orange-50', border: 'border-orange-100', tag: 'Cost Buckets' },
-              { key: 'reports', icon: BarChart3, color: 'text-rose-600', bg: 'bg-rose-50', border: 'border-rose-100', tag: 'Plan vs Actual' },
-              { key: 'ai', icon: Sparkles, color: 'text-purple-600', bg: 'bg-purple-50', border: 'border-purple-100', tag: 'AIBrain GPT-5' },
-            ] as const).map(({ key, icon: Icon, color, bg, border, tag }, i) => (
+              { key: 'worklog', icon: Clock, color: 'text-blue-600', bg: 'bg-blue-50', border: 'border-blue-100' },
+              { key: 'resource', icon: Calendar, color: 'text-emerald-600', bg: 'bg-emerald-50', border: 'border-emerald-100' },
+              { key: 'project', icon: FolderKanban, color: 'text-violet-600', bg: 'bg-violet-50', border: 'border-violet-100' },
+              { key: 'financial', icon: DollarSign, color: 'text-orange-600', bg: 'bg-orange-50', border: 'border-orange-100' },
+              { key: 'reports', icon: BarChart3, color: 'text-rose-600', bg: 'bg-rose-50', border: 'border-rose-100' },
+              { key: 'ai', icon: Sparkles, color: 'text-purple-600', bg: 'bg-purple-50', border: 'border-purple-100' },
+            ] as const).map(({ key, icon: Icon, color, bg, border }, i) => (
               <FadeInSection key={key} delay={i * 80}>
                 <div className={`group relative p-7 rounded-2xl border ${border} bg-white hover:shadow-xl transition-all duration-300 h-full`}>
                   <div className="flex items-start justify-between mb-5">
                     <div className={`w-12 h-12 ${bg} rounded-xl flex items-center justify-center`}>
                       <Icon className={`w-6 h-6 ${color}`} />
                     </div>
-                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${bg} ${color} uppercase tracking-wide`}>{tag}</span>
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${bg} ${color} uppercase tracking-wide`}>
+                      {t(`how.features.${key}.tag`)}
+                    </span>
                   </div>
                   <h3 className="text-lg font-bold text-gray-900 mb-3">{t(`how.features.${key}.title`)}</h3>
                   <p className="text-base text-gray-500 leading-relaxed">{t(`how.features.${key}.description`)}</p>

@@ -1,8 +1,8 @@
 {
   "hero": {
-    "badge": "EUV Program IS · 엔지니어링 리소스 관리",
+    "badge": "Engineering Operations · Resource Planning · Delivery Visibility",
     "title": "Engineering Operation Board",
-    "subtitle": "워크로그 추적, 리소스 예측, 마일스톤 관리를 위한 통합 플랫폼 — SharePoint와 Excel 기반 워크플로우를 대체합니다.",
+    "subtitle": "워크로그, 리소스 플래닝, 프로젝트 가시성, 실행 리포팅을 하나의 운영 레이어로 묶는 엔지니어링 운영 플랫폼입니다.",
     "stats": {
       "users": "활성 사용자",
       "projects": "관리 프로젝트",
@@ -10,63 +10,68 @@
     },
     "scrollCue": "스크롤하여 둘러보기",
     "author": "Gerald Park",
-    "authorRole": "AC-AVI · Edwards Vacuum"
+    "authorRole": "Engineering Operations Builder",
+    "loginCta": "로그인"
+  },
+  "controls": {
+    "enterFullscreen": "전체 화면",
+    "exitFullscreen": "전체 화면 종료"
   },
   "why": {
     "sectionLabel": "문제점",
     "title": "왜 만들었는가",
-    "subtitle": "엔지니어링 매니저들은 SharePoint, Excel, 이메일 등 흩어진 도구에 의존하며 리소스 가시성과 리포팅에 항상 어려움을 겪었습니다.",
+    "subtitle": "엔지니어링 조직은 일일 입력, 월간 계획, 프로젝트 진행, 비용 분류가 서로 다른 도구에 흩어져 있어 운영 판단이 항상 늦고 무거웠습니다.",
     "cards": {
       "scattered": {
         "title": "분산된 데이터",
-        "description": "워크로그는 Excel에, 리소스 계획은 SharePoint에, 프로젝트 정보는 이메일에. 엔지니어링 운영의 단일 진실 소스가 없었습니다.",
+        "description": "워크로그는 엑셀, 리소스 계획은 SharePoint, 프로젝트 맥락은 메일과 회의록에 흩어져 있었습니다. 운영 기준이 되는 단일 진실 소스가 없었습니다.",
         "stat": "매니저당 5개+ 도구"
       },
       "manual": {
         "title": "수동 추적",
-        "description": "월간 FTE 보고를 위해 여러 파일에서 수시간의 수동 데이터 수집과 스프레드시트 작업이 필요했습니다.",
+        "description": "계획 대비 실적을 보려면 여러 파일을 다시 모아 수작업으로 취합해야 했습니다. 실제 문제는 계산보다 매번 같은 재구성을 반복해야 한다는 점이었습니다.",
         "stat": "월 40시간+ 낭비"
       },
       "visibility": {
         "title": "제한된 가시성",
-        "description": "팀 용량, 프로젝트 배정, 리소스 충돌에 대한 실시간 뷰가 없었습니다. 오래된 스냅샷 기반으로 의사결정을 했습니다.",
+        "description": "팀 용량, 프로젝트 배정, 리소스 충돌을 같은 화면에서 볼 수 없었습니다. 의사결정은 항상 늦은 스냅샷과 경험에 기대야 했습니다.",
         "stat": "2-3주 데이터 지연"
       }
     }
   },
   "what": {
-    "sectionLabel": "아키텍처",
-    "title": "어떻게 만들었는가",
-    "subtitle": "엔지니어링 조직의 특정 워크플로우와 데이터 구조에 맞게 설계된 현대적 풀스택 애플리케이션입니다.",
+    "sectionLabel": "시스템 개요",
+    "title": "어떤 운영 스택으로 구성했는가",
+    "subtitle": "입력, 계획, 보고, 거버넌스를 따로 푸는 대신 하나의 운영 흐름으로 연결한 실무형 풀스택 시스템입니다.",
     "layers": {
       "frontend": {
         "label": "프론트엔드 — 사용자 인터페이스",
         "items": {
-          "portal": { "title": "통합 포탈", "desc": "EOB, OQC, Jarvis 등 엔지니어링 서비스에 대한 단일 진입점." },
-          "dashboard": { "title": "대시보드", "desc": "실시간 차트, 히트맵, AI 주간 요약으로 엔지니어링 현황 파악." },
-          "resourceMatrix": { "title": "리소스 매트릭스", "desc": "시나리오별 월간 FTE 배정 뷰와 용량 모니터링." }
+          "portal": { "title": "통합 포털", "desc": "여러 운영 도구와 업무 흐름을 하나의 진입점에서 연결하는 홈 베이스." },
+          "dashboard": { "title": "운영 대시보드", "desc": "실시간 차트, 히트맵, 주간 요약으로 팀 상태와 실행 맥락을 빠르게 파악." },
+          "resourceMatrix": { "title": "리소스 매트릭스", "desc": "월별 FTE 배정과 시나리오 기반 용량 계획을 한 화면에서 조정." }
         }
       },
       "backend": {
         "label": "백엔드 — 비즈니스 로직 & API",
         "items": {
-          "api": { "title": "REST API", "desc": "레이어 아키텍처 기반 API 서버. SSO 인증 및 역할 기반 접근 제어." },
-          "classification": { "title": "비용 분류 엔진", "desc": "우선순위 기반 규칙으로 타임시트 항목을 비용 버킷으로 자동 분류." }
+          "api": { "title": "운영 API", "desc": "SSO, 권한, 프로젝트/리소스/리포트 흐름을 묶는 레이어드 API 서버." },
+          "classification": { "title": "업무·비용 분류 엔진", "desc": "우선순위 규칙과 맥락 정보를 조합해 입력 데이터를 운영 분류 체계로 자동 정리." }
         }
       },
       "data": {
         "label": "데이터 — 통합 데이터베이스",
         "items": {
-          "schema": { "title": "조직 & 프로젝트 계층", "desc": "조직 구조와 프로젝트 구조를 계층적으로 관리." },
-          "dimensions": { "title": "재무 차원", "desc": "펀딩 엔티티, IO, 활동 코드, 비용 버킷으로 법인간 비용을 추적." },
-          "sync": { "title": "데이터 동기화", "desc": "외부 시스템과의 데이터 연동 파이프라인 및 자동 백업." }
+          "schema": { "title": "조직 & 프로젝트 계층", "desc": "조직 구조와 프로젝트 구조를 운영 보고에 맞게 계층적으로 모델링." },
+          "dimensions": { "title": "재무 차원", "desc": "IO, 활동 코드, 비용 버킷을 묶어 리차지와 비용 책임을 일관되게 추적." },
+          "sync": { "title": "동기화 & 백업", "desc": "외부 시스템 연동과 자동 백업으로 운영 데이터의 연속성을 확보." }
         }
       },
       "infra": {
         "label": "인프라 — 배포 & 운영",
         "items": {
-          "deploy": { "title": "원클릭 배포", "desc": "빌드, 업로드, 재시작을 자동화하는 배포 파이프라인." },
-          "server": { "title": "프로덕션 서버", "desc": "SSL 종단, 리버스 프록시, 컨테이너 기반 운영 환경." }
+          "deploy": { "title": "배포 자동화", "desc": "빌드, 업로드, 재시작을 일관되게 묶는 운영 배포 파이프라인." },
+          "server": { "title": "프로덕션 런타임", "desc": "SSL, 리버스 프록시, 컨테이너 운영으로 내부 서비스 품질을 안정화." }
         }
       }
     }
@@ -74,38 +79,44 @@
   "how": {
     "sectionLabel": "핵심 기능",
     "title": "무엇을 할 수 있는가",
-    "subtitle": "엔지니어링 조직이 업무를 추적하고, 리소스를 계획하고, 프로젝트를 관리하는 방식을 혁신하는 6가지 핵심 기능입니다.",
+    "subtitle": "단순 기능 모음이 아니라, 엔지니어링 운영의 입력-계획-실행-리포트 루프를 닫기 위한 핵심 기능들입니다.",
     "features": {
       "worklog": {
         "title": "스마트 워크로그 추적",
-        "description": "AI 기반 자연어 파싱을 통한 일일 시간 입력. 히트맵 시각화와 주간 요약이 자동으로 생성됩니다."
+        "description": "자연어 기반 입력을 구조화된 업무 기록으로 바꾸고, 반복 패턴과 누락을 빠르게 드러내는 일일 운영 입력 계층입니다.",
+        "tag": "AI Input"
       },
       "resource": {
         "title": "FTE 리소스 플래닝",
-        "description": "시나리오 플래닝이 가능한 월간 배정 매트릭스. 향후 채용을 위한 TBD 포지션. 사용자당 합계 제약은 DB 트리거로 보장됩니다."
+        "description": "월별 배정과 시나리오 기반 계획을 같은 매트릭스에서 다루며, 미래 채용과 공석까지 함께 가정할 수 있습니다.",
+        "tag": "FTE Matrix"
       },
       "project": {
         "title": "프로젝트 & 마일스톤 관리",
-        "description": "NPI, ETO, 지원 프로젝트를 PCP 게이트(G3→G5→G6)를 통해 추적. Internal IO와 Recharge IO 매핑으로 비용을 관리합니다."
+        "description": "프로젝트 라이프사이클과 게이트 상태를 운영 맥락 안에서 추적해, 일정과 리소스 판단이 따로 놀지 않도록 합니다.",
+        "tag": "Milestone Flow"
       },
       "financial": {
         "title": "재무 분류",
-        "description": "업무를 비용 버킷(Direct Product, Direct Project, Indirect, Overhead)으로 자동 분류하고 VSS, SUN, LOCAL_KR 간 리차지 로직을 적용합니다."
+        "description": "업무 데이터를 비용 책임 구조로 자동 분류해, 운영 기록이 바로 재무 추적성과 연결되도록 만듭니다.",
+        "tag": "Cost Logic"
       },
       "reports": {
         "title": "계획 대비 실적 리포트",
-        "description": "부서, 프로젝트, 사용자 수준에서 계획 FTE와 실제 워크로그를 비교합니다. 월간 차이 히트맵과 리차지 리포트."
+        "description": "부서, 프로젝트, 사용자 수준에서 계획과 실적의 차이를 드릴다운해, 실행 문제를 보고용 문서가 아니라 운영 신호로 바꿉니다.",
+        "tag": "Plan vs Actual"
       },
       "ai": {
         "title": "AI 기반 요약",
-        "description": "Atlas Copco AIBrain(GPT-5)이 생성하는 주간 팀 활동 요약. 캐싱으로 빠른 조회가 가능합니다."
+        "description": "주간 팀 활동을 압축해 관리자가 흐름을 빠르게 읽을 수 있게 하며, 반복 리포팅 부담을 줄입니다.",
+        "tag": "AI Summary"
       }
     }
   },
   "benefits": {
     "sectionLabel": "성과",
     "title": "측정 가능한 결과",
-    "subtitle": "파일럿 배포에서 측정된 엔지니어링 팀 운영의 구체적인 개선 사항입니다.",
+    "subtitle": "핵심 효과는 예쁜 화면이 아니라, 운영 판단이 빨라지고 반복 보고 작업이 줄며 계획과 실적의 대화가 쉬워졌다는 점입니다.",
     "quantitative": {
       "title": "정량적 성과",
       "metrics": {
@@ -136,19 +147,19 @@
       "items": {
         "singleSource": {
           "title": "단일 진실 소스",
-          "description": "워크로그, 배정, 프로젝트 마일스톤 등 모든 엔지니어링 리소스 데이터가 하나의 통합 데이터베이스에 있습니다."
+          "description": "워크로그, 배정, 프로젝트, 게이트 상태가 하나의 운영 문맥 안에서 연결되어 더 이상 파일을 넘나들며 해석할 필요가 없습니다."
         },
         "selfService": {
           "title": "셀프 서비스 리포팅",
-          "description": "매니저가 데이터 요청을 기다리지 않고 직접 보고서를 생성합니다. 실시간 대시보드가 항상 이용 가능합니다."
+          "description": "매니저가 데이터팀이나 파일 소유자를 기다리지 않고 직접 확인하고 바로 판단할 수 있습니다."
         },
         "compliance": {
           "title": "재무 컴플라이언스",
-          "description": "자동화된 비용 분류와 리차지 추적으로 모든 엔지니어링 업무에 일관된 GL 코딩을 보장합니다."
+          "description": "운영 입력과 재무 분류가 멀어지지 않도록 설계해, 리차지와 비용 추적의 일관성을 높였습니다."
         },
         "scalable": {
           "title": "확장 가능한 아키텍처",
-          "description": "SSO 통합을 갖춘 Docker 배포. 추가 팀과 사업부 온보딩 준비 완료."
+          "description": "추가 팀과 사업부, 향후 엔터프라이즈 시스템 연동으로 이어질 수 있는 운영 플랫폼 구조를 먼저 만들었습니다."
         }
       }
     },
@@ -195,40 +206,40 @@
   "next": {
     "sectionLabel": "로드맵",
     "title": "앞으로의 계획",
-    "subtitle": "커버리지 확대와 분석 역량 심화를 위한 계획입니다.",
+    "subtitle": "이 플랫폼의 다음 단계는 화면 추가보다, 더 넓은 운영 체계와 연결되도록 만드는 것입니다.",
     "phases": {
       "phase1": {
         "label": "Phase 1 — 진행 중",
         "title": "코어 플랫폼",
-        "description": "워크로그 추적, 리소스 플래닝, 프로젝트 관리, 재무 분류, AI 요약. 현재 EUV Program IS 팀에서 사용 중.",
+        "description": "워크로그, 리소스 플래닝, 프로젝트 운영, 분류, 요약 기능을 하나의 운영 제품으로 정착시키는 단계입니다.",
         "status": "active"
       },
       "phase2": {
         "label": "Phase 2 — 계획됨",
         "title": "고급 분석",
-        "description": "추세 분석, 예측 리소스 예측, 자동 차이 알림, 강화된 계획 대비 실적 리포팅.",
+        "description": "추세 분석, 예측 플래닝, 자동 차이 알림으로 운영 데이터를 판단 도구로 더 깊게 전환합니다.",
         "status": "planned"
       },
       "phase3": {
         "label": "Phase 3 — 계획됨",
         "title": "다중 팀 확장",
-        "description": "추가 엔지니어링 팀 온보딩. 팀 간 리소스 공유, 통합 대시보드, 통합 리차지 리포팅.",
+        "description": "추가 엔지니어링 팀을 온보딩해 팀 간 리소스 공유와 공통 운영 기준을 같은 플랫폼 위에서 다룹니다.",
         "status": "planned"
       },
       "phase4": {
         "label": "Phase 4 — 미래",
-        "title": "AI 기반 PLM 확장",
-        "description": "AI를 활용한 제품 수명주기 관리(PLM) 기능으로의 확장 가능성. 프로젝트 데이터 기반 의사결정 자동화.",
+        "title": "엔터프라이즈 연동 확장",
+        "description": "Microsoft 365, SAP, 기타 운영 시스템과 연결해 엔지니어링 운영 데이터가 더 넓은 의사결정 체계로 흐르도록 확장합니다.",
         "status": "future"
       }
     },
     "considerations": {
       "title": "주요 고려사항",
       "items": [
-        "기존 SharePoint 워크플로우에서 전환하는 팀을 위한 데이터 마이그레이션 전략",
-        "각 Edwards 자회사 및 사업부를 위한 SSO/SAML 구성",
-        "사업부별 Recharge IO 매핑 규칙은 재무팀과의 정렬이 필요",
-        "축적된 워크로그 패턴을 기반으로 한 분류 규칙 튜닝"
+        "기존 SharePoint·Excel 중심 팀이 자연스럽게 전환할 수 있는 데이터 마이그레이션 경로",
+        "사업부와 법인별 접근 정책을 수용할 수 있는 SSO·권한 구조",
+        "재무팀과 정렬된 IO 및 리차지 매핑 규칙",
+        "축적된 운영 데이터를 기반으로 한 분류 규칙과 AI 요약 품질 개선"
       ]
     }
   },
