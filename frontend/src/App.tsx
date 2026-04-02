@@ -4,27 +4,61 @@ import { useAuth } from './hooks/useAuth';
 import { MainLayout, PortalLayout } from './components/layout';
 import { LoginPage, RegisterPage } from './pages';
 import { ROUTER_BASENAME } from './lib/base-path';
+import { lazyWithRetry } from './lib/lazyWithRetry';
 
 import './App.css';
 
 // Route-level code splitting - lazy load pages for smaller initial bundle
-const DashboardPage = lazy(() => import('./pages/DashboardPage'));
-const ProjectsPage = lazy(() => import('./pages/ProjectsPage'));
-const ProjectDetailPage = lazy(() => import('./pages/ProjectDetailPage').then(m => ({ default: m.ProjectDetailPage })));
-const WorkLogsPage = lazy(() => import('./pages/WorkLogsPage').then(m => ({ default: m.WorkLogsPage })));
-const WorkLogTablePage = lazy(() => import('./pages/WorkLogTablePage').then(m => ({ default: m.WorkLogTablePage })));
-const ResourcePlansPage = lazy(() => import('./pages/ResourcePlansPage').then(m => ({ default: m.ResourcePlansPage })));
-const ResourceMatrixPage = lazy(() => import('./pages/ResourceMatrixPage').then(m => ({ default: m.ResourceMatrixPage })));
-const OrganizationPage = lazy(() => import('./pages/OrganizationPage').then(m => ({ default: m.OrganizationPage })));
-const ReportsPage = lazy(() => import('./pages/ReportsPage').then(m => ({ default: m.ReportsPage })));
-const WeeklyReportHierarchyPage = lazy(() => import('./pages/WeeklyReportHierarchyPage'));
-const RequestBoardPage = lazy(() => import('./pages/RequestBoardPage').then(m => ({ default: m.RequestBoardPage })));
-const ProfilePage = lazy(() => import('./pages/ProfilePage').then(m => ({ default: m.ProfilePage })));
-const UpdatesPage = lazy(() => import('./pages/UpdatesPage').then(m => ({ default: m.UpdatesPage })));
-const IntroductionPage = lazy(() => import('./pages/IntroductionPage'));
-const PortalPage = lazy(() => import('./pages/PortalPage'));
-const PortalStatsPage = lazy(() => import('./pages/PortalStatsPage'));
-const TeamCapacityPage = lazy(() => import('./pages/TeamCapacityPage'));
+const DashboardPage = lazy(() => lazyWithRetry(() => import('./pages/DashboardPage'), 'dashboard-page'));
+const ProjectsPage = lazy(() => lazyWithRetry(() => import('./pages/ProjectsPage'), 'projects-page'));
+const ProjectDetailPage = lazy(() => lazyWithRetry(
+  () => import('./pages/ProjectDetailPage').then(m => ({ default: m.ProjectDetailPage })),
+  'project-detail-page',
+));
+const WorkLogsPage = lazy(() => lazyWithRetry(
+  () => import('./pages/WorkLogsPage').then(m => ({ default: m.WorkLogsPage })),
+  'worklogs-page',
+));
+const WorkLogTablePage = lazy(() => lazyWithRetry(
+  () => import('./pages/WorkLogTablePage').then(m => ({ default: m.WorkLogTablePage })),
+  'worklog-table-page',
+));
+const ResourcePlansPage = lazy(() => lazyWithRetry(
+  () => import('./pages/ResourcePlansPage').then(m => ({ default: m.ResourcePlansPage })),
+  'resource-plans-page',
+));
+const ResourceMatrixPage = lazy(() => lazyWithRetry(
+  () => import('./pages/ResourceMatrixPage').then(m => ({ default: m.ResourceMatrixPage })),
+  'resource-matrix-page',
+));
+const OrganizationPage = lazy(() => lazyWithRetry(
+  () => import('./pages/OrganizationPage').then(m => ({ default: m.OrganizationPage })),
+  'organization-page',
+));
+const ReportsPage = lazy(() => lazyWithRetry(
+  () => import('./pages/ReportsPage').then(m => ({ default: m.ReportsPage })),
+  'reports-page',
+));
+const WeeklyReportHierarchyPage = lazy(() => lazyWithRetry(
+  () => import('./pages/WeeklyReportHierarchyPage'),
+  'weekly-report-hierarchy-page',
+));
+const RequestBoardPage = lazy(() => lazyWithRetry(
+  () => import('./pages/RequestBoardPage').then(m => ({ default: m.RequestBoardPage })),
+  'request-board-page',
+));
+const ProfilePage = lazy(() => lazyWithRetry(
+  () => import('./pages/ProfilePage').then(m => ({ default: m.ProfilePage })),
+  'profile-page',
+));
+const UpdatesPage = lazy(() => lazyWithRetry(
+  () => import('./pages/UpdatesPage').then(m => ({ default: m.UpdatesPage })),
+  'updates-page',
+));
+const IntroductionPage = lazy(() => lazyWithRetry(() => import('./pages/IntroductionPage'), 'introduction-page'));
+const PortalPage = lazy(() => lazyWithRetry(() => import('./pages/PortalPage'), 'portal-page'));
+const PortalStatsPage = lazy(() => lazyWithRetry(() => import('./pages/PortalStatsPage'), 'portal-stats-page'));
+const TeamCapacityPage = lazy(() => lazyWithRetry(() => import('./pages/TeamCapacityPage'), 'team-capacity-page'));
 
 // Loading fallback for lazy-loaded routes
 const PageLoader = () => (

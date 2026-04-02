@@ -1,6 +1,7 @@
-from datetime import date, datetime
+from datetime import date, datetime, timedelta, timezone
 from types import SimpleNamespace
 
+import httpx
 from fastapi import status
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
@@ -9,10 +10,12 @@ from app.core.database import get_db
 from app.core.security import get_current_user
 from app.main import app
 from app.models.internal_io import InternalIO
+from app.models.oauth_connection import UserOAuthConnection
 from app.models.project import Project
 from app.models.resource import WorkLog
 from app.models.user import User
 from app.models.work_type import WorkTypeCategory
+from app.services.oauth_connection_service import OAuthConnectionService
 from app.services.meeting_import_service import MeetingImportService
 
 
@@ -257,3 +260,198 @@ def test_meeting_import_preview_endpoint_requires_calendar_connection(
 
     assert response.status_code == status.HTTP_409_CONFLICT
     assert "Calendar" in response.json()["detail"]
+
+
+def test_meeting_import_preview_uses_cached_access_token_without_refresh(
+    db_session: Session,
+    sample_position,
+    monkeypatch,
+):
+    user = _seed_user(db_session, sample_position)
+    _seed_work_type(
+        db_session,
+        work_type_id=102,
+        code="MTG",
+        name="Meeting",
+        name_ko="미팅",
+    )
+
+    connection = UserOAuthConnection(
+        user_id=user.id,
+        provider="microsoft",
+        provider_email=user.email,
+        granted_scopes='["User.Read", "Calendars.Read"]',
+        access_token_encrypted=OAuthConnectionService.encrypt("cached-token"),
+        refresh_token_encrypted=None,
+        token_expires_at=datetime.now(timezone.utc) + timedelta(minutes=30),
+    )
+    db_session.add(connection)
+    db_session.commit()
+
+    captured: dict[str, str] = {}
+
+    def fake_get(self, url, *, headers=None, params=None):
+        captured["authorization"] = headers["Authorization"]
+        return httpx.Response(
+            200,
+            json={
+                "value": [
+                    {
+                        "id": "evt-cached",
+                        "subject": "Weekly sync",
+                        "start": {"dateTime": "2026-04-02T09:00:00"},
+                        "end": {"dateTime": "2026-04-02T10:00:00"},
+                        "attendees": [],
+                        "onlineMeetingProvider": "teamsForBusiness",
+                        "location": {"displayName": "Teams"},
+                        "isCancelled": False,
+                        "isAllDay": False,
+                        "type": "singleInstance",
+                        "showAs": "busy",
+                    }
+                ]
+            },
+            request=httpx.Request("GET", url),
+        )
+
+    monkeypatch.setattr(
+        "app.services.oidc_service.OIDCService.refresh_access_token",
+        lambda *args, **kwargs: (_ for _ in ()).throw(AssertionError("refresh should not be called")),
+    )
+    monkeypatch.setattr("httpx.Client.get", fake_get)
+
+    response = MeetingImportService(db_session).preview(
+        user=user,
+        start_date=date(2026, 4, 1),
+        end_date=date(2026, 4, 3),
+    )
+
+    assert len(response.items) == 1
+    assert captured["authorization"] == "Bearer cached-token"
+
+
+def test_meeting_import_preview_endpoint_returns_refresh_failure_detail(
+    db_session: Session,
+    sample_position,
+    monkeypatch,
+):
+    user = _seed_user(db_session, sample_position)
+    connection = UserOAuthConnection(
+        user_id=user.id,
+        provider="microsoft",
+        provider_email=user.email,
+        granted_scopes='["User.Read", "Calendars.Read"]',
+        refresh_token_encrypted=OAuthConnectionService.encrypt("refresh-token"),
+        access_token_encrypted=None,
+        token_expires_at=None,
+    )
+    db_session.add(connection)
+    db_session.commit()
+
+    client = _make_client(db_session)
+    app.dependency_overrides[get_current_user] = lambda: user
+
+    request = httpx.Request("POST", "https://login.microsoftonline.com/token")
+    response = httpx.Response(
+        400,
+        json={"error": "invalid_grant", "error_description": "AADSTS70000: refresh token expired"},
+        request=request,
+    )
+
+    monkeypatch.setattr(
+        "app.services.oidc_service.OIDCService.refresh_access_token",
+        lambda *args, **kwargs: (_ for _ in ()).throw(httpx.HTTPStatusError("boom", request=request, response=response)),
+    )
+
+    try:
+        api_response = client.post(
+            "/api/worklogs/meeting-import/preview",
+            json={"start_date": "2026-04-01", "end_date": "2026-04-03"},
+        )
+    finally:
+        _clear_overrides(client)
+
+    assert api_response.status_code == status.HTTP_409_CONFLICT
+    assert "refresh token expired" in api_response.json()["detail"]
+
+
+def test_meeting_import_preview_refresh_ignores_reserved_scopes(
+    db_session: Session,
+    sample_position,
+    monkeypatch,
+):
+    user = _seed_user(db_session, sample_position)
+    _seed_work_type(
+        db_session,
+        work_type_id=103,
+        code="MTG",
+        name="Meeting",
+        name_ko="미팅",
+    )
+
+    connection = UserOAuthConnection(
+        user_id=user.id,
+        provider="microsoft",
+        provider_email=user.email,
+        granted_scopes='["openid", "profile", "offline_access", "User.Read", "Calendars.Read"]',
+        refresh_token_encrypted=OAuthConnectionService.encrypt("refresh-token"),
+        access_token_encrypted=None,
+        token_expires_at=None,
+    )
+    db_session.add(connection)
+    db_session.commit()
+
+    captured_scopes: dict[str, list[str]] = {}
+
+    def fake_refresh_access_token(*, refresh_token, scopes):
+        captured_scopes["value"] = list(scopes)
+        return {
+            "access_token": "refreshed-token",
+            "refresh_token": "refresh-token-2",
+            "scope": "User.Read Calendars.Read",
+            "expires_in": 3600,
+        }
+
+    def fake_get(self, url, *, headers=None, params=None):
+        return httpx.Response(
+            200,
+            json={
+                "value": [
+                    {
+                        "id": "evt-refreshed",
+                        "subject": "Weekly sync",
+                        "start": {"dateTime": "2026-04-02T09:00:00"},
+                        "end": {"dateTime": "2026-04-02T10:00:00"},
+                        "attendees": [],
+                        "onlineMeetingProvider": "teamsForBusiness",
+                        "location": {"displayName": "Teams"},
+                        "isCancelled": False,
+                        "isAllDay": False,
+                        "type": "singleInstance",
+                        "showAs": "busy",
+                    }
+                ]
+            },
+            request=httpx.Request("GET", url),
+        )
+
+    monkeypatch.setattr(
+        "app.services.oidc_service.OIDCService.refresh_access_token",
+        fake_refresh_access_token,
+    )
+    monkeypatch.setattr("httpx.Client.get", fake_get)
+
+    response = MeetingImportService(db_session).preview(
+        user=user,
+        start_date=date(2026, 4, 1),
+        end_date=date(2026, 4, 3),
+    )
+
+    assert len(response.items) == 1
+    assert captured_scopes["value"] == [
+        "openid",
+        "profile",
+        "offline_access",
+        "User.Read",
+        "Calendars.Read",
+    ]

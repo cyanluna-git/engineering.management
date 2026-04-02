@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
 import { withBasePath } from "@/lib/base-path";
 import { useAuth } from "@/hooks/useAuth";
+import { useProfilePhoto } from "@/hooks/useProfilePhoto";
 import { usePermissions } from "@/hooks/usePermissions";
 import { LanguageToggle } from "@/components/LanguageToggle";
 import {
@@ -69,6 +70,7 @@ export function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, logout } = useAuth();
+  const profilePhotoUrl = useProfilePhoto(Boolean(user));
   const { canManageProjects, canManageOrganization } = usePermissions();
   const { t } = useTranslation("navigation");
 
@@ -122,6 +124,24 @@ export function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
         </div>
       )}
       <div className="space-y-0.5">{items.map(renderNavItem)}</div>
+    </div>
+  );
+
+  const renderUserAvatar = (sizeClassName: string, textClassName: string) => (
+    <div className={cn("overflow-hidden rounded-full bg-slate-700 flex-shrink-0", sizeClassName)}>
+      {profilePhotoUrl ? (
+        <img
+          src={profilePhotoUrl}
+          alt={user?.korean_name || user?.name || "User"}
+          className="h-full w-full object-cover"
+        />
+      ) : (
+        <div className="flex h-full w-full items-center justify-center">
+          <span className={cn("font-medium text-white", textClassName)}>
+            {user?.korean_name?.[0] || user?.name?.[0] || "U"}
+          </span>
+        </div>
+      )}
     </div>
   );
 
@@ -298,11 +318,7 @@ export function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
         {isCollapsed ? (
           <>
             <div className="flex justify-center">
-              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-700">
-                <span className="text-sm font-medium text-white">
-                  {user?.korean_name?.[0] || user?.name?.[0] || "U"}
-                </span>
-              </div>
+              {renderUserAvatar("h-9 w-9", "text-sm")}
             </div>
             <button
               onClick={handleLogout}
@@ -318,11 +334,7 @@ export function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
               onClick={() => navigate("/profile")}
               className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-white hover:bg-slate-800 transition-colors"
             >
-              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-700 flex-shrink-0">
-                <span className="text-sm font-medium text-white">
-                  {user?.korean_name?.[0] || user?.name?.[0] || "U"}
-                </span>
-              </div>
+              {renderUserAvatar("h-9 w-9", "text-sm")}
               <div className="flex-1 min-w-0 text-left">
                 <p className="truncate text-sm font-medium text-white">
                   {user?.korean_name || user?.name || "User"}

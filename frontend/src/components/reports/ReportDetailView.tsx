@@ -204,7 +204,7 @@ export function ReportDetailView({ reportId, onBack, onNavigate }: ReportDetailV
             <SectionCard title="Resource Utilization" section={sections.resource_utilization}>
                 {planVsActual.length > 0 && (
                     <div className="h-64 print:h-48">
-                        <ResponsiveContainer width="100%" height="100%">
+                        <ResponsiveContainer width="100%" height={256} minWidth={0}>
                             <ComposedChart data={planVsActual}>
                                 <CartesianGrid strokeDasharray="3 3" />
                                 <XAxis dataKey="month" tick={{ fontSize: 12 }} />

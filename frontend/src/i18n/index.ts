@@ -87,6 +87,7 @@ i18n
     interpolation: {
       escapeValue: false, // React already escapes
     },
+    showSupportNotice: false,
     detection: {
       order: ['localStorage', 'navigator', 'htmlTag'],
       caches: ['localStorage'],

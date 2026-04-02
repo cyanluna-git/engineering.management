@@ -31,7 +31,6 @@ import {
     usePreviewMeetingImport,
     useCommitMeetingImport,
 } from '@/hooks/useWorklogs';
-import { useAIHealth } from '@/hooks/useAIWorklog';
 import { useProjects } from '@/hooks/useProjects';
 import { useAuth } from '@/hooks/useAuth';
 import type { MeetingImportDraft } from '@/api/worklogs';
@@ -72,10 +71,6 @@ export function WorkLogsPage() {
 
     // Fetch projects for the modal
     const { data: projects = [] } = useProjects();
-
-    // Check AI health status
-    const { data: aiHealth } = useAIHealth();
-    const isAIHealthy = aiHealth?.status === 'healthy';
 
     // Mutations
     const createMutation = useCreateWorklog();
@@ -218,6 +213,7 @@ export function WorkLogsPage() {
             setMeetingImportSkippedCount(response.skipped_count);
             setIsMeetingImportModalOpen(true);
         } catch (error: unknown) {
+            console.error('Meeting import preview failed', error);
             alert(getErrorMessage(error));
         }
     };
@@ -248,6 +244,7 @@ export function WorkLogsPage() {
             setMeetingImportSkippedCount(0);
             refetch();
         } catch (error: unknown) {
+            console.error('Meeting import commit failed', error);
             alert(getErrorMessage(error));
         }
     };
@@ -383,7 +380,7 @@ export function WorkLogsPage() {
                             onWorklogEdit={handleWorklogEdit}
                             onWorklogDelete={handleWorklogDelete}
                             onWorklogMove={handleWorklogMove}
-                            onAIInputClick={isAIHealthy ? handleAIInputClick : undefined}
+                            onAIInputClick={handleAIInputClick}
                             movingWorklogId={movingWorklogId}
                         />
                     )}

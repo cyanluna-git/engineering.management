@@ -28,6 +28,7 @@ class GraphCalendarService:
     CALENDAR_SCOPE = "Calendars.Read"
     GRAPH_BASE_URL = "https://graph.microsoft.com/v1.0"
     OUTLOOK_TIMEZONE = "Asia/Seoul"
+    ACCESS_TOKEN_EXPIRY_SKEW = timedelta(minutes=2)
 
     def __init__(self, db: Session):
         self.db = db
@@ -53,21 +54,95 @@ class GraphCalendarService:
         if self.CALENDAR_SCOPE not in scopes:
             raise CalendarConnectionError("Microsoft Calendar consent is missing Calendars.Read")
 
-        if not connection.refresh_token_encrypted:
-            raise CalendarConnectionError("Microsoft Calendar refresh token is unavailable")
-
         return connection, scopes
+
+    @classmethod
+    def _normalize_expiry(cls, expires_at: datetime | None) -> datetime | None:
+        if expires_at is None:
+            return None
+        if expires_at.tzinfo is None:
+            return expires_at.replace(tzinfo=timezone.utc)
+        return expires_at
+
+    @classmethod
+    def _is_access_token_valid(cls, connection) -> bool:
+        if not connection.access_token_encrypted:
+            return False
+
+        expires_at = cls._normalize_expiry(connection.token_expires_at)
+        if expires_at is None:
+            return True
+
+        return expires_at > (datetime.now(timezone.utc) + cls.ACCESS_TOKEN_EXPIRY_SKEW)
+
+    @classmethod
+    def _cached_access_token(cls, connection) -> str | None:
+        if not cls._is_access_token_valid(connection):
+            return None
+        return OAuthConnectionService.decrypt(connection.access_token_encrypted)
+
+    @staticmethod
+    def _token_error_message(exc: httpx.HTTPStatusError) -> str:
+        try:
+            payload = exc.response.json()
+        except ValueError:
+            payload = None
+
+        if isinstance(payload, dict):
+            error_description = payload.get("error_description")
+            if isinstance(error_description, str) and error_description.strip():
+                return error_description.strip()
+
+            nested_error = payload.get("error")
+            if isinstance(nested_error, dict):
+                message = nested_error.get("message")
+                if isinstance(message, str) and message.strip():
+                    return message.strip()
+
+            if isinstance(nested_error, str) and nested_error.strip():
+                return nested_error.strip()
+
+        response_text = exc.response.text.strip()
+        if response_text:
+            return response_text
+
+        return f"HTTP {exc.response.status_code}"
 
     def refresh_graph_access_token(self, user: User) -> str:
         connection, stored_scopes = self._connection_for_user(user)
+        cached_access_token = self._cached_access_token(connection)
+        if cached_access_token:
+            return cached_access_token
+
+        if not connection.refresh_token_encrypted:
+            raise CalendarConnectionError(
+                "Microsoft Calendar token is missing refresh credentials. Please reconnect your calendar."
+            )
+
         refresh_token = OAuthConnectionService.decrypt(connection.refresh_token_encrypted)
         if not refresh_token:
-            raise CalendarConnectionError("Microsoft Calendar refresh token is unavailable")
+            raise CalendarConnectionError(
+                "Microsoft Calendar refresh token is unavailable. Please reconnect your calendar."
+            )
 
-        token_result = OIDCService.refresh_access_token(
-            refresh_token=refresh_token,
-            scopes=stored_scopes or [self.CALENDAR_SCOPE],
-        )
+        try:
+            token_result = OIDCService.refresh_access_token(
+                refresh_token=refresh_token,
+                scopes=stored_scopes or [self.CALENDAR_SCOPE],
+            )
+        except ValueError as exc:
+            raise CalendarConnectionError(
+                "Microsoft Calendar token scopes are invalid. Please reconnect your calendar."
+            ) from exc
+        except httpx.HTTPStatusError as exc:
+            message = self._token_error_message(exc)
+            raise CalendarConnectionError(
+                f"Microsoft Calendar token refresh failed: {message}"
+            ) from exc
+        except httpx.HTTPError as exc:
+            raise CalendarConnectionError(
+                "Microsoft Calendar token refresh failed due to a network error. Please try again."
+            ) from exc
 
         OAuthConnectionService.upsert_microsoft_connection(
             self.db,
@@ -137,12 +212,22 @@ class GraphCalendarService:
 
         with httpx.Client(timeout=20.0) as client:
             while next_url:
-                response = client.get(
-                    next_url,
-                    headers=headers,
-                    params=params if next_url.endswith("/calendarView") else None,
-                )
-                response.raise_for_status()
+                try:
+                    response = client.get(
+                        next_url,
+                        headers=headers,
+                        params=params if next_url.endswith("/calendarView") else None,
+                    )
+                    response.raise_for_status()
+                except httpx.HTTPStatusError as exc:
+                    message = self._token_error_message(exc)
+                    raise CalendarConnectionError(
+                        f"Microsoft Calendar fetch failed: {message}"
+                    ) from exc
+                except httpx.HTTPError as exc:
+                    raise CalendarConnectionError(
+                        "Microsoft Calendar fetch failed due to a network error. Please try again."
+                    ) from exc
                 payload = response.json()
                 events.extend(payload.get("value", []))
                 next_url = payload.get("@odata.nextLink")

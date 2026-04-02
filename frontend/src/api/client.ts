@@ -17,6 +17,9 @@ export interface ApiError {
 export function getApiError(error: unknown): ApiError {
   if (axios.isAxiosError(error) && error.response?.data) {
     const data = error.response.data;
+    if (typeof data === 'string' && data.trim()) {
+      return { code: 'UNKNOWN', message: data.trim() };
+    }
     if (data.code) return data as ApiError;
     if (data.detail) {
       if (typeof data.detail === 'object' && data.detail.code) return data.detail as ApiError;
@@ -189,6 +192,13 @@ export interface CalendarConnectStartResponse {
 export const getCalendarConnectionStatus = async (): Promise<CalendarConnectionStatus> => {
   const response = await apiClient.get<CalendarConnectionStatus>('/auth/oidc/calendar/status');
   return response.data;
+};
+
+export const getCurrentUserPhoto = async (): Promise<Blob> => {
+  const response = await apiClient.get('/auth/me/photo', {
+    responseType: 'blob',
+  });
+  return response.data as Blob;
 };
 
 export const startCalendarConnect = async (redirect_url?: string): Promise<CalendarConnectStartResponse> => {

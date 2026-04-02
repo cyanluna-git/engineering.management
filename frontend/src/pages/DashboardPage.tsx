@@ -203,7 +203,6 @@ export const DashboardPage: React.FC = () => {
         };
 
         traverse(categoryTree);
-        console.log('[Dashboard] Category Map sample:', Object.keys(map).slice(0, 5).map(k => ({ code: k, cat: map[k] })));
         return map;
     }, [categoryTree]);
 
@@ -270,8 +269,6 @@ export const DashboardPage: React.FC = () => {
             }
         };
         traverse(categoryTree);
-        console.log('[Dashboard] Category ID to Code Map:', map);
-        console.log('[Dashboard] Category Tree:', categoryTree);
         return map;
     }, [categoryTree]);
 
@@ -284,19 +281,10 @@ export const DashboardPage: React.FC = () => {
         const currentLevel = drillDownPath.length; // 0, 1, or 2
         const parentCode = currentLevel > 0 ? drillDownPath[currentLevel - 1] : null;
 
-        // Debug: Log worklogs and their work_type_category info
-        console.log(`[Dashboard ${viewMode}] Total worklogs:`, currentWorklogs.length);
-        console.log(`[Dashboard ${viewMode}] Sample worklog:`, currentWorklogs[0]);
-        if (currentWorklogs.length > 0) {
-            const withCategory = currentWorklogs.filter(wl => wl.work_type_category_id).length;
-            const withoutCategory = currentWorklogs.length - withCategory;
-            console.log(`[Dashboard ${viewMode}] With category: ${withCategory}, Without: ${withoutCategory}`);
-        }
-
         // Bucket accumulator
         const buckets: Record<string, { name: string; code: string; value: number; color?: string }> = {};
 
-        currentWorklogs.forEach((wl, idx) => {
+        currentWorklogs.forEach((wl) => {
             // Determine WL's path
             let l1 = 'ADM'; // Default if no category
             let l2 = 'ADM-GEN';
@@ -305,20 +293,10 @@ export const DashboardPage: React.FC = () => {
             let l2Name = i18n.language === 'ko' ? '일반' : 'General';
             let l3Name = i18n.language === 'ko' ? '기타' : 'Other';
 
-            // Debug first few worklogs
-            if (idx < 3) {
-                console.log(`[WL ${idx}] work_type_category_id:`, wl.work_type_category_id);
-                console.log(`[WL ${idx}] work_type_category:`, wl.work_type_category);
-            }
-
             // Try to resolve from ID first (New Logic)
             if (wl.work_type_category_id && categoryIdToCode[wl.work_type_category_id]) {
                 const code = categoryIdToCode[wl.work_type_category_id];
                 const cat = categoryMap[code];
-
-                if (idx < 3) {
-                    console.log(`[WL ${idx}] Found code: ${code}, cat:`, cat);
-                }
 
                 if (cat) {
                     if (cat.level === 3) {
@@ -337,18 +315,6 @@ export const DashboardPage: React.FC = () => {
                     } else if (cat.level === 1) {
                         l1 = cat.code; l1Name = getLocalizedName(cat, i18n.language);
                     }
-
-                    if (idx < 3) {
-                        console.log(`[WL ${idx}] Resolved to L1: ${l1} (${l1Name})`);
-                    }
-                } else {
-                    if (idx < 3) {
-                        console.log(`[WL ${idx}] ❌ Category not found in categoryMap for code: ${code}`);
-                    }
-                }
-            } else {
-                if (idx < 3) {
-                    console.log(`[WL ${idx}] ❌ No category ID or not in mapping`);
                 }
             }
             // If still no valid category found, keep default ADM
@@ -938,8 +904,8 @@ export const DashboardPage: React.FC = () => {
                                 <CardTitle>{t('cards.monthlyTop5Trend')}</CardTitle>
                                 <p className="text-xs text-muted-foreground mt-1">{t('cards.last12Months')}</p>
                             </CardHeader>
-                            <CardContent className="h-[400px] min-h-[400px]">
-                                <ResponsiveContainer width="100%" height="100%">
+                            <CardContent className="h-[400px] min-h-[400px] min-w-0">
+                                <ResponsiveContainer width="100%" height={360} minWidth={0}>
                                     <AreaChart data={monthlyProjectTrendData.chartData}>
                                         <defs>
                                             {monthlyProjectTrendData.topProjects.map((project, idx) => {

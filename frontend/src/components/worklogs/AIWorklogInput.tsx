@@ -11,6 +11,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { AIWorklogPreview } from './AIWorklogPreview';
 import { useAIHealth, useAIWorklogParse } from '@/hooks/useAIWorklog';
+import { useApiError } from '@/hooks/useApiError';
 import { useAuth } from '@/hooks/useAuth';
 import type { AIWorklogEntry } from '@/types';
 import { useTranslation } from 'react-i18next';
@@ -29,6 +30,7 @@ export const AIWorklogInput: React.FC<AIWorklogInputProps> = ({
     const [parsedEntries, setParsedEntries] = useState<AIWorklogEntry[] | null>(null);
     const [warnings, setWarnings] = useState<string[]>([]);
     const { t } = useTranslation('worklogs');
+    const getErrorMessage = useApiError();
 
     const { data: healthData, isLoading: isHealthLoading } = useAIHealth();
     const parseMutation = useAIWorklogParse();
@@ -47,9 +49,9 @@ export const AIWorklogInput: React.FC<AIWorklogInputProps> = ({
 
             setParsedEntries(result.entries);
             setWarnings(result.warnings);
-        } catch (error) {
+        } catch (error: unknown) {
             console.error('AI parsing failed:', error);
-            setWarnings([t('ai.parseFailed')]);
+            setWarnings([getErrorMessage(error) || t('ai.parseFailed')]);
         }
     };
 
@@ -121,7 +123,7 @@ export const AIWorklogInput: React.FC<AIWorklogInputProps> = ({
                                 value={inputText}
                                 onChange={(e) => setInputText(e.target.value)}
                                 className="min-h-[140px] resize-none"
-                                disabled={!isAIHealthy || parseMutation.isPending}
+                                disabled={parseMutation.isPending}
                             />
                             <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
                                 <span className="bg-muted px-2 py-0.5 rounded">{t('ai.shortcutMorning')}</span>
@@ -135,7 +137,7 @@ export const AIWorklogInput: React.FC<AIWorklogInputProps> = ({
                         <div className="flex justify-end gap-2">
                             <Button
                                 onClick={handleParse}
-                                disabled={!inputText.trim() || !isAIHealthy || parseMutation.isPending}
+                                disabled={!inputText.trim() || parseMutation.isPending}
                             >
                                 {parseMutation.isPending ? (
                                     <>
@@ -151,7 +153,7 @@ export const AIWorklogInput: React.FC<AIWorklogInputProps> = ({
                         {!isAIHealthy && !isHealthLoading && (
                             <Alert>
                                 <AlertDescription>
-                                    {t('ai.serviceUnavailable')}
+                                    {t('ai.serviceMayBeUnavailable')}
                                 </AlertDescription>
                             </Alert>
                         )}
