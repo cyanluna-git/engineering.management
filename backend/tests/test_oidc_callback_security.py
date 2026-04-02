@@ -199,6 +199,14 @@ def test_merge_scopes_ignores_reserved_scopes_in_refresh_requests():
     assert "offline_access" not in scopes
 
 
+def test_merge_scopes_accepts_sharepoint_file_scopes():
+    scopes = OIDCService.merge_scopes(["Files.Read", "Files.Read.All", "Sites.Read.All"])
+
+    assert "Files.Read" in scopes
+    assert "Files.Read.All" in scopes
+    assert "Sites.Read.All" in scopes
+
+
 def test_oidc_callback_redirect_uses_fragment_in_debug_mode(
     db_session: Session, sample_position, monkeypatch
 ):

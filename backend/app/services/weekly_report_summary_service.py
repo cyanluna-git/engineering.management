@@ -26,11 +26,60 @@ from app.services.llm import LLMClient, get_llm_client
 from app.services.weekly_report_service import WeeklyReportService
 
 _REPORT_CONTENT_MAX_CHARS = 2000
+_COMMON_PROJECT_NAME = "공통/미분류"
+_PLAN_SECTION_KEYWORDS = (
+    "다음 주",
+    "향후 계획",
+    "이번 주 남은 업무",
+    "next week",
+    "future plan",
+    "planned work",
+)
 
 
 def _monday_of_week(ref: date) -> date:
     """Return the Monday of the week containing ref."""
     return ref - timedelta(days=ref.weekday())
+
+
+def _truncate_content(content: str) -> str:
+    """Trim and cap prompt payload size for a single content block."""
+    normalized = (content or "").strip()
+    if len(normalized) > _REPORT_CONTENT_MAX_CHARS:
+        return normalized[:_REPORT_CONTENT_MAX_CHARS] + "\n... (이하 생략)"
+    return normalized
+
+
+def _split_content_and_explicit_plans(markdown: str) -> tuple[str, list[str]]:
+    """Separate explicit future-plan sections from the main body."""
+    if not markdown:
+        return "", []
+
+    body_lines: list[str] = []
+    explicit_plans: list[str] = []
+    in_plan_section = False
+
+    for raw_line in markdown.splitlines():
+        line = raw_line.rstrip()
+        stripped = line.strip()
+
+        if stripped.startswith("#"):
+            heading = stripped.lstrip("#").strip().lower()
+            in_plan_section = any(keyword in heading for keyword in _PLAN_SECTION_KEYWORDS)
+            if not in_plan_section and stripped:
+                body_lines.append(line)
+            continue
+
+        if in_plan_section:
+            normalized_plan = stripped.lstrip("-*• ").strip()
+            if normalized_plan:
+                explicit_plans.append(normalized_plan)
+            continue
+
+        body_lines.append(line)
+
+    body = _truncate_content("\n".join(body_lines))
+    return body, explicit_plans
 
 
 class WeeklyReportSummaryService:
@@ -228,19 +277,55 @@ class WeeklyReportSummaryService:
             user = user_map.get(report.owner_user_id)
             user_name = user.name if user else report.owner_user_id
             # Extract project-specific section if structured sections exist
-            content = ""
+            project_sections: list[dict] = []
+            explicit_plans: list[dict] = []
             if report.sections and isinstance(report.sections, list):
                 for section in report.sections:
                     if section.get("project_id") == project_id:
-                        content = (section.get("body") or "").strip()
+                        section_body, section_plans = _split_content_and_explicit_plans(
+                            section.get("body") or ""
+                        )
+                        if section_body:
+                            project_sections.append(
+                                {
+                                    "project_name": project.name,
+                                    "content": section_body,
+                                }
+                            )
+                        explicit_plans.extend(
+                            {
+                                "project_name": project.name,
+                                "content": plan,
+                            }
+                            for plan in section_plans
+                        )
                         break
-            if not content:
+            if not project_sections and not explicit_plans:
                 # Fallback: use full body for legacy reports
-                content = (report.markdown_body or "").strip()
-            if len(content) > _REPORT_CONTENT_MAX_CHARS:
-                content = content[:_REPORT_CONTENT_MAX_CHARS] + "\n... (이하 생략)"
-            if content:
-                personal_reports.append({"user_name": user_name, "content": content})
+                content, raw_plans = _split_content_and_explicit_plans(report.markdown_body or "")
+                if content:
+                    project_sections.append(
+                        {
+                            "project_name": project.name,
+                            "content": content,
+                        }
+                    )
+                explicit_plans.extend(
+                    {
+                        "project_name": project.name,
+                        "content": plan,
+                    }
+                    for plan in raw_plans
+                )
+            if project_sections or explicit_plans:
+                personal_reports.append(
+                    {
+                        "user_name": user_name,
+                        "content": "",
+                        "project_sections": project_sections,
+                        "explicit_plans": explicit_plans,
+                    }
+                )
 
         existing_body = self._get_existing_team_report_body(
             target_key=f"project:{project_id}",
@@ -485,11 +570,78 @@ class WeeklyReportSummaryService:
         for report in reports_db:
             user = user_map.get(report.owner_user_id)
             user_name = user.name if user else report.owner_user_id
-            content = (report.markdown_body or "").strip()
-            if len(content) > _REPORT_CONTENT_MAX_CHARS:
-                content = content[:_REPORT_CONTENT_MAX_CHARS] + "\n... (이하 생략)"
-            if content:
-                report_list.append({"user_name": user_name, "content": content})
+            project_sections: list[dict] = []
+            explicit_plans: list[dict] = []
+
+            if report.sections and isinstance(report.sections, list):
+                for section in report.sections:
+                    section_body = (section.get("body") or "").strip()
+                    if not section_body:
+                        continue
+
+                    project_name = (
+                        section.get("project_name")
+                        or section.get("title")
+                        or _COMMON_PROJECT_NAME
+                    )
+                    normalized_body, section_plans = _split_content_and_explicit_plans(section_body)
+                    if normalized_body:
+                        project_sections.append(
+                            {
+                                "project_name": project_name,
+                                "content": normalized_body,
+                            }
+                        )
+                    explicit_plans.extend(
+                        {
+                            "project_name": project_name,
+                            "content": plan,
+                        }
+                        for plan in section_plans
+                    )
+
+            if not project_sections and not explicit_plans:
+                content, raw_plans = _split_content_and_explicit_plans(report.markdown_body or "")
+                if content:
+                    report_list.append(
+                        {
+                            "user_name": user_name,
+                            "content": content,
+                            "project_sections": [],
+                            "explicit_plans": [
+                                {
+                                    "project_name": _COMMON_PROJECT_NAME,
+                                    "content": plan,
+                                }
+                                for plan in raw_plans
+                            ],
+                        }
+                    )
+                elif raw_plans:
+                    report_list.append(
+                        {
+                            "user_name": user_name,
+                            "content": "",
+                            "project_sections": [],
+                            "explicit_plans": [
+                                {
+                                    "project_name": _COMMON_PROJECT_NAME,
+                                    "content": plan,
+                                }
+                                for plan in raw_plans
+                            ],
+                        }
+                    )
+                continue
+
+            report_list.append(
+                {
+                    "user_name": user_name,
+                    "content": "",
+                    "project_sections": project_sections,
+                    "explicit_plans": explicit_plans,
+                }
+            )
 
         return report_list, missing_member_names
 

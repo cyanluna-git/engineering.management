@@ -80,3 +80,6 @@ workthrough/.vitepress/dist/
 
 # Sensitive server access docs (keep local, never commit)
 docs/opboard-docs/SSL*
+
+# Local scratch workspace
+toys/

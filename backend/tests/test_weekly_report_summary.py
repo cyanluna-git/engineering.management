@@ -15,6 +15,10 @@ from unittest.mock import AsyncMock, MagicMock
 from app.models.organization import Department, SubTeam
 from app.models.user import User
 from app.models.weekly_report import WeeklyReport
+from app.prompts.weekly_report_summary import (
+    build_group_to_team_prompt,
+    build_personal_to_group_prompt,
+)
 from app.services.weekly_report_summary_service import WeeklyReportSummaryService
 
 
@@ -39,7 +43,14 @@ def _make_user(db_session, *, user_id: str, name: str, position_id: str, departm
     return user
 
 
-def _make_report(db_session, *, owner_user_id: str, week_start: date, body: str) -> WeeklyReport:
+def _make_report(
+    db_session,
+    *,
+    owner_user_id: str,
+    week_start: date,
+    body: str,
+    sections: list[dict] | None = None,
+) -> WeeklyReport:
     from datetime import timedelta
     week_end = week_start + timedelta(days=6)
     report = WeeklyReport(
@@ -53,6 +64,7 @@ def _make_report(db_session, *, owner_user_id: str, week_start: date, body: str)
         week_key=str(week_start),
         status="published",
         markdown_body=body,
+        sections=sections,
         owner_user_id=owner_user_id,
         created_by_user_id=owner_user_id,
         updated_by_user_id=owner_user_id,
@@ -65,6 +77,19 @@ def _mock_llm_client(summary: str = "## Summary\n- Test summary") -> MagicMock:
     """Return a mock LLM client that returns a fixed summary."""
     mock = MagicMock()
     mock.generate_json = AsyncMock(return_value={"summary_markdown": summary})
+    return mock
+
+
+def _capturing_llm(summary: str, captured: dict) -> MagicMock:
+    """Return a mock LLM client that captures the prompts it receives."""
+    mock = MagicMock()
+
+    async def _capture(user_prompt: str, system_prompt: str):
+        captured["user_prompt"] = user_prompt
+        captured["system_prompt"] = system_prompt
+        return {"summary_markdown": summary}
+
+    mock.generate_json = AsyncMock(side_effect=_capture)
     return mock
 
 
@@ -310,3 +335,134 @@ async def test_resolve_target_raises_403_for_non_member(db_session, sample_depar
     assert exc_info.value.status_code == 403
     # LLM should never be called — permission check happens before LLM invocation
     assert llm.generate_json.call_count == 0
+
+
+def test_personal_prompt_requires_project_grouping_and_explicit_future_plan_only():
+    """Prompt should require project-grouped, result-centered summaries."""
+    system_prompt, user_prompt = build_personal_to_group_prompt(
+        reports=[
+            {
+                "user_name": "Alice",
+                "project_sections": [
+                    {"project_name": "Project Alpha", "content": "- 설계 변경표 작성 완료"},
+                ],
+                "explicit_plans": [{"project_name": "Project Alpha", "content": "고객 검토 대응"}],
+            }
+        ],
+        group_name="Electrical",
+    )
+
+    assert "반드시 프로젝트 단위로 묶어서 작성" in system_prompt
+    assert "완료된 산출물, 결정사항, 확인된 변경" in system_prompt
+    assert "향후 계획 섹션은 입력의 명시된 계획/남은 업무가 제공된 경우에만" in system_prompt
+    assert "입력에 없는 수치, 일정, 리스크, 향후 계획을 절대 만들어내지 마십시오" in system_prompt
+    assert "## 프로젝트별 근거 데이터" in user_prompt
+    assert "### Project Alpha" in user_prompt
+    assert "## 명시된 향후 계획 / 남은 업무" in user_prompt
+
+
+def test_group_prompt_requires_project_regrouping_and_no_invented_plans():
+    """Department aggregation prompt should preserve project-centered rules."""
+    system_prompt, user_prompt = build_group_to_team_prompt(
+        sub_team_summaries=[
+            {
+                "sub_team_name": "Team A",
+                "summary": "## 프로젝트별 주요 결과\n### Project Alpha\n- 설계 변경표 작성 완료",
+            }
+        ],
+        team_name="Engineering",
+    )
+
+    assert "가능한 한 프로젝트 단위로 재구성" in system_prompt
+    assert "입력에 없는 수치, 일정, 리스크, 향후 계획을 절대 만들어내지 마십시오" in system_prompt
+    assert "향후 계획 섹션은 입력에 명시된 경우에만 포함" in system_prompt
+    assert "## 소그룹별 요약" in user_prompt
+    assert "### Team A" in user_prompt
+
+
+@pytest.mark.asyncio
+async def test_sub_team_prompt_groups_reports_by_project_and_separates_explicit_plans(
+    db_session,
+    sample_department,
+    sample_sub_team,
+    sample_position,
+):
+    """Structured report sections should be regrouped by project before LLM summarization."""
+    week_start = date(2026, 3, 9)
+    captured: dict[str, str] = {}
+    llm = _capturing_llm("## Structured Summary\n- Done", captured)
+
+    _make_user(
+        db_session,
+        user_id="grp-u1",
+        name="Alice",
+        position_id=sample_position.id,
+        department_id=sample_department.id,
+        sub_team_id=sample_sub_team.id,
+    )
+    _make_user(
+        db_session,
+        user_id="grp-u2",
+        name="Bob",
+        position_id=sample_position.id,
+        department_id=sample_department.id,
+        sub_team_id=sample_sub_team.id,
+    )
+    _make_report(
+        db_session,
+        owner_user_id="grp-u1",
+        week_start=week_start,
+        body="",
+        sections=[
+            {
+                "project_id": "PROJ_ALPHA",
+                "project_name": "Project Alpha",
+                "body": "## 주요 활동\n- 설계 변경표 작성 완료\n## 다음 주 계획\n- 고객 검토 대응",
+            },
+            {
+                "project_id": "PROJ_BETA",
+                "project_name": "Project Beta",
+                "body": "- IO List 작성 완료",
+            },
+        ],
+    )
+    _make_report(
+        db_session,
+        owner_user_id="grp-u2",
+        week_start=week_start,
+        body="## 주요 활동\n- 공용 템플릿 정비 완료\n## 이번 주 남은 업무\n- 배포 확인",
+    )
+    db_session.commit()
+
+    admin = _make_user(
+        db_session,
+        user_id="grp-admin",
+        name="Admin5",
+        position_id=sample_position.id,
+        department_id=sample_department.id,
+    )
+    admin.role = "ADMIN"
+    db_session.commit()
+
+    service = WeeklyReportSummaryService(db=db_session, llm_client=llm)
+    result = await service.summarize_for_team(
+        team_scope_type="sub_team",
+        scope_id=sample_sub_team.id,
+        week_start=week_start,
+        current_user=admin,
+        save_intermediate=False,
+    )
+
+    assert result["team_summary_markdown"] == "## Structured Summary\n- Done"
+    assert result["personal_report_count"] == 2
+    assert "### Project Alpha" in captured["user_prompt"]
+    assert "### Project Beta" in captured["user_prompt"]
+    assert "### 공통/미분류" in captured["user_prompt"]
+    assert "설계 변경표 작성 완료" in captured["user_prompt"]
+    assert "IO List 작성 완료" in captured["user_prompt"]
+    assert "공용 템플릿 정비 완료" in captured["user_prompt"]
+    assert "## 명시된 향후 계획 / 남은 업무" in captured["user_prompt"]
+    assert "[Project Alpha] Alice: 고객 검토 대응" in captured["user_prompt"]
+    assert "[공통/미분류] Bob: 배포 확인" in captured["user_prompt"]
+    assert "## 다음 주 계획" not in captured["user_prompt"]
+    assert "## 이번 주 남은 업무" not in captured["user_prompt"]

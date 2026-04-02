@@ -75,7 +75,9 @@ class Settings(BaseSettings):
     OIDC_REDIRECT_URI: str = "http://localhost:8004/api/auth/oidc/callback"
     OIDC_POST_LOGOUT_REDIRECT_URI: str = "http://localhost:3004/login"
     OIDC_SCOPES: str = "openid,profile,email,offline_access,User.Read"
-    OIDC_ALLOWED_EXTRA_SCOPES: str = "Calendars.Read"
+    OIDC_ALLOWED_EXTRA_SCOPES: str = (
+        "Calendars.Read,Files.Read,Files.Read.All,Sites.Read.All"
+    )
 
     @property
     def cors_origins_list(self) -> list[str]:
