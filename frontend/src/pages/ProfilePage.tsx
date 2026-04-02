@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/hooks/useAuth';
+import { useProfilePhoto } from '@/hooks/useProfilePhoto';
 import { apiClient } from '@/api/client';
 import { useApiError } from '@/hooks/useApiError';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -13,6 +14,7 @@ import type { User as UserType } from '@/types';
 
 export function ProfilePage() {
   const { user: authUser } = useAuth();
+  const profilePhotoUrl = useProfilePhoto(authUser?.id);
   const { t } = useTranslation('auth');
   const getErrorMessage = useApiError();
   const [user, setUser] = useState<UserType | null>(authUser);
@@ -104,8 +106,16 @@ export function ProfilePage() {
         <Card>
           <CardHeader>
             <div className="flex items-center gap-4">
-              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-slate-700 text-white text-2xl font-medium">
-                {user.korean_name?.[0] || user.name?.[0] || 'U'}
+              <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-full bg-slate-700 text-2xl font-medium text-white">
+                {profilePhotoUrl ? (
+                  <img
+                    src={profilePhotoUrl}
+                    alt={user.korean_name || user.name || 'User'}
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  user.korean_name?.[0] || user.name?.[0] || 'U'
+                )}
               </div>
               <div>
                 <CardTitle className="text-2xl">
