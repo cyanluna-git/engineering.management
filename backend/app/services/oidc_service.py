@@ -65,6 +65,8 @@ class OIDCService:
         allowed_extras = set(settings.oidc_allowed_extra_scopes_list)
 
         for scope in cls._normalized_scopes(extra_scopes):
+            if scope in cls.RESERVED_SCOPES:
+                continue
             if scope not in allowed_extras:
                 raise ValueError(f"Unsupported OIDC extra scope: {scope}")
             if scope not in scopes:

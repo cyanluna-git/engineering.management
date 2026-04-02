@@ -448,8 +448,8 @@ function TeamCapacityPage() {
                             <Card className="flex-1 min-h-[280px]">
                                 <CardContent className="p-4 h-full flex flex-col">
                                     <h2 className="text-sm font-semibold text-slate-700 mb-3">FTE Trend ({year})</h2>
-                                    <div className="flex-1 min-h-[220px]">
-                                        <ResponsiveContainer width="100%" height="100%">
+                                    <div className="flex-1 min-h-[220px] min-w-0">
+                                        <ResponsiveContainer width="100%" height={220} minWidth={0}>
                                             <AreaChart data={chartData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
                                                 <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
                                                 <XAxis

@@ -189,6 +189,16 @@ def test_calendar_connect_callback_persists_oauth_connection(
     assert "Calendars.Read" in connection.granted_scopes
 
 
+def test_merge_scopes_ignores_reserved_scopes_in_refresh_requests():
+    scopes = OIDCService.merge_scopes(["openid", "profile", "offline_access", "Calendars.Read"])
+
+    assert "Calendars.Read" in scopes
+    assert scopes.count("Calendars.Read") == 1
+    assert "openid" not in scopes
+    assert "profile" not in scopes
+    assert "offline_access" not in scopes
+
+
 def test_oidc_callback_redirect_uses_fragment_in_debug_mode(
     db_session: Session, sample_position, monkeypatch
 ):

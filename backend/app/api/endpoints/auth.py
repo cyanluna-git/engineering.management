@@ -27,6 +27,11 @@ from app.core.security import (
 )
 from app.core.config import settings
 from app.services.auth_service import authenticate_user
+from app.services.graph_profile_service import (
+    GraphProfileError,
+    GraphProfilePhotoNotFound,
+    GraphProfileService,
+)
 from app.services.oidc_service import OIDCService
 from app.services.oauth_connection_service import OAuthConnectionService
 from app.schemas.auth import (
@@ -196,6 +201,29 @@ async def get_current_user_info(
         }
         if user.primary_business_unit
         else None,
+    )
+
+
+@router.get("/me/photo")
+async def get_current_user_photo(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Return the current authenticated user's Microsoft profile photo when available."""
+    service = GraphProfileService(db)
+    try:
+        content, media_type = service.get_profile_photo(current_user)
+    except GraphProfilePhotoNotFound as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    except GraphProfileError as exc:
+        if "not connected" in str(exc).lower() or "missing user.read" in str(exc).lower():
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc)) from exc
+
+    return Response(
+        content=content,
+        media_type=media_type,
+        headers={"Cache-Control": "private, max-age=300"},
     )
 
 

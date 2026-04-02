@@ -60,6 +60,14 @@ export const MeetingImportPreviewModal: React.FC<MeetingImportPreviewModalProps>
     });
   };
 
+  const handleSelectAll = () => {
+    setSelectedIds(selectableItems.map((item) => item.external_event_id));
+  };
+
+  const handleClearSelection = () => {
+    setSelectedIds([]);
+  };
+
   const handleConfirm = async () => {
     await onConfirm(selectedItems);
   };
@@ -98,6 +106,26 @@ export const MeetingImportPreviewModal: React.FC<MeetingImportPreviewModalProps>
             </div>
           ) : (
             <div className="space-y-3">
+              <div className="flex items-center justify-end gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleSelectAll}
+                  disabled={isSubmitting || selectableItems.length === 0 || selectedIds.length === selectableItems.length}
+                >
+                  {t('meetingImport.selectAll')}
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleClearSelection}
+                  disabled={isSubmitting || selectedIds.length === 0}
+                >
+                  {t('meetingImport.clearSelection')}
+                </Button>
+              </div>
               {items.map((item) => {
                 const disabled = item.already_imported || !item.work_type_category_id;
                 const checked = selectedIds.includes(item.external_event_id);

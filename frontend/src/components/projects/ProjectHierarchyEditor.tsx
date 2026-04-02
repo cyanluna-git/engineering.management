@@ -397,7 +397,6 @@ export const ProjectHierarchyEditor: React.FC = () => {
 
     // Project
     const handleAddProject = (parentId: string, type: 'product_line' | 'department') => {
-        console.log('Adding project', parentId, type);
         setEditingProject(undefined);
         if (type === 'product_line') {
             setProjectInitialValues({ product_line_id: parentId, category: 'PRODUCT' });
