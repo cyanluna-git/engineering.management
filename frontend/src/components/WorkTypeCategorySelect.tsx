@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useWorkTypeCategories, WorkTypeCategory } from '@/hooks/useWorkTypeCategories';
 import { useAuth } from '@/hooks/useAuth';
 import { useFrequentSelections } from '@/hooks/useFrequentSelections';
@@ -11,6 +11,19 @@ interface WorkTypeCategorySelectProps {
     onChange: (categoryId: number, category: WorkTypeCategory) => void;
     placeholder?: string;
     className?: string;
+}
+
+function findCategoryByIdFromTree(categories: WorkTypeCategory[], id: number): WorkTypeCategory | null {
+    for (const l1 of categories) {
+        if (l1.id === id) return l1;
+        for (const l2 of l1.children) {
+            if (l2.id === id) return l2;
+            for (const l3 of l2.children) {
+                if (l3.id === id) return l3;
+            }
+        }
+    }
+    return null;
 }
 
 export function WorkTypeCategorySelect({
@@ -26,45 +39,15 @@ export function WorkTypeCategorySelect({
     const [searchTerm, setSearchTerm] = useState('');
     const { t, i18n } = useTranslation('common');
     const { topItems } = useFrequentSelections('worktype', user?.id);
-
-    // Expand all L1s when dropdown opens
-    useEffect(() => {
-        if (isOpen && categories.length > 0) {
-            const allL1Ids = categories
-                .filter(l1 => l1.code !== 'ABS')
-                .map(l1 => l1.id);
-            setExpandedL1s(new Set(allL1Ids));
-        }
-    }, [isOpen, categories]);
+    const allL1Ids = categories
+        .filter(l1 => l1.code !== 'ABS')
+        .map(l1 => l1.id);
 
     // Find selected category from tree
     const selectedCategory = useMemo(() => {
         if (!value) return null;
-        for (const l1 of categories) {
-            if (l1.id === value) return l1;
-            for (const l2 of l1.children) {
-                if (l2.id === value) return l2;
-                for (const l3 of l2.children) {
-                    if (l3.id === value) return l3;
-                }
-            }
-        }
-        return null;
+        return findCategoryByIdFromTree(categories, value);
     }, [value, categories]);
-
-    // Helper: find category by id from tree
-    const findCategoryById = (id: number): WorkTypeCategory | null => {
-        for (const l1 of categories) {
-            if (l1.id === id) return l1;
-            for (const l2 of l1.children) {
-                if (l2.id === id) return l2;
-                for (const l3 of l2.children) {
-                    if (l3.id === id) return l3;
-                }
-            }
-        }
-        return null;
-    };
 
     // Filter categories based on search AND role
     const filteredCategories = useMemo(() => {
@@ -111,9 +94,9 @@ export function WorkTypeCategorySelect({
     }, [categories, searchTerm, user]);
 
     // Frequent items filtered to only those that exist in current categories
-    const validFrequentItems = useMemo(() => {
-        return topItems.filter(item => findCategoryById(Number(item.id)) !== null);
-    }, [topItems, categories]);
+    const validFrequentItems = topItems.filter(
+        item => findCategoryByIdFromTree(categories, Number(item.id)) !== null
+    );
 
     const handleSelect = (category: WorkTypeCategory) => {
         onChange(category.id, category);
@@ -122,10 +105,19 @@ export function WorkTypeCategorySelect({
     };
 
     const handleFrequentClick = (id: string) => {
-        const category = findCategoryById(Number(id));
+        const category = findCategoryByIdFromTree(categories, Number(id));
         if (category) {
             handleSelect(category);
         }
+    };
+
+    const handleOpenChange = (nextOpen: boolean) => {
+        setIsOpen(nextOpen);
+        if (nextOpen) {
+            setExpandedL1s(new Set(allL1Ids));
+            return;
+        }
+        setSearchTerm('');
     };
 
     const toggleL1 = (l1Id: number, e: React.MouseEvent) => {
@@ -154,7 +146,7 @@ export function WorkTypeCategorySelect({
             {/* Trigger Button */}
             <button
                 type="button"
-                onClick={() => setIsOpen(!isOpen)}
+                onClick={() => handleOpenChange(!isOpen)}
                 className="w-full flex items-center justify-between p-2 border rounded-md bg-background hover:bg-slate-50 text-left"
             >
                 <span className={selectedCategory ? 'text-foreground' : 'text-muted-foreground'}>
@@ -171,10 +163,7 @@ export function WorkTypeCategorySelect({
                     {/* Backdrop */}
                     <div
                         className="fixed inset-0 z-40"
-                        onClick={() => {
-                            setIsOpen(false);
-                            setSearchTerm('');
-                        }}
+                        onClick={() => handleOpenChange(false)}
                     />
 
                     {/* Menu */}
@@ -211,7 +200,7 @@ export function WorkTypeCategorySelect({
                                             }`}
                                         >
                                             {(() => {
-                                                const cat = findCategoryById(Number(item.id));
+                                                const cat = findCategoryByIdFromTree(categories, Number(item.id));
                                                 return cat ? getLocalizedName(cat, i18n.language) : item.label;
                                             })()}
                                         </button>

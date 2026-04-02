@@ -143,7 +143,7 @@ export const ResourcePlansPage: React.FC = () => {
 
     // Use the same hierarchy API as Projects page for consistent structure
     const { data: hierarchy } = useProjectHierarchy();
-    const productProjects = hierarchy?.product_projects || [];
+    const productProjects = useMemo(() => hierarchy?.product_projects || [], [hierarchy?.product_projects]);
 
     const { data: positions = [] } = useQuery<ProjectRole[]>({
         queryKey: ['project-roles'],

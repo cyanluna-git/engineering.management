@@ -179,7 +179,7 @@ export const UserHierarchySelect: React.FC<UserHierarchySelectProps> = ({
         }
 
         return result;
-    }, [users, departments, divisions]);
+    }, [users, departments, divisions, t]);
 
     // Filter users based on search term (Korean/English/email)
     const matchesSearch = (user: UserData, term: string): boolean => {

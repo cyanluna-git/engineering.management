@@ -262,8 +262,7 @@ export const getProductLines = async (): Promise<ProductLine[]> => {
 };
 
 export const createProductLine = async (data: Omit<ProductLine, 'id'>): Promise<ProductLine> => {
-  // @ts-ignore - Create type matches omit id
-  const response = await apiClient.post('/projects/product-lines', data);
+  const response = await apiClient.post<ProductLine>('/projects/product-lines', data);
   return response.data;
 };
 
@@ -279,7 +278,9 @@ export const deleteProductLine = async (id: string): Promise<void> => {
 // ============ Projects API ============
 import type { Project, ProjectCreate, ProjectUpdate } from '@/types';
 
-export const getProjects = async (params?: any): Promise<Project[]> => {
+export type ProjectQueryParams = Record<string, string | number | boolean | null | undefined>;
+
+export const getProjects = async (params?: ProjectQueryParams): Promise<Project[]> => {
   const response = await apiClient.get('/projects', { params });
   return response.data;
 };
@@ -1282,6 +1283,24 @@ export interface TeamAISummary {
   error?: string;
 }
 
+export interface AISummaryPayload {
+  summary?: string[];
+  focus_areas?: string[];
+  workload_observations?: string[];
+  risk_signals?: string[];
+  record_quality_notes?: string[];
+  project_summary?: string[];
+  member_summary?: string[];
+  issues?: string[];
+  analysis?: string[];
+  coverage_gaps?: string[];
+  generated_at?: string;
+  period_start?: string;
+  period_end?: string;
+  from_cache?: boolean;
+  error?: string;
+}
+
 export const getUserAISummary = async (
   period: 'weekly' | 'monthly' = 'weekly',
   forceRegenerate: boolean = false,
@@ -1309,7 +1328,7 @@ export interface AISummaryHistoryItem {
   id: string;
   period_start: string;
   period_end: string;
-  summary: any;
+  summary: AISummaryPayload;
   generated_at: string;
 }
 

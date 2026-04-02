@@ -39,6 +39,59 @@ import { usePermissions } from '@/hooks/usePermissions';
 type SortColumn = 'name' | 'email' | 'division' | 'department' | 'subteam' | 'position' | 'primary_bu' | 'role' | 'status';
 type SortDirection = 'asc' | 'desc';
 
+const getNameById = (nameMap: Map<string, string>, id: string | null | undefined) => {
+    if (!id) {
+        return '-';
+    }
+
+    return nameMap.get(id) || '-';
+};
+
+const getDivisionNameForUser = (
+    user: UserDetails,
+    divisionNameById: Map<string, string>,
+    departmentDivisionIdById: Map<string, string | null | undefined>,
+) => {
+    if (user.division_id) {
+        return getNameById(divisionNameById, user.division_id);
+    }
+
+    const divisionId = user.department_id ? departmentDivisionIdById.get(user.department_id) : undefined;
+    return getNameById(divisionNameById, divisionId);
+};
+
+interface SortableHeaderProps {
+    column: SortColumn;
+    activeColumn: SortColumn;
+    direction: SortDirection;
+    onSort: (column: SortColumn) => void;
+    children: React.ReactNode;
+    className?: string;
+}
+
+const SortableHeader: React.FC<SortableHeaderProps> = ({
+    column,
+    activeColumn,
+    direction,
+    onSort,
+    children,
+    className = '',
+}) => (
+    <th
+        className={`py-2 px-3 cursor-pointer hover:bg-slate-100 select-none ${className}`}
+        onClick={() => onSort(column)}
+    >
+        <div className="flex items-center gap-1">
+            {children}
+            {activeColumn === column ? (
+                direction === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />
+            ) : (
+                <ArrowUpDown className="h-3 w-3 text-slate-300" />
+            )}
+        </div>
+    </th>
+);
+
 export const ResourcesTab: React.FC = () => {
     const queryClient = useQueryClient();
     const { canManageUsers } = usePermissions();
@@ -85,32 +138,18 @@ export const ResourcesTab: React.FC = () => {
         enabled: departmentIds.length > 0,
     });
 
-    const getDivisionName = (user: UserDetails) => {
-        if (user.division_id) {
-            return divisions.find(d => d.id === user.division_id)?.name || '-';
-        }
-        const dept = departments.find(d => d.id === user.department_id);
-        if (!dept) return '-';
-        const div = divisions.find(d => d.id === dept.division_id);
-        return div?.name || '-';
-    };
-
-    const getDeptName = (deptId: string | null) => {
-        if (!deptId) return '-';
-        return departments.find(d => d.id === deptId)?.name || '-';
-    };
-
-    const getSubTeamName = (subTeamId: string | null) => {
-        if (!subTeamId) return '-';
-        return allSubTeams.find(st => st.id === subTeamId)?.name || '-';
-    };
-
-    const getBuName = (buId: string | null) => {
-        if (!buId) return '-';
-        return businessUnits.find(bu => bu.id === buId)?.name || '-';
-    };
-
-    const getPositionName = (posId: string) => positions.find(p => p.id === posId)?.name || posId;
+    const divisionNameById = useMemo(() => new Map(divisions.map((division) => [division.id, division.name])), [divisions]);
+    const departmentNameById = useMemo(() => new Map(departments.map((department) => [department.id, department.name])), [departments]);
+    const departmentDivisionIdById = useMemo(
+        () => new Map(departments.map((department) => [department.id, department.division_id])),
+        [departments]
+    );
+    const subTeamNameById = useMemo(() => new Map(allSubTeams.map((subTeam) => [subTeam.id, subTeam.name])), [allSubTeams]);
+    const businessUnitNameById = useMemo(
+        () => new Map(businessUnits.map((businessUnit) => [businessUnit.id, businessUnit.name])),
+        [businessUnits]
+    );
+    const positionNameById = useMemo(() => new Map(positions.map((position) => [position.id, position.name])), [positions]);
 
     // Handle column header click for sorting
     const handleSort = (column: SortColumn) => {
@@ -151,24 +190,24 @@ export const ResourcesTab: React.FC = () => {
                     valueB = (b.email || '').toLowerCase();
                     break;
                 case 'division':
-                    valueA = getDivisionName(a).toLowerCase();
-                    valueB = getDivisionName(b).toLowerCase();
+                    valueA = getDivisionNameForUser(a, divisionNameById, departmentDivisionIdById).toLowerCase();
+                    valueB = getDivisionNameForUser(b, divisionNameById, departmentDivisionIdById).toLowerCase();
                     break;
                 case 'department':
-                    valueA = getDeptName(a.department_id).toLowerCase();
-                    valueB = getDeptName(b.department_id).toLowerCase();
+                    valueA = getNameById(departmentNameById, a.department_id).toLowerCase();
+                    valueB = getNameById(departmentNameById, b.department_id).toLowerCase();
                     break;
                 case 'subteam':
-                    valueA = getSubTeamName(a.sub_team_id).toLowerCase();
-                    valueB = getSubTeamName(b.sub_team_id).toLowerCase();
+                    valueA = getNameById(subTeamNameById, a.sub_team_id).toLowerCase();
+                    valueB = getNameById(subTeamNameById, b.sub_team_id).toLowerCase();
                     break;
                 case 'position':
-                    valueA = getPositionName(a.position_id).toLowerCase();
-                    valueB = getPositionName(b.position_id).toLowerCase();
+                    valueA = (positionNameById.get(a.position_id) || a.position_id).toLowerCase();
+                    valueB = (positionNameById.get(b.position_id) || b.position_id).toLowerCase();
                     break;
                 case 'primary_bu':
-                    valueA = getBuName(a.primary_business_unit_id).toLowerCase();
-                    valueB = getBuName(b.primary_business_unit_id).toLowerCase();
+                    valueA = getNameById(businessUnitNameById, a.primary_business_unit_id).toLowerCase();
+                    valueB = getNameById(businessUnitNameById, b.primary_business_unit_id).toLowerCase();
                     break;
                 case 'role':
                     valueA = (a.role || '').toLowerCase();
@@ -185,24 +224,18 @@ export const ResourcesTab: React.FC = () => {
         });
 
         return result;
-    }, [users, searchTerm, sortColumn, sortDirection, departments, divisions, allSubTeams, positions]);
-
-    // Sortable header component
-    const SortableHeader: React.FC<{ column: SortColumn; children: React.ReactNode; className?: string }> = ({ column, children, className = '' }) => (
-        <th
-            className={`py-2 px-3 cursor-pointer hover:bg-slate-100 select-none ${className}`}
-            onClick={() => handleSort(column)}
-        >
-            <div className="flex items-center gap-1">
-                {children}
-                {sortColumn === column ? (
-                    sortDirection === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />
-                ) : (
-                    <ArrowUpDown className="h-3 w-3 text-slate-300" />
-                )}
-            </div>
-        </th>
-    );
+    }, [
+        businessUnitNameById,
+        departmentDivisionIdById,
+        departmentNameById,
+        divisionNameById,
+        positionNameById,
+        searchTerm,
+        sortColumn,
+        sortDirection,
+        subTeamNameById,
+        users,
+    ]);
 
     return (
         <Card>
@@ -258,15 +291,15 @@ export const ResourcesTab: React.FC = () => {
                     <table className="w-full text-sm">
                         <thead>
                             <tr className="border-b bg-slate-50">
-                                <SortableHeader column="name" className="text-left">Name</SortableHeader>
-                                <SortableHeader column="email" className="text-left">Email</SortableHeader>
-                                <SortableHeader column="division" className="text-left">Division</SortableHeader>
-                                <SortableHeader column="department" className="text-left">Department</SortableHeader>
-                                <SortableHeader column="subteam" className="text-left">SubTeam</SortableHeader>
-                                <SortableHeader column="position" className="text-left">Position</SortableHeader>
-                                <SortableHeader column="primary_bu" className="text-left">Primary BU</SortableHeader>
-                                <SortableHeader column="role" className="text-left">Role</SortableHeader>
-                                <SortableHeader column="status" className="text-center">Status</SortableHeader>
+                                <SortableHeader column="name" activeColumn={sortColumn} direction={sortDirection} onSort={handleSort} className="text-left">Name</SortableHeader>
+                                <SortableHeader column="email" activeColumn={sortColumn} direction={sortDirection} onSort={handleSort} className="text-left">Email</SortableHeader>
+                                <SortableHeader column="division" activeColumn={sortColumn} direction={sortDirection} onSort={handleSort} className="text-left">Division</SortableHeader>
+                                <SortableHeader column="department" activeColumn={sortColumn} direction={sortDirection} onSort={handleSort} className="text-left">Department</SortableHeader>
+                                <SortableHeader column="subteam" activeColumn={sortColumn} direction={sortDirection} onSort={handleSort} className="text-left">SubTeam</SortableHeader>
+                                <SortableHeader column="position" activeColumn={sortColumn} direction={sortDirection} onSort={handleSort} className="text-left">Position</SortableHeader>
+                                <SortableHeader column="primary_bu" activeColumn={sortColumn} direction={sortDirection} onSort={handleSort} className="text-left">Primary BU</SortableHeader>
+                                <SortableHeader column="role" activeColumn={sortColumn} direction={sortDirection} onSort={handleSort} className="text-left">Role</SortableHeader>
+                                <SortableHeader column="status" activeColumn={sortColumn} direction={sortDirection} onSort={handleSort} className="text-center">Status</SortableHeader>
                                 <th className="text-right py-2 px-3">Actions</th>
                             </tr>
                         </thead>
@@ -278,11 +311,11 @@ export const ResourcesTab: React.FC = () => {
                                         {user.korean_name && <div className="text-xs text-muted-foreground">{user.korean_name}</div>}
                                     </td>
                                     <td className="py-2 px-3 text-muted-foreground">{user.email}</td>
-                                    <td className="py-2 px-3">{getDivisionName(user)}</td>
-                                    <td className="py-2 px-3">{getDeptName(user.department_id)}</td>
-                                    <td className="py-2 px-3 text-muted-foreground">{getSubTeamName(user.sub_team_id)}</td>
-                                    <td className="py-2 px-3">{getPositionName(user.position_id)}</td>
-                                    <td className="py-2 px-3">{getBuName(user.primary_business_unit_id)}</td>
+                                    <td className="py-2 px-3">{getDivisionNameForUser(user, divisionNameById, departmentDivisionIdById)}</td>
+                                    <td className="py-2 px-3">{getNameById(departmentNameById, user.department_id)}</td>
+                                    <td className="py-2 px-3 text-muted-foreground">{getNameById(subTeamNameById, user.sub_team_id)}</td>
+                                    <td className="py-2 px-3">{positionNameById.get(user.position_id) || user.position_id}</td>
+                                    <td className="py-2 px-3">{getNameById(businessUnitNameById, user.primary_business_unit_id)}</td>
                                     <td className="py-2 px-3">
                                         <span className={`px-2 py-0.5 rounded text-xs ${user.role === 'ADMIN' ? 'bg-red-100 text-red-700' : 'bg-gray-100'}`}>
                                             {user.role}
@@ -469,7 +502,7 @@ export const UserEditModal: React.FC<{
                             divisionId={formData.division_id}
                             departmentId={formData.department_id}
                             subTeamId={formData.sub_team_id || null}
-                            onChange={(divId, deptId, stId, _displayName) => {
+                            onChange={(divId, deptId, stId) => {
                                 setFormData({
                                     ...formData,
                                     division_id: divId || '',

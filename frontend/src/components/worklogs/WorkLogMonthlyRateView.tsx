@@ -94,11 +94,9 @@ export function WorkLogMonthlyRateView() {
     useEffect(() => {
         if (departmentFilter) {
             getSubTeams(departmentFilter).then(setSubTeams);
-            return;
         }
-        setSubTeams([]);
-        setSubTeamFilter('');
     }, [departmentFilter]);
+    const visibleSubTeams = departmentFilter ? subTeams : [];
 
     const filteredUsers = useMemo(() => {
         let result = users;
@@ -168,7 +166,7 @@ export function WorkLogMonthlyRateView() {
                             disabled={!departmentFilter}
                         >
                             <option value="">{t('table.allSubTeams')}</option>
-                            {subTeams.map((subTeam) => (
+                            {visibleSubTeams.map((subTeam) => (
                                 <option key={subTeam.id} value={subTeam.id}>
                                     {subTeam.name}
                                 </option>

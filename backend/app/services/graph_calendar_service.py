@@ -128,7 +128,7 @@ class GraphCalendarService:
         try:
             token_result = OIDCService.refresh_access_token(
                 refresh_token=refresh_token,
-                scopes=stored_scopes or [self.CALENDAR_SCOPE],
+                scopes=[self.CALENDAR_SCOPE],
             )
         except ValueError as exc:
             raise CalendarConnectionError(

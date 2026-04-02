@@ -4,6 +4,7 @@ import remarkGfm from "remark-gfm";
 import { ChevronDown, ChevronUp, Maximize2, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import type { ToolbarAction } from "./weekly-report-markdown-actions";
 
 const markdownContentClassName =
   "space-y-3 text-sm leading-7 text-slate-700 [&_a]:text-blue-600 [&_blockquote]:border-l-2 [&_blockquote]:border-slate-300 [&_blockquote]:pl-4 [&_code]:rounded [&_code]:bg-slate-200 [&_code]:px-1 [&_h1]:text-2xl [&_h1]:font-semibold [&_h2]:text-xl [&_h2]:font-semibold [&_h3]:text-lg [&_h3]:font-semibold [&_h4]:text-base [&_h4]:font-semibold [&_li]:ml-5 [&_li]:list-disc [&_ol]:ml-5 [&_ol]:list-decimal [&_p]:text-slate-700 [&_pre]:overflow-x-auto [&_pre]:rounded-md [&_pre]:bg-slate-900 [&_pre]:p-3 [&_pre]:text-slate-100";
@@ -22,13 +23,16 @@ export function WeeklyReportMarkdown({
   const [isExpanded, setIsExpanded] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isOverflowing, setIsOverflowing] = useState(false);
+  const [expandedHeight, setExpandedHeight] = useState(COMPACT_MAX_H);
   const contentRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (compact && contentRef.current) {
-      setIsOverflowing(contentRef.current.scrollHeight > COMPACT_MAX_H);
+      const nextHeight = contentRef.current.scrollHeight;
+      setExpandedHeight(nextHeight);
+      setIsOverflowing(nextHeight > COMPACT_MAX_H);
     }
-  }, [compact, value]);
+  }, [compact, isExpanded, value]);
 
   if (!value.trim()) {
     return <div className="text-sm text-slate-500">{emptyMessage}</div>;
@@ -66,7 +70,7 @@ export function WeeklyReportMarkdown({
       <div
         ref={contentRef}
         className={`${markdownContentClassName} overflow-hidden transition-[max-height] duration-300`}
-        style={{ maxHeight: isExpanded ? contentRef.current?.scrollHeight : COMPACT_MAX_H }}
+        style={{ maxHeight: isExpanded ? expandedHeight : COMPACT_MAX_H }}
       >
         <ReactMarkdown remarkPlugins={[remarkGfm]}>{value}</ReactMarkdown>
       </div>
@@ -102,53 +106,6 @@ const TOOLBAR_ACTIONS = [
   { key: "ordered", label: "1." },
   { key: "bullet", label: "•" },
 ] as const;
-
-type ToolbarAction = (typeof TOOLBAR_ACTIONS)[number]["key"];
-
-export function applyMarkdownBlockAction({
-  value,
-  selectionStart,
-  selectionEnd,
-  action,
-}: {
-  value: string;
-  selectionStart: number;
-  selectionEnd: number;
-  action: ToolbarAction;
-}) {
-  const prefixMap = {
-    h3: "### ",
-    h4: "#### ",
-    bullet: "- ",
-  } as const;
-
-  if (selectionStart === selectionEnd) {
-    const prefix = action === "ordered" ? "1. " : prefixMap[action];
-    const nextValue = `${value.slice(0, selectionStart)}${prefix}${value.slice(selectionEnd)}`;
-    const nextCursor = selectionStart + prefix.length;
-    return { nextValue, nextSelectionStart: nextCursor, nextSelectionEnd: nextCursor };
-  }
-
-  const selectedText = value.slice(selectionStart, selectionEnd);
-  const lines = selectedText.split("\n");
-  const updatedLines = lines.map((line, index) => {
-    if (action === "ordered") {
-      const clean = line.replace(/^\s*\d+\.\s*/, "");
-      return `${index + 1}. ${clean}`;
-    }
-
-    const prefix = prefixMap[action];
-    const clean = line.replace(/^\s*(#{3,4}\s+|-\s+)/, "");
-    return `${prefix}${clean}`;
-  });
-  const replacement = updatedLines.join("\n");
-  const nextValue = `${value.slice(0, selectionStart)}${replacement}${value.slice(selectionEnd)}`;
-  return {
-    nextValue,
-    nextSelectionStart: selectionStart,
-    nextSelectionEnd: selectionStart + replacement.length,
-  };
-}
 
 export function WeeklyReportEditorToolbar({
   onAction,

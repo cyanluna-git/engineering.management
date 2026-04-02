@@ -7,7 +7,7 @@
  * 3. Support project selection (non-project regular work with auto-routing)
  * 4. No selection (general team work)
  */
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useProjectHierarchy, useProductLineHierarchy, HierarchyNode } from '@/hooks/useProjectHierarchy';
 import { useAuth } from '@/hooks/useAuth';
 import { useRechargeIOsByBusinessUnit } from '@/hooks/useRechargeIOs';
@@ -16,6 +16,31 @@ import { ChevronDown, ChevronRight, Folder, Package, Briefcase, Building2, Wrenc
 import { useTranslation } from 'react-i18next';
 
 export type SelectionMode = 'project' | 'product_line' | 'support' | 'none';
+
+function filterHierarchyNodes(nodes: HierarchyNode[], term: string): HierarchyNode[] {
+    if (!term) {
+        return nodes;
+    }
+
+    const lowerTerm = term.toLowerCase();
+    const result: HierarchyNode[] = [];
+
+    for (const node of nodes) {
+        const matches =
+            node.name.toLowerCase().includes(lowerTerm) ||
+            (node.code || '').toLowerCase().includes(lowerTerm);
+        const filteredChildren = node.children ? filterHierarchyNodes(node.children, term) : [];
+
+        if (matches || filteredChildren.length > 0) {
+            result.push({
+                ...node,
+                children: filteredChildren.length > 0 ? filteredChildren : node.children,
+            });
+        }
+    }
+
+    return result;
+}
 
 interface ProjectHierarchySelectProps {
     projectId?: string | null;
@@ -79,17 +104,8 @@ export function ProjectHierarchySelect({
         return ids;
     }, [projectHierarchy, productLineHierarchy]);
 
-    // Expand all nodes when dropdown opens
-    useEffect(() => {
-        if (isOpen && allParentNodeIds.length > 0) {
-            setExpandedNodes(new Set(allParentNodeIds));
-        }
-    }, [isOpen, allParentNodeIds]);
-
-    // Find selected item name
-    const selectedName = useMemo(() => {
+    const selectedName = (() => {
         if (projectId && projectHierarchy) {
-            // Search in product projects
             for (const bu of projectHierarchy.product_projects) {
                 for (const pl of bu.children || []) {
                     for (const proj of pl.children || []) {
@@ -99,7 +115,6 @@ export function ProjectHierarchySelect({
                     }
                 }
             }
-            // Search in functional projects
             for (const dept of projectHierarchy.functional_projects) {
                 for (const proj of dept.children || []) {
                     if (proj.id === projectId) {
@@ -107,7 +122,6 @@ export function ProjectHierarchySelect({
                     }
                 }
             }
-            // Search in support projects
             for (const proj of projectHierarchy.support_projects || []) {
                 if (proj.id === projectId) {
                     return `${t('select.nonProject')} ${proj.name}`;
@@ -124,7 +138,7 @@ export function ProjectHierarchySelect({
             }
         }
         return null;
-    }, [projectId, productLineId, projectHierarchy, productLineHierarchy]);
+    })();
 
     // Build a lookup for valid project/product-line IDs with their display info
     const validItemLookup = useMemo(() => {
@@ -219,55 +233,26 @@ export function ProjectHierarchySelect({
         setSearchTerm('');
     };
 
-    // Filter nodes based on search term
-    const filterNodes = (nodes: HierarchyNode[], term: string): HierarchyNode[] => {
-        if (!term) return nodes;
-        const lowerTerm = term.toLowerCase();
+    const filteredProductProjects = projectHierarchy
+        ? filterHierarchyNodes(projectHierarchy.product_projects, searchTerm)
+        : [];
 
-        const result: HierarchyNode[] = [];
+    const filteredFunctionalProjects = projectHierarchy
+        ? filterHierarchyNodes(projectHierarchy.functional_projects, searchTerm)
+        : [];
 
-        for (const node of nodes) {
-            const matches =
-                node.name.toLowerCase().includes(lowerTerm) ||
-                (node.code || '').toLowerCase().includes(lowerTerm);
+    const filteredProductLines = productLineHierarchy
+        ? filterHierarchyNodes(productLineHierarchy, searchTerm)
+        : [];
 
-            const filteredChildren = node.children ? filterNodes(node.children, term) : [];
-
-            if (matches || filteredChildren.length > 0) {
-                result.push({
-                    ...node,
-                    children: filteredChildren.length > 0 ? filteredChildren : node.children
-                });
-            }
-        }
-
-        return result;
-    };
-
-
-    const filteredProductProjects = useMemo(() => {
-        if (!projectHierarchy) return [];
-        return filterNodes(projectHierarchy.product_projects, searchTerm);
-    }, [projectHierarchy, searchTerm]);
-
-    const filteredFunctionalProjects = useMemo(() => {
-        if (!projectHierarchy) return [];
-        return filterNodes(projectHierarchy.functional_projects, searchTerm);
-    }, [projectHierarchy, searchTerm]);
-
-    const filteredProductLines = useMemo(() => {
-        if (!productLineHierarchy) return [];
-        return filterNodes(productLineHierarchy, searchTerm);
-    }, [productLineHierarchy, searchTerm]);
-
-    const filteredSupportProjects = useMemo(() => {
+    const filteredSupportProjects = (() => {
         if (!projectHierarchy?.support_projects) return [];
         if (!searchTerm) return projectHierarchy.support_projects;
         const lowerTerm = searchTerm.toLowerCase();
         return projectHierarchy.support_projects.filter(
             p => p.name.toLowerCase().includes(lowerTerm) || (p.code || '').toLowerCase().includes(lowerTerm)
         );
-    }, [projectHierarchy, searchTerm]);
+    })();
 
     // Find matching RechargeIO for a Support project
     const findMatchingRechargeIO = (supportProjectName: string) => {
@@ -356,53 +341,13 @@ export function ProjectHierarchySelect({
         );
     };
 
-    const renderProductLineNode = (node: HierarchyNode, depth: number = 0) => {
-        const hasChildren = node.children && node.children.length > 0;
-        const isExpanded = expandedNodes.has(node.id);
-        const paddingLeft = depth * 16 + 8;
-
-        if (node.type === 'product_line') {
-            return (
-                <button
-                    key={node.id}
-                    type="button"
-                    onClick={() => handleSelectProductLine(node)}
-                    className={`w-full flex items-center gap-2 py-2 text-sm hover:bg-green-50 text-left ${productLineId === node.id ? 'bg-green-100 text-green-700' : ''
-                        }`}
-                    style={{ paddingLeft }}
-                >
-                    <Package className="h-4 w-4 text-green-500" />
-                    <span className="truncate">{node.name}</span>
-                    {node.line_category && node.line_category !== 'PRODUCT' && (
-                        <span className="text-xs text-slate-400">({node.line_category})</span>
-                    )}
-                </button>
-            );
+    const handleOpenChange = (nextOpen: boolean) => {
+        setIsOpen(nextOpen);
+        if (nextOpen) {
+            setExpandedNodes(new Set(allParentNodeIds));
+            return;
         }
-
-        return (
-            <div key={node.id}>
-                <button
-                    type="button"
-                    onClick={(e) => toggleNode(node.id, e)}
-                    className="w-full flex items-center gap-2 py-2 text-sm font-medium bg-slate-50 hover:bg-slate-100 text-left"
-                    style={{ paddingLeft }}
-                >
-                    {hasChildren && (
-                        isExpanded
-                            ? <ChevronDown className="h-4 w-4 text-slate-500" />
-                            : <ChevronRight className="h-4 w-4 text-slate-500" />
-                    )}
-                    <Building2 className="h-4 w-4 text-blue-500" />
-                    <span>{node.name}</span>
-                </button>
-                {isExpanded && hasChildren && (
-                    <div>
-                        {node.children!.map(child => renderProductLineNode(child, depth + 1))}
-                    </div>
-                )}
-            </div>
-        );
+        setSearchTerm('');
     };
 
     return (
@@ -410,7 +355,7 @@ export function ProjectHierarchySelect({
             {/* Trigger Button */}
             <button
                 type="button"
-                onClick={() => setIsOpen(!isOpen)}
+                onClick={() => handleOpenChange(!isOpen)}
                 className="w-full flex items-center justify-between p-2 border rounded-md bg-background hover:bg-slate-50 text-left"
             >
                 <span className={selectedName ? 'text-foreground' : 'text-muted-foreground'}>
@@ -425,10 +370,7 @@ export function ProjectHierarchySelect({
                     {/* Backdrop */}
                     <div
                         className="fixed inset-0 z-40"
-                        onClick={() => {
-                            setIsOpen(false);
-                            setSearchTerm('');
-                        }}
+                        onClick={() => handleOpenChange(false)}
                     />
 
                     {/* Menu */}

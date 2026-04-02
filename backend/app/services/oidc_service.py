@@ -15,7 +15,7 @@ from app.core.config import settings
 class OIDCService:
     """Thin wrapper around MSAL confidential-client auth code flow."""
 
-    RESERVED_SCOPES = {"openid", "profile", "offline_access"}
+    RESERVED_SCOPES = {"openid", "profile", "email", "offline_access"}
 
     @staticmethod
     def _authority() -> str:

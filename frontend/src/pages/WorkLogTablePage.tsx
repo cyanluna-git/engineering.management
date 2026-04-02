@@ -60,10 +60,9 @@ export function WorkLogTablePage() {
     useEffect(() => {
         if (departmentFilter) {
             getSubTeams(departmentFilter).then(setSubTeams);
-        } else {
-            setSubTeams([]);
         }
     }, [departmentFilter]);
+    const visibleSubTeams = departmentFilter ? subTeams : [];
 
     // Fetch worklogs with filters
     const { data: worklogs = [], isLoading, refetch } = useWorklogsTable({
@@ -235,7 +234,7 @@ export function WorkLogTablePage() {
                                 disabled={!departmentFilter}
                             >
                                 <option value="">All Sub-Teams</option>
-                                {subTeams.map(st => (
+                                {visibleSubTeams.map(st => (
                                     <option key={st.id} value={st.id}>{st.name}</option>
                                 ))}
                             </select>

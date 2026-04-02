@@ -2,7 +2,7 @@
  * AbsenceForm - Dialog for creating/editing absence records
  * Supports all absence types with Korean labels
  */
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
   Dialog,
@@ -51,17 +51,61 @@ interface AbsenceFormProps {
   onSuccess?: () => void;
 }
 
-export function AbsenceForm({ open, onClose, absence, departmentId, onSuccess }: AbsenceFormProps) {
-  const isEditMode = !!absence;
+interface AbsenceFormState {
+  userId: string;
+  absenceType: AbsenceType;
+  startDate: string;
+  endDate: string;
+  noEndDate: boolean;
+  fteImpact: number;
+  remarks: string;
+  validationError: string;
+}
 
-  const [userId, setUserId] = useState<string>('');
-  const [absenceType, setAbsenceType] = useState<AbsenceType>('PARENTAL_LEAVE');
-  const [startDate, setStartDate] = useState<string>('');
-  const [endDate, setEndDate] = useState<string>('');
-  const [noEndDate, setNoEndDate] = useState<boolean>(false);
-  const [fteImpact, setFteImpact] = useState<number>(-1.0);
-  const [remarks, setRemarks] = useState<string>('');
-  const [validationError, setValidationError] = useState<string>('');
+function getInitialFormState(absence?: Absence): AbsenceFormState {
+  if (!absence) {
+    return {
+      userId: '',
+      absenceType: 'PARENTAL_LEAVE',
+      startDate: '',
+      endDate: '',
+      noEndDate: false,
+      fteImpact: -1.0,
+      remarks: '',
+      validationError: '',
+    };
+  }
+
+  return {
+    userId: absence.user_id,
+    absenceType: absence.absence_type,
+    startDate: absence.start_date,
+    endDate: absence.end_date || '',
+    noEndDate: !absence.end_date,
+    fteImpact: absence.fte_impact,
+    remarks: absence.remarks || '',
+    validationError: '',
+  };
+}
+
+export function AbsenceForm(props: AbsenceFormProps) {
+  const formKey = `${props.absence?.id ?? 'new'}:${props.open ? 'open' : 'closed'}:${props.departmentId}`;
+
+  return <AbsenceFormContent key={formKey} {...props} />;
+}
+
+function AbsenceFormContent({ open, onClose, absence, departmentId, onSuccess }: AbsenceFormProps) {
+  const isEditMode = !!absence;
+  const initialState = getInitialFormState(absence);
+
+  const [userId, setUserId] = useState<string>(initialState.userId);
+  const [absenceType, setAbsenceType] = useState<AbsenceType>(initialState.absenceType);
+  const [startDate, setStartDate] = useState<string>(initialState.startDate);
+  const [endDate, setEndDate] = useState<string>(initialState.endDate);
+  const [noEndDate, setNoEndDate] = useState<boolean>(initialState.noEndDate);
+  const [fteImpact, setFteImpact] = useState<number>(initialState.fteImpact);
+  const [remarks, setRemarks] = useState<string>(initialState.remarks);
+  const [validationError, setValidationError] = useState<string>(initialState.validationError);
 
   const createMutation = useCreateAbsence();
   const updateMutation = useUpdateAbsence();
@@ -73,30 +117,16 @@ export function AbsenceForm({ open, onClose, absence, departmentId, onSuccess }:
     enabled: !!departmentId && open,
   });
 
-  // Populate form when editing
-  useEffect(() => {
-    if (absence) {
-      setUserId(absence.user_id);
-      setAbsenceType(absence.absence_type);
-      setStartDate(absence.start_date);
-      setEndDate(absence.end_date || '');
-      setNoEndDate(!absence.end_date);
-      setFteImpact(absence.fte_impact);
-      setRemarks(absence.remarks || '');
-    } else {
-      resetForm();
-    }
-  }, [absence, open]);
-
   const resetForm = () => {
-    setUserId('');
-    setAbsenceType('PARENTAL_LEAVE');
-    setStartDate('');
-    setEndDate('');
-    setNoEndDate(false);
-    setFteImpact(-1.0);
-    setRemarks('');
-    setValidationError('');
+    const nextState = getInitialFormState();
+    setUserId(nextState.userId);
+    setAbsenceType(nextState.absenceType);
+    setStartDate(nextState.startDate);
+    setEndDate(nextState.endDate);
+    setNoEndDate(nextState.noEndDate);
+    setFteImpact(nextState.fteImpact);
+    setRemarks(nextState.remarks);
+    setValidationError(nextState.validationError);
   };
 
   const handleClose = () => {

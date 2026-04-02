@@ -7,20 +7,22 @@ import { useUpdateProject } from './useProjects';
 import { useApiError } from '@/hooks/useApiError';
 import type { Project, ProjectUpdate } from '@/types';
 
-interface EditState {
+export interface InlineProjectEditState {
   projectId: string | null;
   fields: Partial<ProjectUpdate>;
   errors: Record<string, string>;
 }
 
-const initialEditState: EditState = {
+export type ProjectFieldValue<K extends keyof ProjectUpdate> = ProjectUpdate[K];
+
+const initialEditState: InlineProjectEditState = {
   projectId: null,
   fields: {},
   errors: {},
 };
 
 export function useInlineProjectEdit() {
-  const [editState, setEditState] = useState<EditState>(initialEditState);
+  const [editState, setEditState] = useState<InlineProjectEditState>(initialEditState);
   const updateProjectMutation = useUpdateProject();
   const getErrorMessage = useApiError();
 
@@ -50,7 +52,7 @@ export function useInlineProjectEdit() {
   }, []);
 
   // Update a field value
-  const updateField = useCallback((fieldName: keyof ProjectUpdate, value: any) => {
+  const updateField = useCallback(<K extends keyof ProjectUpdate>(fieldName: K, value: ProjectFieldValue<K>) => {
     setEditState(prev => ({
       ...prev,
       fields: {

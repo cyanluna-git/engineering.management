@@ -9,6 +9,7 @@ import { usePermissions } from "@/hooks/usePermissions";
 import { LanguageToggle } from "@/components/LanguageToggle";
 import {
   LayoutDashboard,
+  type LucideIcon,
   FolderKanban,
   Clock,
   Calendar,
@@ -32,7 +33,7 @@ import {
 interface NavItem {
   nameKey: string;
   href: string;
-  icon: any;
+  icon: LucideIcon;
 }
 
 // Overview - View/Analysis
@@ -70,7 +71,7 @@ export function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, logout } = useAuth();
-  const profilePhotoUrl = useProfilePhoto(Boolean(user));
+  const profilePhotoUrl = useProfilePhoto(user?.id);
   const { canManageProjects, canManageOrganization } = usePermissions();
   const { t } = useTranslation("navigation");
 

@@ -118,7 +118,7 @@ class GraphProfileService:
         try:
             token_result = OIDCService.refresh_access_token(
                 refresh_token=refresh_token,
-                scopes=scopes or [self.PROFILE_SCOPE],
+                scopes=[self.PROFILE_SCOPE],
             )
         except ValueError as exc:
             raise GraphProfileError(

@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo } from 'react';
 import type { ReactNode } from 'react';
 import { format, startOfWeek, addWeeks, subWeeks } from 'date-fns';
 import { useQuery } from '@tanstack/react-query';
@@ -36,6 +36,7 @@ import {
 } from '@/api/client';
 import type {
   WeeklyReportHierarchy,
+  WeeklyReportHierarchyMember,
   WeeklyReportHierarchySubTeam,
   ProjectWeeklyReportHierarchy,
 } from '@/api/client';
@@ -47,6 +48,10 @@ import { UserWeeklyReportCard } from '@/components/dashboard/UserWeeklyReportCar
 function getMonday(d: Date): Date {
   return startOfWeek(d, { weekStartsOn: 1 });
 }
+
+type ProjectHierarchyMember = WeeklyReportHierarchyMember & {
+  source?: 'planned' | 'worklog';
+};
 
 function SubmissionBadge({ submitted, total }: { submitted: number; total: number }) {
   const ratio = total > 0 ? submitted / total : 0;
@@ -208,8 +213,15 @@ function SubTeamSection({
 export function WeeklyReportHierarchyPage() {
   const { user } = useAuth();
   const [referenceDate, setReferenceDate] = useState<Date>(new Date());
-  const [expandedSubTeams, setExpandedSubTeams] = useState<Set<string>>(new Set());
-  const [expandedMembers, setExpandedMembers] = useState<Set<string>>(new Set());
+  const [teamExpansionState, setTeamExpansionState] = useState<{
+    key: string;
+    subTeams: Set<string>;
+    members: Set<string>;
+  }>({
+    key: '',
+    subTeams: new Set(),
+    members: new Set(),
+  });
   const [activeTab, setActiveTab] = useState<string>('team');
   const [selectedProjectId, setSelectedProjectId] = useState<string>('');
   const [expandedProjectMembers, setExpandedProjectMembers] = useState<Set<string>>(new Set());
@@ -241,29 +253,57 @@ export function WeeklyReportHierarchyPage() {
     enabled: !!selectedProjectId && activeTab === 'project',
   });
 
-  // Auto-expand all sub-teams when data loads
-  useEffect(() => {
-    if (data) {
-      setExpandedSubTeams(new Set(data.sub_teams.map((st) => st.id ?? 'unassigned')));
-      setExpandedMembers(new Set());
+  const teamExpansionKey = useMemo(() => {
+    if (!data) {
+      return `team:${dateKey}`;
     }
-  }, [data]);
+
+    const subTeamKeys = data.sub_teams.map((subTeam) => subTeam.id ?? 'unassigned').join(',');
+    return `${data.week_key}:${subTeamKeys}`;
+  }, [data, dateKey]);
+
+  const defaultExpandedSubTeams = useMemo(
+    () => new Set((data?.sub_teams ?? []).map((subTeam) => subTeam.id ?? 'unassigned')),
+    [data]
+  );
+
+  const effectiveExpandedSubTeams = useMemo(
+    () => teamExpansionState.key === teamExpansionKey
+      ? teamExpansionState.subTeams
+      : defaultExpandedSubTeams,
+    [defaultExpandedSubTeams, teamExpansionKey, teamExpansionState]
+  );
+
+  const effectiveExpandedMembers = useMemo(
+    () => teamExpansionState.key === teamExpansionKey
+      ? teamExpansionState.members
+      : new Set<string>(),
+    [teamExpansionKey, teamExpansionState]
+  );
 
   const toggleSubTeam = (id: string) => {
-    setExpandedSubTeams((prev) => {
-      const next = new Set(prev);
+    setTeamExpansionState((prev) => {
+      const next = new Set(prev.key === teamExpansionKey ? prev.subTeams : effectiveExpandedSubTeams);
       if (next.has(id)) next.delete(id);
       else next.add(id);
-      return next;
+      return {
+        key: teamExpansionKey,
+        subTeams: next,
+        members: new Set(prev.key === teamExpansionKey ? prev.members : []),
+      };
     });
   };
 
   const toggleMember = (userId: string) => {
-    setExpandedMembers((prev) => {
-      const next = new Set(prev);
+    setTeamExpansionState((prev) => {
+      const next = new Set(prev.key === teamExpansionKey ? prev.members : []);
       if (next.has(userId)) next.delete(userId);
       else next.add(userId);
-      return next;
+      return {
+        key: teamExpansionKey,
+        subTeams: new Set(prev.key === teamExpansionKey ? prev.subTeams : effectiveExpandedSubTeams),
+        members: next,
+      };
     });
   };
 
@@ -281,13 +321,19 @@ export function WeeklyReportHierarchyPage() {
       if (!data) return;
       const allSubTeamIds = data.sub_teams.map((st) => st.id ?? 'unassigned');
       const allMemberIds = data.sub_teams.flatMap((st) => st.members.map((m) => m.user_id));
-      const allExpanded = allSubTeamIds.every((id) => expandedSubTeams.has(id));
+      const allExpanded = allSubTeamIds.every((id) => effectiveExpandedSubTeams.has(id));
       if (allExpanded) {
-        setExpandedSubTeams(new Set());
-        setExpandedMembers(new Set());
+        setTeamExpansionState({
+          key: teamExpansionKey,
+          subTeams: new Set(),
+          members: new Set(),
+        });
       } else {
-        setExpandedSubTeams(new Set(allSubTeamIds));
-        setExpandedMembers(new Set(allMemberIds));
+        setTeamExpansionState({
+          key: teamExpansionKey,
+          subTeams: new Set(allSubTeamIds),
+          members: new Set(allMemberIds),
+        });
       }
     } else {
       if (!projectData) return;
@@ -308,8 +354,11 @@ export function WeeklyReportHierarchyPage() {
       if (!data) return;
       const allSubTeamIds = data.sub_teams.map((st) => st.id ?? 'unassigned');
       const allMemberIds = data.sub_teams.flatMap((st) => st.members.map((m) => m.user_id));
-      setExpandedSubTeams(new Set(allSubTeamIds));
-      setExpandedMembers(new Set(allMemberIds));
+      setTeamExpansionState({
+        key: teamExpansionKey,
+        subTeams: new Set(allSubTeamIds),
+        members: new Set(allMemberIds),
+      });
     } else {
       if (!projectData) return;
       const allMemberIds = projectData.members.map((m) => m.user_id);
@@ -380,6 +429,10 @@ export function WeeklyReportHierarchyPage() {
     }
     return null;
   }, [activeTab, data, projectData]);
+
+  const projectMembers = (projectData?.members ?? []) as ProjectHierarchyMember[];
+  const plannedProjectMembers = projectMembers.filter((member) => member.source === 'planned');
+  const worklogProjectMembers = projectMembers.filter((member) => member.source === 'worklog');
 
   if (!departmentId) {
     return (
@@ -491,9 +544,9 @@ export function WeeklyReportHierarchyPage() {
                     <SubTeamSection
                       key={key}
                       subTeam={subTeam}
-                      isExpanded={expandedSubTeams.has(key)}
+                      isExpanded={effectiveExpandedSubTeams.has(key)}
                       onToggle={() => toggleSubTeam(key)}
-                      expandedMembers={expandedMembers}
+                      expandedMembers={effectiveExpandedMembers}
                       onToggleMember={toggleMember}
                       currentUserId={user?.id}
                       currentUserSubTeamId={user?.sub_team_id}
@@ -565,61 +618,55 @@ export function WeeklyReportHierarchyPage() {
                 />
 
                 {/* Members — planned first, then worklog fallback */}
-                {(() => {
-                  const planned = projectData.members.filter((m: any) => m.source === 'planned');
-                  const worklog = projectData.members.filter((m: any) => m.source === 'worklog');
-                  return (
-                    <>
-                      {planned.length > 0 && (
-                        <Card>
-                          <div className="px-4 py-2 bg-slate-50 border-b text-xs font-medium text-slate-500">
-                            계획 멤버 ({planned.length}명)
-                          </div>
-                          <div>
-                            {planned.map((member: any) => (
-                              <MemberRow
-                                key={member.user_id}
-                                name={member.name}
-                                koreanName={member.korean_name}
-                                report={member.report as { markdown_body: string; updated_at: string; status: string } | null}
-                                isExpanded={expandedProjectMembers.has(member.user_id)}
-                                onToggle={() => toggleProjectMember(member.user_id)}
-                                action={member.user_id === user?.id ? <UserWeeklyReportCard referenceDate={referenceDate} mode="action" /> : undefined}
-                              />
-                            ))}
-                          </div>
-                        </Card>
-                      )}
-                      {worklog.length > 0 && (
-                        <Card>
-                          <div className="px-4 py-2 bg-amber-50 border-b text-xs font-medium text-amber-600">
-                            계획 외 기여자 ({worklog.length}명)
-                          </div>
-                          <div>
-                            {worklog.map((member: any) => (
-                              <MemberRow
-                                key={member.user_id}
-                                name={member.name}
-                                koreanName={member.korean_name}
-                                report={member.report as { markdown_body: string; updated_at: string; status: string } | null}
-                                isExpanded={expandedProjectMembers.has(member.user_id)}
-                                onToggle={() => toggleProjectMember(member.user_id)}
-                                action={member.user_id === user?.id ? <UserWeeklyReportCard referenceDate={referenceDate} mode="action" /> : undefined}
-                              />
-                            ))}
-                          </div>
-                        </Card>
-                      )}
-                      {planned.length === 0 && worklog.length === 0 && (
-                        <Card>
-                          <div className="text-center py-6 text-sm text-slate-400">
-                            이번 주에 할당된 멤버 또는 워크로그를 기록한 멤버가 없습니다.
-                          </div>
-                        </Card>
-                      )}
-                    </>
-                  );
-                })()}
+                <>
+                  {plannedProjectMembers.length > 0 && (
+                    <Card>
+                      <div className="px-4 py-2 bg-slate-50 border-b text-xs font-medium text-slate-500">
+                        계획 멤버 ({plannedProjectMembers.length}명)
+                      </div>
+                      <div>
+                        {plannedProjectMembers.map((member) => (
+                          <MemberRow
+                            key={member.user_id}
+                            name={member.name}
+                            koreanName={member.korean_name}
+                            report={member.report}
+                            isExpanded={expandedProjectMembers.has(member.user_id)}
+                            onToggle={() => toggleProjectMember(member.user_id)}
+                            action={member.user_id === user?.id ? <UserWeeklyReportCard referenceDate={referenceDate} mode="action" /> : undefined}
+                          />
+                        ))}
+                      </div>
+                    </Card>
+                  )}
+                  {worklogProjectMembers.length > 0 && (
+                    <Card>
+                      <div className="px-4 py-2 bg-amber-50 border-b text-xs font-medium text-amber-600">
+                        계획 외 기여자 ({worklogProjectMembers.length}명)
+                      </div>
+                      <div>
+                        {worklogProjectMembers.map((member) => (
+                          <MemberRow
+                            key={member.user_id}
+                            name={member.name}
+                            koreanName={member.korean_name}
+                            report={member.report}
+                            isExpanded={expandedProjectMembers.has(member.user_id)}
+                            onToggle={() => toggleProjectMember(member.user_id)}
+                            action={member.user_id === user?.id ? <UserWeeklyReportCard referenceDate={referenceDate} mode="action" /> : undefined}
+                          />
+                        ))}
+                      </div>
+                    </Card>
+                  )}
+                  {plannedProjectMembers.length === 0 && worklogProjectMembers.length === 0 && (
+                    <Card>
+                      <div className="text-center py-6 text-sm text-slate-400">
+                        이번 주에 할당된 멤버 또는 워크로그를 기록한 멤버가 없습니다.
+                      </div>
+                    </Card>
+                  )}
+                </>
               </>
             )}
 

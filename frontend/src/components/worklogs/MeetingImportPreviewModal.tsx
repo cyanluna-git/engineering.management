@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { format } from 'date-fns';
 import { useTranslation } from 'react-i18next';
 
@@ -37,14 +37,19 @@ export const MeetingImportPreviewModal: React.FC<MeetingImportPreviewModalProps>
     () => items.filter((item) => !item.already_imported && !!item.work_type_category_id),
     [items],
   );
-  const [selectedIds, setSelectedIds] = useState<string[]>([]);
-
-  useEffect(() => {
-    if (!isOpen) {
-      return;
-    }
-    setSelectedIds(selectableItems.map((item) => item.external_event_id));
-  }, [isOpen, selectableItems]);
+  const initialSelectedIds = useMemo(
+    () => selectableItems.map((item) => item.external_event_id),
+    [selectableItems],
+  );
+  const selectionKey = useMemo(
+    () => `${isOpen ? 'open' : 'closed'}:${initialSelectedIds.join('|')}`,
+    [initialSelectedIds, isOpen],
+  );
+  const [selectionState, setSelectionState] = useState<{ key: string; ids: string[] }>({
+    key: '',
+    ids: [],
+  });
+  const selectedIds = selectionState.key === selectionKey ? selectionState.ids : initialSelectedIds;
 
   const selectedItems = useMemo(
     () => items.filter((item) => selectedIds.includes(item.external_event_id)),
@@ -52,20 +57,33 @@ export const MeetingImportPreviewModal: React.FC<MeetingImportPreviewModalProps>
   );
 
   const toggleSelection = (eventId: string, checked: boolean) => {
-    setSelectedIds((current) => {
+    setSelectionState((currentState) => {
+      const current = currentState.key === selectionKey ? currentState.ids : initialSelectedIds;
       if (checked) {
-        return current.includes(eventId) ? current : [...current, eventId];
+        return {
+          key: selectionKey,
+          ids: current.includes(eventId) ? current : [...current, eventId],
+        };
       }
-      return current.filter((id) => id !== eventId);
+      return {
+        key: selectionKey,
+        ids: current.filter((id) => id !== eventId),
+      };
     });
   };
 
   const handleSelectAll = () => {
-    setSelectedIds(selectableItems.map((item) => item.external_event_id));
+    setSelectionState({
+      key: selectionKey,
+      ids: initialSelectedIds,
+    });
   };
 
   const handleClearSelection = () => {
-    setSelectedIds([]);
+    setSelectionState({
+      key: selectionKey,
+      ids: [],
+    });
   };
 
   const handleConfirm = async () => {

@@ -111,21 +111,6 @@ export const ProjectInlineTable: React.FC<ProjectInlineTableProps> = ({
   const resizingRef = useRef<{ column: ColumnKey; startX: number; startWidth: number } | null>(null);
   const tableRef = useRef<HTMLDivElement>(null);
 
-  // Handle column resize start
-  const handleResizeStart = useCallback((e: React.MouseEvent, column: ColumnKey) => {
-    e.preventDefault();
-    e.stopPropagation();
-    resizingRef.current = {
-      column,
-      startX: e.clientX,
-      startWidth: columnWidths[column],
-    };
-    document.addEventListener('mousemove', handleResizeMove);
-    document.addEventListener('mouseup', handleResizeEnd);
-    document.body.style.cursor = 'col-resize';
-    document.body.style.userSelect = 'none';
-  }, [columnWidths]);
-
   // Handle column resize move
   // [rerender-functional-setstate] Using functional setState for stable callback
   const handleResizeMove = useCallback((e: MouseEvent) => {
@@ -140,13 +125,28 @@ export const ProjectInlineTable: React.FC<ProjectInlineTableProps> = ({
   }, []);
 
   // Handle column resize end
-  const handleResizeEnd = useCallback(() => {
+  const handleResizeEnd = useCallback(function handleResizeEndImpl() {
     resizingRef.current = null;
     document.removeEventListener('mousemove', handleResizeMove);
-    document.removeEventListener('mouseup', handleResizeEnd);
+    document.removeEventListener('mouseup', handleResizeEndImpl);
     document.body.style.cursor = '';
     document.body.style.userSelect = '';
   }, [handleResizeMove]);
+
+  // Handle column resize start
+  const handleResizeStart = useCallback((e: React.MouseEvent, column: ColumnKey) => {
+    e.preventDefault();
+    e.stopPropagation();
+    resizingRef.current = {
+      column,
+      startX: e.clientX,
+      startWidth: columnWidths[column],
+    };
+    document.addEventListener('mousemove', handleResizeMove);
+    document.addEventListener('mouseup', handleResizeEnd);
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+  }, [columnWidths, handleResizeEnd, handleResizeMove]);
 
   // Hooks
   const {
@@ -169,7 +169,7 @@ export const ProjectInlineTable: React.FC<ProjectInlineTableProps> = ({
     const hasStatuses = selectedStatuses.length > 0;
 
     // Single-pass filter
-    let result: Project[] = [];
+    const result: Project[] = [];
     for (let i = 0; i < projects.length; i++) {
       const p = projects[i];
       // Category filter

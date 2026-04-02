@@ -54,6 +54,7 @@ export const TeamDashboardContent: React.FC<TeamDashboardContentProps> = ({
         queryFn: getDivisions,
         enabled: teamScope === 'business_unit',
     });
+    const teamProjects = teamData?.team_worklogs?.by_project;
 
     // Team Dashboard Scope Labels (inside component to access t())
     const SCOPE_LABELS: Record<TeamDashboardScope, { label: string; icon: React.ReactNode }> = {
@@ -66,11 +67,11 @@ export const TeamDashboardContent: React.FC<TeamDashboardContentProps> = ({
     // IMPORTANT: useMemo must be called BEFORE any early returns to satisfy Rules of Hooks
     // React requires hooks to be called in the same order on every render
     const productFunctionalProjects = useMemo(() => {
-        if (!teamData?.team_worklogs?.by_project) return [];
-        return teamData.team_worklogs.by_project
+        if (!teamProjects) return [];
+        return teamProjects
             .filter(p => p.category === 'PRODUCT' || p.category === 'FUNCTIONAL')
             .sort((a, b) => b.hours - a.hours);
-    }, [teamData?.team_worklogs?.by_project]);
+    }, [teamProjects]);
 
     // Early returns AFTER all hooks
     if (teamLoading) {

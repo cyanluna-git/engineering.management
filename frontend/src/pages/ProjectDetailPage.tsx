@@ -88,7 +88,8 @@ export const ProjectDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const location = useLocation();
-  const returnTab = (location.state as any)?.returnTab;
+  const navigationState = location.state as { returnTab?: 'dashboard' | 'detail' } | null;
+  const returnTab = navigationState?.returnTab;
   const { data: project, isLoading, isError, error } = useProject(id || '');
   const { mutate: deleteProject, isPending: isDeleting } = useDeleteProject();
   const { canManageProjects } = usePermissions();

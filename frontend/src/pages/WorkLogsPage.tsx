@@ -78,6 +78,7 @@ export function WorkLogsPage() {
     const deleteMutation = useDeleteWorklog();
     const copyWeekMutation = useCopyWeek();
     const calendarStatusQuery = useCalendarConnectionStatus();
+    const { refetch: refetchCalendarStatus } = calendarStatusQuery;
     const startCalendarConnectMutation = useStartCalendarConnect();
     const previewMeetingImportMutation = usePreviewMeetingImport();
     const commitMeetingImportMutation = useCommitMeetingImport();
@@ -98,8 +99,8 @@ export function WorkLogsPage() {
         const nextQuery = params.toString();
         const nextUrl = `${window.location.pathname}${nextQuery ? `?${nextQuery}` : ''}`;
         window.history.replaceState({}, document.title, nextUrl);
-        calendarStatusQuery.refetch();
-    }, [calendarStatusQuery.refetch, t]);
+        refetchCalendarStatus();
+    }, [refetchCalendarStatus, t]);
 
     // Navigation handlers
     const goToPreviousWeek = () => setWeekStart((prev: Date) => subWeeks(prev, 1));
@@ -189,6 +190,10 @@ export function WorkLogsPage() {
             end_date: format(addDays(weekStart, 6), 'yyyy-MM-dd'),
         }),
         [weekStart],
+    );
+    const meetingImportModalKey = useMemo(
+        () => `${isMeetingImportModalOpen ? 'open' : 'closed'}:${meetingImportItems.map((item) => item.external_event_id).join('|')}`,
+        [isMeetingImportModalOpen, meetingImportItems],
     );
 
     const handleCalendarConnect = async () => {
@@ -443,6 +448,7 @@ export function WorkLogsPage() {
             )}
 
             <MeetingImportPreviewModal
+                key={meetingImportModalKey}
                 isOpen={isMeetingImportModalOpen}
                 items={meetingImportItems}
                 skippedCount={meetingImportSkippedCount}

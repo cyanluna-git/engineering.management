@@ -31,8 +31,10 @@ import {
     updateRechargeIO,
     deleteRechargeIO,
     InternalIOCreate,
+    InternalIOResponse,
     InternalIOUpdate,
     RechargeIOCreate,
+    RechargeIOResponse,
     RechargeIOUpdate,
 } from '@/api/client';
 import { useInternalIOsList } from '@/hooks/useInternalIOs';
@@ -50,6 +52,8 @@ const emptyFormData: IOFormData = {
     name: '',
     description: '',
 };
+
+type ManagedIO = InternalIOResponse | RechargeIOResponse;
 
 export const IOManagementTab: React.FC = () => {
     const queryClient = useQueryClient();
@@ -180,7 +184,7 @@ export const IOManagementTab: React.FC = () => {
         setInternalModalOpen(true);
     };
 
-    const handleEditInternal = (io: any) => {
+    const handleEditInternal = (io: InternalIOResponse) => {
         setInternalFormData({
             id: io.id,
             io_number: io.io_number,
@@ -216,7 +220,7 @@ export const IOManagementTab: React.FC = () => {
         setRechargeModalOpen(true);
     };
 
-    const handleEditRecharge = (io: any) => {
+    const handleEditRecharge = (io: RechargeIOResponse) => {
         setRechargeFormData({
             id: io.id,
             io_number: io.io_number,
@@ -255,11 +259,11 @@ export const IOManagementTab: React.FC = () => {
         }
     };
 
-    const renderIOTable = (
-        ios: any[],
+    const renderIOTable = <T extends ManagedIO>(
+        ios: T[],
         type: 'internal' | 'recharge',
-        onEdit: (io: any) => void,
-        onDelete: (io: any) => void
+        onEdit: (io: T) => void,
+        onDelete: (io: T) => void
     ) => (
         <table className="w-full text-sm">
             <thead>

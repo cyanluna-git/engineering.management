@@ -3,8 +3,8 @@ import { createRoot } from 'react-dom/client'
 import './i18n'
 import './index.css'
 import App from './App.tsx'
-import { AuthProvider } from './hooks/useAuth'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { AuthProvider } from './providers/AuthProvider'
 
 // Optimized QueryClient settings (Vercel React Best Practices)
 const queryClient = new QueryClient({

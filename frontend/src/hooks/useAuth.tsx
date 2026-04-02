@@ -1,13 +1,10 @@
-import { createContext, useContext, useState, useEffect } from 'react';
-import type { ReactNode } from 'react';
-import { apiClient } from '@/api/client';
+import { createContext, useContext } from 'react';
 import type { User } from '@/types';
-import { parseAuthTokensFromHash } from '@/hooks/authTokens';
 
-const AUTH_TOKEN_KEY = 'authToken';
-const REFRESH_TOKEN_KEY = 'refreshToken';
+export const AUTH_TOKEN_KEY = 'authToken';
+export const REFRESH_TOKEN_KEY = 'refreshToken';
 
-interface AuthContextType {
+export interface AuthContextType {
   isAuthenticated: boolean;
   user: User | null;
   login: (accessToken: string, refreshToken: string) => void;
@@ -15,70 +12,7 @@ interface AuthContextType {
   isLoading: boolean;
 }
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
-
-export function AuthProvider({ children }: { children: ReactNode }) {
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
-  const [user, setUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
-
-  const fetchCurrentUser = async () => {
-    try {
-      const response = await apiClient.get('/auth/me');
-      setUser(response.data);
-      setIsAuthenticated(true);
-    } catch {
-      setUser(null);
-      setIsAuthenticated(false);
-      localStorage.removeItem(AUTH_TOKEN_KEY);
-      localStorage.removeItem(REFRESH_TOKEN_KEY);
-    }
-  };
-
-  useEffect(() => {
-    // Check for tokens in URL fragment (SSO callback)
-    const parsedTokens = parseAuthTokensFromHash(window.location.hash);
-
-    if (parsedTokens) {
-      localStorage.setItem(AUTH_TOKEN_KEY, parsedTokens.accessToken);
-      localStorage.setItem(REFRESH_TOKEN_KEY, parsedTokens.refreshToken);
-      
-      // Clean up URL
-      const newUrl = window.location.pathname + window.location.search;
-      window.history.replaceState({}, document.title, newUrl);
-      
-      fetchCurrentUser().finally(() => setIsLoading(false));
-      return;
-    }
-
-    const token = localStorage.getItem(AUTH_TOKEN_KEY);
-    if (token) {
-      fetchCurrentUser().finally(() => setIsLoading(false));
-    } else {
-      setIsLoading(false);
-    }
-  }, []);
-
-  const login = (accessToken: string, refreshToken: string) => {
-    localStorage.setItem(AUTH_TOKEN_KEY, accessToken);
-    localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
-    setIsAuthenticated(true);
-    fetchCurrentUser();
-  };
-
-  const logout = () => {
-    localStorage.removeItem(AUTH_TOKEN_KEY);
-    localStorage.removeItem(REFRESH_TOKEN_KEY);
-    setIsAuthenticated(false);
-    setUser(null);
-  };
-
-  return (
-    <AuthContext.Provider value={{ isAuthenticated, user, login, logout, isLoading }}>
-      {children}
-    </AuthContext.Provider>
-  );
-}
+export const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function useAuth() {
   const context = useContext(AuthContext);

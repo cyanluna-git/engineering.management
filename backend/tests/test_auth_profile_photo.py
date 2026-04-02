@@ -128,7 +128,7 @@ def test_auth_me_photo_refresh_ignores_reserved_scopes(
         user_id=user.id,
         provider="microsoft",
         provider_email=user.email,
-        granted_scopes='["openid", "profile", "offline_access", "User.Read"]',
+        granted_scopes='["openid", "profile", "email", "offline_access", "User.Read", "Directory.Read.All", "Mail.Read"]',
         refresh_token_encrypted=OAuthConnectionService.encrypt("refresh-token"),
         access_token_encrypted=None,
         token_expires_at=datetime.now(timezone.utc) - timedelta(minutes=5),
@@ -136,7 +136,10 @@ def test_auth_me_photo_refresh_ignores_reserved_scopes(
     db_session.add(connection)
     db_session.commit()
 
+    captured_scopes: dict[str, list[str]] = {}
+
     def fake_refresh_access_token(*, refresh_token, scopes):
+        captured_scopes["value"] = list(scopes)
         return {
             "access_token": "photo-access-token",
             "refresh_token": "refresh-token-2",
@@ -168,3 +171,4 @@ def test_auth_me_photo_refresh_ignores_reserved_scopes(
 
     assert response.status_code == status.HTTP_200_OK
     assert response.content == b"fake-image-bytes"
+    assert captured_scopes["value"] == ["User.Read"]

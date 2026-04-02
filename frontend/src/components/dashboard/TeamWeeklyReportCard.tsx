@@ -37,10 +37,10 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import {
-  applyMarkdownBlockAction,
   WeeklyReportEditorToolbar,
   WeeklyReportMarkdown,
 } from "@/components/dashboard/weekly-report-markdown";
+import { applyMarkdownBlockAction } from "@/components/dashboard/weekly-report-markdown-actions";
 import { useAuth } from "@/hooks/useAuth";
 
 interface TeamWeeklyReportCardProps {

@@ -11,7 +11,7 @@ import React, { useState, memo, useCallback } from 'react';
 import { TableRow, TableCell, Button } from '@/components/ui';
 import { Edit2, Save, X, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import type { Project } from '@/types';
+import type { Project, ProjectUpdate } from '@/types';
 import {
   TextCell,
   SelectCell,
@@ -22,10 +22,13 @@ import {
   DepartmentSelectCell,
   InternalIOSelectCell,
   RechargeIOSelectCell,
-  STATUS_OPTIONS,
-  SCALE_OPTIONS,
-  CATEGORY_OPTIONS,
 } from './EditableCell';
+import {
+  PROJECT_CATEGORY_SELECT_OPTIONS,
+  PROJECT_SCALE_SELECT_OPTIONS,
+  PROJECT_STATUS_SELECT_OPTIONS,
+} from './projectFieldOptions';
+import type { InlineProjectEditState, ProjectFieldValue } from '@/hooks/useInlineProjectEdit';
 
 // [rendering-hoist-jsx] Static placeholder JSX
 const EmptyPlaceholder = <span className="text-gray-400">-</span>;
@@ -56,10 +59,10 @@ interface InlineEditableRowProps {
   onCancel: () => void;
   onDelete: () => void;
   editState: {
-    fields: any;
+    fields: InlineProjectEditState['fields'];
     errors: Record<string, string>;
   };
-  updateField: (field: keyof import('@/types').ProjectUpdate, value: any) => void;
+  updateField: <K extends keyof ProjectUpdate>(field: K, value: ProjectFieldValue<K>) => void;
   isSaving: boolean;
   canEdit: boolean;
   // Reference data
@@ -117,7 +120,7 @@ const InlineEditableRowInner: React.FC<InlineEditableRowProps> = ({
         {/* Internal IO */}
         <TableCell style={{ width: columnWidths.internal_io }}>
           <InternalIOSelectCell
-            value={editState.fields.internal_io_id}
+            value={editState.fields.internal_io_id ?? undefined}
             onChange={(value) => updateField('internal_io_id', value)}
             internalIOs={internalIOs}
             error={editState.errors.internal_io_id}
@@ -127,7 +130,7 @@ const InlineEditableRowInner: React.FC<InlineEditableRowProps> = ({
         {/* Recharge IO */}
         <TableCell style={{ width: columnWidths.recharge_io }}>
           <RechargeIOSelectCell
-            value={editState.fields.recharge_io_id}
+            value={editState.fields.recharge_io_id ?? undefined}
             onChange={(value) => updateField('recharge_io_id', value)}
             rechargeIOs={rechargeIOs}
             error={editState.errors.recharge_io_id}
@@ -150,8 +153,8 @@ const InlineEditableRowInner: React.FC<InlineEditableRowProps> = ({
         <TableCell style={{ width: columnWidths.category }}>
           <SelectCell
             value={editState.fields.category}
-            onChange={(value) => updateField('category', value)}
-            options={CATEGORY_OPTIONS}
+            onChange={(value) => updateField('category', value as ProjectFieldValue<'category'>)}
+            options={PROJECT_CATEGORY_SELECT_OPTIONS}
             error={editState.errors.category}
           />
         </TableCell>
@@ -160,8 +163,8 @@ const InlineEditableRowInner: React.FC<InlineEditableRowProps> = ({
         <TableCell style={{ width: columnWidths.status }}>
           <SelectCell
             value={editState.fields.status}
-            onChange={(value) => updateField('status', value)}
-            options={STATUS_OPTIONS}
+            onChange={(value) => updateField('status', value as ProjectFieldValue<'status'>)}
+            options={PROJECT_STATUS_SELECT_OPTIONS}
             error={editState.errors.status}
           />
         </TableCell>
@@ -178,7 +181,7 @@ const InlineEditableRowInner: React.FC<InlineEditableRowProps> = ({
         {/* Product Line */}
         <TableCell style={{ width: columnWidths.product_line }}>
           <ProductLineSelectCell
-            value={editState.fields.product_line_id}
+            value={editState.fields.product_line_id ?? undefined}
             onChange={(value) => updateField('product_line_id', value)}
             productLines={productLines}
             selectedBusinessUnitId={selectedBU}
@@ -189,7 +192,7 @@ const InlineEditableRowInner: React.FC<InlineEditableRowProps> = ({
         {/* Owner Department (for FUNCTIONAL projects) */}
         <TableCell style={{ width: columnWidths.owner_department }}>
           <DepartmentSelectCell
-            value={editState.fields.owner_department_id}
+            value={editState.fields.owner_department_id ?? undefined}
             onChange={(value) => updateField('owner_department_id', value)}
             departments={departments}
             error={editState.errors.owner_department_id}
@@ -199,7 +202,7 @@ const InlineEditableRowInner: React.FC<InlineEditableRowProps> = ({
         {/* PM */}
         <TableCell style={{ width: columnWidths.pm }}>
           <UserSelectCell
-            value={editState.fields.pm_id}
+            value={editState.fields.pm_id ?? undefined}
             onChange={(value) => updateField('pm_id', value)}
             users={users}
             error={editState.errors.pm_id}
@@ -210,8 +213,8 @@ const InlineEditableRowInner: React.FC<InlineEditableRowProps> = ({
         <TableCell style={{ width: columnWidths.scale }}>
           <SelectCell
             value={editState.fields.scale}
-            onChange={(value) => updateField('scale', value)}
-            options={SCALE_OPTIONS}
+            onChange={(value) => updateField('scale', value as ProjectFieldValue<'scale'>)}
+            options={PROJECT_SCALE_SELECT_OPTIONS}
             placeholder="Select scale"
             error={editState.errors.scale}
           />

@@ -367,7 +367,7 @@ interface UserSummaryContentProps {
     workload_observations?: string[];
     risk_signals?: string[];
     record_quality_notes?: string[];
-    generated_at: string;
+    generated_at?: string;
     period_start?: string;
     period_end?: string;
   };
@@ -513,7 +513,7 @@ interface TeamSummaryContentProps {
     risk_signals?: string[];
     coverage_gaps?: string[];
     record_quality_notes?: string[];
-    generated_at: string;
+    generated_at?: string;
     period_start?: string;
     period_end?: string;
   };

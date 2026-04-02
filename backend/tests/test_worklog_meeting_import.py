@@ -393,7 +393,7 @@ def test_meeting_import_preview_refresh_ignores_reserved_scopes(
         user_id=user.id,
         provider="microsoft",
         provider_email=user.email,
-        granted_scopes='["openid", "profile", "offline_access", "User.Read", "Calendars.Read"]',
+        granted_scopes='["openid", "profile", "email", "offline_access", "User.Read", "Calendars.Read", "Directory.Read.All", "Mail.Read"]',
         refresh_token_encrypted=OAuthConnectionService.encrypt("refresh-token"),
         access_token_encrypted=None,
         token_expires_at=None,
@@ -448,10 +448,4 @@ def test_meeting_import_preview_refresh_ignores_reserved_scopes(
     )
 
     assert len(response.items) == 1
-    assert captured_scopes["value"] == [
-        "openid",
-        "profile",
-        "offline_access",
-        "User.Read",
-        "Calendars.Read",
-    ]
+    assert captured_scopes["value"] == ["Calendars.Read"]

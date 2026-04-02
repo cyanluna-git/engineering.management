@@ -171,7 +171,7 @@ export interface ProjectBase {
 }
 
 
-export interface ProjectCreate extends ProjectBase { }
+export type ProjectCreate = ProjectBase
 
 export interface ProjectUpdate {
     internal_io_id?: string | null

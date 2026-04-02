@@ -13,7 +13,7 @@ import { WorkTypeCategorySelect } from '@/components/WorkTypeCategorySelect';
 import { ProjectHierarchySelect } from '@/components/ProjectHierarchySelect';
 import { useCreateWorklog } from '@/hooks/useWorklogs';
 import { useApiError } from '@/hooks/useApiError';
-import type { AIWorklogEntry, WorkTypeCategory } from '@/types';
+import type { AIWorklogEntry } from '@/types';
 import { useTranslation } from 'react-i18next';
 
 interface EditableEntry extends AIWorklogEntry {
@@ -230,9 +230,7 @@ export const AIWorklogPreview: React.FC<AIWorklogPreviewProps> = ({
                                             <ProjectHierarchySelect
                                                 projectId={entry.project_id}
                                                 productLineId={null}
-                                                onProjectChange={(projectId, _name, _category) =>
-                                                    updateEntry(entry.id, { project_id: projectId })
-                                                }
+                                                onProjectChange={(projectId) => updateEntry(entry.id, { project_id: projectId })}
                                                 onProductLineChange={() => {}}
                                                 projectRequired={false}
                                                 placeholder={entry.project_name || t('ai.selectProject')}
@@ -249,9 +247,7 @@ export const AIWorklogPreview: React.FC<AIWorklogPreviewProps> = ({
                                             <Label>{t('ai.workTypeRequired')}</Label>
                                             <WorkTypeCategorySelect
                                                 value={entry.work_type_category_id || undefined}
-                                                onChange={(categoryId, _category: WorkTypeCategory) =>
-                                                    updateEntry(entry.id, { work_type_category_id: categoryId })
-                                                }
+                                                onChange={(categoryId) => updateEntry(entry.id, { work_type_category_id: categoryId })}
                                                 placeholder={entry.work_type_name || t('ai.selectWorkType')}
                                             />
                                             {entry.work_type_name && !entry.work_type_category_id && (

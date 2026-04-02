@@ -1,19 +1,19 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import axios from 'axios';
 
 import { getCurrentUserPhoto } from '@/api/client';
 
-export function useProfilePhoto(enabled = true) {
+export function useProfilePhoto(userId?: string | null) {
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
+  const [photoOwnerId, setPhotoOwnerId] = useState<string | null>(null);
+  const objectUrlRef = useRef<string | null>(null);
 
   useEffect(() => {
-    if (!enabled) {
-      setPhotoUrl(null);
+    if (!userId) {
       return;
     }
 
     let active = true;
-    let objectUrl: string | null = null;
 
     const loadPhoto = async () => {
       try {
@@ -22,8 +22,14 @@ export function useProfilePhoto(enabled = true) {
           return;
         }
 
-        objectUrl = URL.createObjectURL(blob);
-        setPhotoUrl(objectUrl);
+        const nextObjectUrl = URL.createObjectURL(blob);
+        if (objectUrlRef.current) {
+          URL.revokeObjectURL(objectUrlRef.current);
+        }
+
+        objectUrlRef.current = nextObjectUrl;
+        setPhotoUrl(nextObjectUrl);
+        setPhotoOwnerId(userId);
       } catch (error: unknown) {
         if (!active) {
           return;
@@ -31,22 +37,29 @@ export function useProfilePhoto(enabled = true) {
 
         if (axios.isAxiosError(error) && error.response?.status === 404) {
           setPhotoUrl(null);
+          setPhotoOwnerId(userId);
           return;
         }
 
         setPhotoUrl(null);
+        setPhotoOwnerId(userId);
       }
     };
 
-    loadPhoto();
+    void loadPhoto();
 
     return () => {
       active = false;
-      if (objectUrl) {
-        URL.revokeObjectURL(objectUrl);
+    };
+  }, [userId]);
+
+  useEffect(() => {
+    return () => {
+      if (objectUrlRef.current) {
+        URL.revokeObjectURL(objectUrlRef.current);
       }
     };
-  }, [enabled]);
+  }, []);
 
-  return photoUrl;
+  return userId && photoOwnerId === userId ? photoUrl : null;
 }

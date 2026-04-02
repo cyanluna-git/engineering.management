@@ -26,6 +26,11 @@ interface CategoryEntry extends WorkTypeCategory {
     parent?: CategoryEntry;
 }
 
+interface MonthlyProjectTrendPoint {
+    month: string;
+    [key: string]: string | number;
+}
+
 /**
  * Calculate date ranges dynamically based on reference date and view mode
  */
@@ -180,7 +185,7 @@ export const DashboardPage: React.FC = () => {
                 : topProjects;
 
         return { totalHours: total, projectList: list };
-    }, [currentWorklogs]);
+    }, [currentWorklogs, t]);
 
     // Build Category Map for easy lookup [Code -> Category Object]
     const categoryMap = useMemo(() => {
@@ -248,7 +253,7 @@ export const DashboardPage: React.FC = () => {
         };
 
         return Object.entries(counts)
-            .filter(([_, value]) => value > 0) // Only show categories with hours
+            .filter(([, value]) => value > 0) // Only show categories with hours
             .map(([name, value]) => ({
                 name,
                 label: categoryConfig[name].label,
@@ -262,7 +267,7 @@ export const DashboardPage: React.FC = () => {
     // Build Category ID Map [ID -> Code]
     const categoryIdToCode = useMemo(() => {
         const map: Record<number, string> = {};
-        const traverse = (cats: any[]) => {
+        const traverse = (cats: WorkTypeCategory[]) => {
             for (const cat of cats) {
                 map[cat.id] = cat.code;
                 if (cat.children) traverse(cat.children);
@@ -381,7 +386,9 @@ export const DashboardPage: React.FC = () => {
 
     // Calculate monthly Top-5 project trend data
     const monthlyProjectTrendData = useMemo(() => {
-        if (!last12MonthsWorklogs.length) return { chartData: [] as any[], topProjects: [] as string[] };
+        if (!last12MonthsWorklogs.length) {
+            return { chartData: [] as MonthlyProjectTrendPoint[], topProjects: [] as string[] };
+        }
 
         // Group by month and project (use project name for display)
         const monthlyData: Record<string, Record<string, number>> = {};
@@ -414,7 +421,7 @@ export const DashboardPage: React.FC = () => {
         const chartData = Object.entries(monthlyData)
             .sort(([a], [b]) => a.localeCompare(b))
             .map(([month, projects]) => {
-                const dataPoint: any = { month };
+                const dataPoint: MonthlyProjectTrendPoint = { month };
                 topProjects.forEach(project => {
                     dataPoint[project] = projects[project] || 0;
                 });

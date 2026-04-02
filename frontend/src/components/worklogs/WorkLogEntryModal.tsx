@@ -5,7 +5,7 @@
  */
 import React, { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useForm, Controller } from 'react-hook-form';
+import { useForm, Controller, useWatch } from 'react-hook-form';
 import {
     Dialog,
     DialogContent,
@@ -18,7 +18,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { WorkTypeCategorySelect } from '@/components/WorkTypeCategorySelect';
 import { ProjectHierarchySelect } from '@/components/ProjectHierarchySelect';
-import type { WorkLogCreate, WorkLogUpdate, Project, WorkTypeCategory } from '@/types';
+import type { WorkLogCreate, WorkLogUpdate, Project } from '@/types';
 
 
 
@@ -50,14 +50,15 @@ export const WorkLogEntryModal: React.FC<WorkLogEntryModalProps> = ({
     onSubmit,
     date,
     userId,
-    projects: _projects,  // Kept for backward compatibility but using hierarchy now
+    projects,
     initialData,
     isEditing = false,
     isLoading = false,
 }) => {
     const { t } = useTranslation('worklogs');
+    void projects;
 
-    const { register, handleSubmit, watch, reset, control, setValue, formState: { errors } } = useForm<WorkLogFormData>({
+    const { register, handleSubmit, reset, control, setValue, formState: { errors } } = useForm<WorkLogFormData>({
         defaultValues: {
             project_id: null,
             product_line_id: null,
@@ -105,7 +106,7 @@ export const WorkLogEntryModal: React.FC<WorkLogEntryModalProps> = ({
         }
     };
 
-    const handleProjectChange = (projectId: string | null, _projectName?: string, _category?: string) => {
+    const handleProjectChange = (projectId: string | null) => {
         setValue('project_id', projectId);
         if (projectId) {
             setValue('product_line_id', null);
@@ -119,12 +120,15 @@ export const WorkLogEntryModal: React.FC<WorkLogEntryModalProps> = ({
         }
     };
 
-    const handleWorkTypeCategoryChange = (categoryId: number, _category: WorkTypeCategory) => {
+    const handleWorkTypeCategoryChange = (categoryId: number) => {
         setValue('work_type_category_id', categoryId);
     };
 
 
-    const watchProductLineId = watch('product_line_id');
+    const watchProductLineId = useWatch({
+        control,
+        name: 'product_line_id',
+    });
 
     return (
         <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
@@ -146,9 +150,9 @@ export const WorkLogEntryModal: React.FC<WorkLogEntryModalProps> = ({
                             render={({ field }) => (
                                 <WorkTypeCategorySelect
                                     value={field.value}
-                                    onChange={(categoryId, category) => {
+                                    onChange={(categoryId) => {
                                         field.onChange(categoryId);
-                                        handleWorkTypeCategoryChange(categoryId, category);
+                                        handleWorkTypeCategoryChange(categoryId);
                                     }}
                                     placeholder={t('entryModal.selectWorkType')}
                                     className="w-full"

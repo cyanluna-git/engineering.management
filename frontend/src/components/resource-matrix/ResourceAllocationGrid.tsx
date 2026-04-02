@@ -179,8 +179,8 @@ export const ResourceAllocationGrid: React.FC<ResourceAllocationGridProps> = ({
                                             );
                                         })}
                                         <td className="border border-slate-300 p-2 text-right bg-slate-50 font-medium">
-                                            {(Object.values(project.allocations) as any[])
-                                                .reduce((sum, a) => sum + a.total_fte, 0)
+                                            {Object.values(project.allocations)
+                                                .reduce((sum, allocation) => sum + allocation.total_fte, 0)
                                                 .toFixed(1)}
                                         </td>
                                     </tr>

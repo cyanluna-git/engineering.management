@@ -3,7 +3,7 @@
  * Handles both creating new projects and updating existing ones
  */
 import React, { useEffect, useMemo } from 'react';
-import { useForm, Controller } from 'react-hook-form';
+import { useForm, Controller, useWatch } from 'react-hook-form';
 import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,43 +15,21 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
-import { Project, ProjectCreate, ProjectUpdate, ProjectStatus, ProjectScale } from '@/types';
+import { Project, ProjectCreate, ProjectUpdate } from '@/types';
 import { useCreateProject, useUpdateProject } from '@/hooks/useProjects';
 import { getProductLines, getUsers, getBusinessUnits, getDepartments, getInternalIOs, getRechargeIOs, type Department } from '@/api/client';
-
-// ============================================================
-// Constants
-// ============================================================
-
-export const STATUS_OPTIONS: { value: ProjectStatus; label: string; color: string }[] = [
-    { value: 'Lead', label: 'Lead', color: 'bg-gray-400' },
-    { value: 'Opportunity', label: 'Opportunity', color: 'bg-cyan-400' },
-    { value: 'Planning', label: 'Planning', color: 'bg-blue-400' },
-    { value: 'Active', label: 'Active', color: 'bg-green-500' },
-    { value: 'Launched', label: 'Launched', color: 'bg-purple-500' },
-    { value: 'Complete', label: 'Complete', color: 'bg-gray-500' },
-    { value: 'OnHold', label: 'On Hold', color: 'bg-yellow-500' },
-    { value: 'Cancelled', label: 'Cancelled', color: 'bg-red-500' },
-];
-
-export const SCALE_OPTIONS: { value: ProjectScale; label: string }[] = [
-    { value: 'CIP', label: 'CIP' },
-    { value: 'A&D', label: 'A&D' },
-    { value: 'Simple', label: 'Simple' },
-    { value: 'Complex', label: 'Complex' },
-    { value: 'Platform', label: 'Platform' },
-];
-
-export const CATEGORY_OPTIONS: { value: 'PRODUCT' | 'FUNCTIONAL'; label: string; color: string }[] = [
-    { value: 'PRODUCT', label: 'Product Project', color: 'bg-blue-500' },
-    { value: 'FUNCTIONAL', label: 'Functional Project', color: 'bg-purple-500' },
-];
+import {
+    PROJECT_CATEGORY_OPTIONS,
+    PROJECT_SCALE_OPTIONS,
+    PROJECT_STATUS_OPTIONS,
+} from '@/components/projects/projectFieldOptions';
 
 // ============================================================
 // Types
 // ============================================================
 
 type ProjectFormData = ProjectCreate | ProjectUpdate;
+type ProjectFormValues = ProjectFormData & { business_unit_id?: string };
 
 interface ProjectFormProps {
     /** Existing project for edit mode. If undefined, form is in create mode */
@@ -68,8 +46,7 @@ interface ProjectFormProps {
 export const ProjectForm: React.FC<ProjectFormProps> = ({ project, onSuccess, onCancel, initialValues }) => {
     const isEditMode = !!project;
 
-    // Build default values based on mode
-    const getDefaultValues = (): Partial<ProjectFormData & { business_unit_id?: string }> => {
+    const defaultValues = useMemo<Partial<ProjectFormValues>>(() => {
         if (isEditMode && project) {
             return {
                 internal_io_id: project.internal_io_id || undefined,
@@ -89,17 +66,18 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({ project, onSuccess, on
                 owner_department_id: project.owner_department_id || undefined,
             };
         }
-        return { status: 'Lead', category: 'PRODUCT', ...initialValues };
-    };
 
-    const { register, handleSubmit, reset, control, watch, setValue, formState: { errors } } = useForm<ProjectFormData & { business_unit_id?: string }>({
-        defaultValues: getDefaultValues(),
+        return { status: 'Lead', category: 'PRODUCT', ...initialValues };
+    }, [initialValues, isEditMode, project]);
+
+    const { register, handleSubmit, reset, control, setValue, formState: { errors } } = useForm<ProjectFormValues>({
+        defaultValues,
     });
 
     // Watch business_unit_id for cascading filter
-    const selectedBusinessUnitId = watch('business_unit_id');
+    const selectedBusinessUnitId = useWatch({ control, name: 'business_unit_id' });
     // Watch category for conditional rendering
-    const selectedCategory = watch('category');
+    const selectedCategory = useWatch({ control, name: 'category' });
 
 
     const createMutation = useCreateProject();
@@ -132,10 +110,8 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({ project, onSuccess, on
 
     // Re-initialize form when project changes (for modal re-open scenarios)
     useEffect(() => {
-        if (project) {
-            reset(getDefaultValues());
-        }
-    }, [project?.id]); // Only reset when project ID changes
+        reset(defaultValues);
+    }, [defaultValues, reset]);
 
     const onSubmit = (data: ProjectFormData) => {
         // Convert empty strings to undefined for FK fields
@@ -178,7 +154,7 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({ project, onSuccess, on
                             name="category"
                             control={control}
                             render={({ field }) => {
-                                const selectedCat = CATEGORY_OPTIONS.find(opt => opt.value === field.value);
+                                const selectedCat = PROJECT_CATEGORY_OPTIONS.find(opt => opt.value === field.value);
                                 return (
                                     <Select
                                         onValueChange={(value) => {
@@ -201,7 +177,7 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({ project, onSuccess, on
                                             </SelectValue>
                                         </SelectTrigger>
                                         <SelectContent>
-                                            {CATEGORY_OPTIONS.map((opt) => (
+                                            {PROJECT_CATEGORY_OPTIONS.map((opt) => (
                                                 <SelectItem key={opt.value} value={opt.value}>
                                                     <span className="flex items-center gap-2">
                                                         <span className={`w-2 h-2 rounded-full ${opt.color}`} />
@@ -224,7 +200,7 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({ project, onSuccess, on
                             control={control}
                             rules={{ required: 'Status is required' }}
                             render={({ field }) => {
-                                const selectedStatus = STATUS_OPTIONS.find(opt => opt.value === field.value);
+                                const selectedStatus = PROJECT_STATUS_OPTIONS.find(opt => opt.value === field.value);
                                 return (
                                     <Select onValueChange={field.onChange} value={field.value || 'Lead'}>
                                         <SelectTrigger className="h-8">
@@ -238,7 +214,7 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({ project, onSuccess, on
                                             </SelectValue>
                                         </SelectTrigger>
                                         <SelectContent>
-                                            {STATUS_OPTIONS.map((opt) => (
+                                            {PROJECT_STATUS_OPTIONS.map((opt) => (
                                                 <SelectItem key={opt.value} value={opt.value}>
                                                     <span className="flex items-center gap-2">
                                                         <span className={`w-2 h-2 rounded-full ${opt.color}`} />
@@ -265,7 +241,7 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({ project, onSuccess, on
                                         <SelectValue placeholder="Select" />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        {SCALE_OPTIONS.map((opt) => (
+                                        {PROJECT_SCALE_OPTIONS.map((opt) => (
                                             <SelectItem key={opt.value} value={opt.value}>
                                                 {opt.label}
                                             </SelectItem>

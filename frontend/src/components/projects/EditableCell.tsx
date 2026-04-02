@@ -9,46 +9,7 @@
  */
 import React, { useEffect, memo, useCallback, useMemo } from 'react';
 import { Input, Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui';
-import type { ProjectScale, ProjectStatus } from '@/types';
 import { cn } from '@/lib/utils';
-
-// Reuse constants from ProjectForm
-export const STATUS_OPTIONS: { value: ProjectStatus; label: string }[] = [
-  { value: 'Lead', label: 'Lead' },
-  { value: 'Opportunity', label: 'Opportunity' },
-  { value: 'Planning', label: 'Planning' },
-  { value: 'Active', label: 'Active' },
-  { value: 'Launched', label: 'Launched' },
-  { value: 'Complete', label: 'Complete' },
-  { value: 'OnHold', label: 'On Hold' },
-  { value: 'Cancelled', label: 'Cancelled' },
-];
-
-export const SCALE_OPTIONS: { value: ProjectScale; label: string }[] = [
-  { value: 'CIP', label: 'CIP' },
-  { value: 'A&D', label: 'A&D' },
-  { value: 'Simple', label: 'Simple' },
-  { value: 'Complex', label: 'Complex' },
-  { value: 'Platform', label: 'Platform' },
-];
-
-export const CATEGORY_OPTIONS: { value: 'PRODUCT' | 'FUNCTIONAL'; label: string }[] = [
-  { value: 'PRODUCT', label: 'Product' },
-  { value: 'FUNCTIONAL', label: 'Functional' },
-];
-
-export const FUNDING_ENTITY_OPTIONS = [
-  { value: 'ENTITY_VSS', label: 'VSS Division' },
-  { value: 'ENTITY_SUN', label: 'SUN Division' },
-  { value: 'ENTITY_LOCAL_KR', label: 'Local Korea' },
-  { value: 'ENTITY_SHARED', label: 'Shared Services' },
-];
-
-export const RECHARGE_STATUS_OPTIONS = [
-  { value: 'BILLABLE', label: 'Billable' },
-  { value: 'NON_BILLABLE', label: 'Non-Billable' },
-  { value: 'INTERNAL', label: 'Internal' },
-];
 
 interface BaseEditableCellProps {
   error?: string;
