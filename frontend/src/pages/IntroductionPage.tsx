@@ -19,10 +19,6 @@ import {
   TrendingUp,
   AlertTriangle,
   Zap,
-  LayoutDashboard,
-  PenSquare,
-  Grid3x3,
-  FileOutput,
   CircleDot,
   Maximize2,
   Minimize2,
@@ -476,23 +472,30 @@ export function IntroductionPage() {
         <div className="max-w-6xl mx-auto">
           <SectionHeader label={t('screens.sectionLabel')} title={t('screens.title')} subtitle={t('screens.subtitle')} />
 
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+          <div className="grid md:grid-cols-2 gap-8">
             {([
-              { key: 'dashboard', icon: LayoutDashboard, color: 'text-indigo-600', bg: 'from-indigo-50 to-indigo-100/50' },
-              { key: 'worklogs', icon: PenSquare, color: 'text-blue-600', bg: 'from-blue-50 to-blue-100/50' },
-              { key: 'resourceMatrix', icon: Grid3x3, color: 'text-emerald-600', bg: 'from-emerald-50 to-emerald-100/50' },
-              { key: 'projects', icon: FolderKanban, color: 'text-violet-600', bg: 'from-violet-50 to-violet-100/50' },
-              { key: 'reports', icon: FileOutput, color: 'text-rose-600', bg: 'from-rose-50 to-rose-100/50' },
-            ] as const).map(({ key, icon: Icon, color, bg }, i) => (
+              { key: 'dashboard' },
+              { key: 'worklogs' },
+              { key: 'teamCapacity' },
+              { key: 'projects' },
+              { key: 'reports' },
+            ] as const).map(({ key }, i) => (
               <FadeInSection key={key} delay={i * 100}>
                 <div className="group bg-white rounded-2xl border border-gray-100 overflow-hidden hover:shadow-xl transition-all duration-300">
-                  <div className={`aspect-video bg-gradient-to-br ${bg} flex items-center justify-center relative overflow-hidden`}>
-                    <div className="absolute inset-0 opacity-5" style={{ backgroundImage: 'radial-gradient(circle, currentColor 1px, transparent 1px)', backgroundSize: '20px 20px' }} />
-                    <div className="text-center relative">
-                      <div className="w-16 h-16 bg-white/80 backdrop-blur-sm rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-sm group-hover:scale-110 transition-transform duration-300">
-                        <Icon className={`w-8 h-8 ${color}`} />
-                      </div>
-                      <p className="text-[10px] text-gray-400 font-medium uppercase tracking-wider">{t('screens.placeholder')}</p>
+                  <div className="aspect-[16/10] bg-slate-950 relative overflow-hidden border-b border-gray-100">
+                    <img
+                      src={`/introduction/screens/${key}.png`}
+                      alt={t(`screens.items.${key}.title`)}
+                      className="h-full w-full object-cover object-top transition-transform duration-500 group-hover:scale-[1.02]"
+                      loading="lazy"
+                    />
+                    <div className="pointer-events-none absolute inset-x-0 top-0 flex items-center justify-between p-3">
+                      <span className="rounded-full border border-white/15 bg-slate-950/70 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.24em] text-white/80 backdrop-blur">
+                        Actual Screen
+                      </span>
+                      <span className="rounded-full border border-white/15 bg-slate-950/70 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.24em] text-white/60 backdrop-blur">
+                        EOB
+                      </span>
                     </div>
                   </div>
                   <div className="p-6">

@@ -246,12 +246,12 @@
   "screens": {
     "sectionLabel": "Screenshots",
     "title": "See It in Action",
-    "subtitle": "Key screens from the Engineering Operation Board.",
+    "subtitle": "Real product screens captured from the running Engineering Operation Board.",
     "placeholder": "Screenshot",
     "items": {
       "dashboard": { "title": "Dashboard Overview", "description": "Team activity metrics, project progress, and AI-generated weekly summaries at a glance." },
       "worklogs": { "title": "Worklog Entry", "description": "Daily time tracking with natural language AI parser. Heatmap view for patterns and anomalies." },
-      "resourceMatrix": { "title": "Resource Matrix", "description": "Monthly FTE allocation grid with scenario planning. Color-coded capacity indicators." },
+      "teamCapacity": { "title": "Team Capacity", "description": "An operating view for monthly available FTE, absence impact, and hiring assumptions." },
       "projects": { "title": "Project Management", "description": "Project lifecycle tracking with PCP gates, milestones, and IO assignment." },
       "reports": { "title": "Plan vs Actual", "description": "Variance analysis comparing planned FTE against actual hours by department, project, and user." }
     }

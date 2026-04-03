@@ -246,12 +246,12 @@
   "screens": {
     "sectionLabel": "스크린샷",
     "title": "실제 화면 보기",
-    "subtitle": "Engineering Operation Board의 주요 화면입니다.",
+    "subtitle": "실제 운영 화면을 직접 캡처해 소개 페이지에 연결했습니다.",
     "placeholder": "스크린샷",
     "items": {
       "dashboard": { "title": "대시보드 개요", "description": "팀 활동 지표, 프로젝트 진행 상황, AI 생성 주간 요약을 한눈에 볼 수 있습니다." },
       "worklogs": { "title": "워크로그 입력", "description": "자연어 AI 파서를 통한 일일 시간 추적. 패턴과 이상치를 위한 히트맵 뷰." },
-      "resourceMatrix": { "title": "리소스 매트릭스", "description": "시나리오 플래닝이 가능한 월간 FTE 배정 그리드. 색상 코딩된 용량 지표." },
+      "teamCapacity": { "title": "팀 캐파시티", "description": "월별 가용 FTE, 부재 영향, 채용 계획을 한 화면에서 읽을 수 있는 운영 뷰입니다." },
       "projects": { "title": "프로젝트 관리", "description": "PCP 게이트, 마일스톤, IO 배정을 통한 프로젝트 수명주기 추적." },
       "reports": { "title": "계획 대비 실적", "description": "부서, 프로젝트, 사용자별 계획 FTE와 실제 시간의 차이 분석." }
     }
