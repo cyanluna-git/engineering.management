@@ -31,6 +31,12 @@ const STATIC_GUIDE_BASE_PATH = path.join(
   "static-guides",
   "type1-recovery",
 );
+const ECDP_GUIDE_BASE_PATH = path.join(
+  process.cwd(),
+  "content",
+  "static-guides",
+  "ecdp-analysis",
+);
 const STATIC_GUIDE_ASSET_PREFIX = "/guides-assets/type1-recovery";
 const STATIC_GUIDE_LOCALES: StaticGuideLocale[] = ["en", "ko"];
 
@@ -44,6 +50,18 @@ const STATIC_GUIDES: Guide[] = [
     author: "engineering.systems",
     created_at: STATIC_GUIDE_UPDATED_AT,
     updated_at: STATIC_GUIDE_UPDATED_AT,
+    format: "static-html",
+    readonly: true,
+  },
+  {
+    id: "ecdp-analysis",
+    title: "ECDP Analysis Report",
+    category: "IT",
+    content:
+      "391건 ECDP 전수 분석 — 승인 병목, 근본 원인, 비용 영향, 통계 분석(회귀/군집), 교차 인사이트, 데이터 무결성 진단. Workshop 준비 자료.",
+    author: "engineering.systems",
+    created_at: "2026-04-03T00:00:00Z",
+    updated_at: "2026-04-03T00:00:00Z",
     format: "static-html",
     readonly: true,
   },
@@ -397,12 +415,33 @@ export function getStaticGuideChrome(locale: StaticGuideLocale): StaticGuideChro
   };
 }
 
+async function loadGuideHtmlFromPath(basePath: string, fileName: string) {
+  const html = await readFile(path.join(basePath, fileName), "utf8");
+  const styles = extractTagContents(html, "style").join("\n\n");
+  const body = extractBody(html);
+  return { styles, body };
+}
+
 export async function getStaticGuideDocument(
   id: string,
   locale: StaticGuideLocale = "en",
 ): Promise<StaticGuideDocument | undefined> {
   const guide = getStaticGuide(id);
   if (!guide) return undefined;
+
+  if (id === "ecdp-analysis") {
+    const [summary, detail] = await Promise.all([
+      loadGuideHtmlFromPath(ECDP_GUIDE_BASE_PATH, locale === "ko" ? "summary.ko.html" : "summary.html"),
+      loadGuideHtmlFromPath(ECDP_GUIDE_BASE_PATH, locale === "ko" ? "detail.ko.html" : "detail.html"),
+    ]);
+    return {
+      title: guide.title,
+      summaryCss: scopeCss(summary.styles, ".ecdp-analysis-summary"),
+      summaryHtml: summary.body,
+      detailCss: scopeCss(detail.styles, ".ecdp-analysis-detail"),
+      detailHtml: detail.body,
+    };
+  }
 
   const [summary, detail] = await Promise.all([
     loadGuideHtml(locale === "ko" ? "summary.ko.html" : "summary.html"),
