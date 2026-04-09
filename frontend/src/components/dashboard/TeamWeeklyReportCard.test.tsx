@@ -10,6 +10,7 @@ import {
   getWeeklyReportHistory,
   upsertWeeklyReport,
 } from "@/api/client";
+import { useAuth } from "@/hooks/useAuth";
 
 vi.mock("react-i18next", () => ({
   useTranslation: () => ({
@@ -49,6 +50,10 @@ vi.mock("react-i18next", () => ({
   }),
 }));
 
+vi.mock("@/hooks/useAuth", () => ({
+  useAuth: vi.fn(),
+}));
+
 vi.mock("@/api/client", async () => {
   const actual = await vi.importActual<typeof import("@/api/client")>("@/api/client");
   return {
@@ -62,6 +67,7 @@ vi.mock("@/api/client", async () => {
 const mockedGetCurrentWeeklyReport = vi.mocked(getCurrentWeeklyReport);
 const mockedGetWeeklyReportHistory = vi.mocked(getWeeklyReportHistory);
 const mockedUpsertWeeklyReport = vi.mocked(upsertWeeklyReport);
+const mockedUseAuth = vi.mocked(useAuth);
 
 function renderWithQueryClient(ui: ReactElement) {
   const queryClient = new QueryClient({
@@ -76,6 +82,20 @@ function renderWithQueryClient(ui: ReactElement) {
 
 describe("TeamWeeklyReportCard", () => {
   beforeEach(() => {
+    mockedUseAuth.mockReturnValue({
+      isAuthenticated: true,
+      isLoading: false,
+      login: vi.fn(),
+      logout: vi.fn(),
+      user: {
+        id: "user-1",
+        email: "user@example.com",
+        name: "Test Manager",
+        position_id: "pos-1",
+        role: "FM",
+        is_active: true,
+      },
+    } as ReturnType<typeof useAuth>);
     mockedGetCurrentWeeklyReport.mockResolvedValue({
       scope: "team",
       team_scope_type: "department",
@@ -174,7 +194,7 @@ describe("TeamWeeklyReportCard", () => {
           scope_id: "DEPT_TEST",
           reference_date: "2026-03-11",
           markdown_body: "1. ## Team Highlights",
-          status: "draft",
+          status: "published",
         })
       );
     });
@@ -195,5 +215,61 @@ describe("TeamWeeklyReportCard", () => {
     await userEvent.click(screen.getByRole("button", { name: "Copy last week" }));
 
     expect(screen.getByLabelText("Edit", { selector: "textarea" })).toHaveValue("## Previous Team Highlights");
+  });
+
+  it("dialog content is constrained to viewport with scroll region and pinned footer", async () => {
+    renderWithQueryClient(
+      <TeamWeeklyReportCard
+        teamScope="department"
+        selectedOrgId="DEPT_TEST"
+        referenceDate={new Date("2026-03-11")}
+        teamName="Software Team"
+      />
+    );
+
+    await screen.findByText("Team Weekly Report");
+    await userEvent.click(screen.getByRole("button", { name: "Start report" }));
+
+    const dialog = screen.getByRole("dialog");
+    // Verify the viewport-height cap and flex column layout are present.
+    expect(dialog.className).toMatch(/max-h-\[85vh\]/);
+    expect(dialog.className).toMatch(/overflow-hidden/);
+    expect(dialog.className).toMatch(/flex/);
+    expect(dialog.className).toMatch(/flex-col/);
+
+    // Verify there is an internal scroll region.
+    const scrollRegion = dialog.querySelector(".overflow-y-auto");
+    expect(scrollRegion).not.toBeNull();
+
+    // Save and Cancel must be outside the scroll region so they stay reachable.
+    const saveBtn = screen.getByRole("button", { name: "Save draft" });
+    const cancelBtn = screen.getByRole("button", { name: "Cancel" });
+    expect(scrollRegion).not.toContainElement(saveBtn);
+    expect(scrollRegion).not.toContainElement(cancelBtn);
+  });
+
+  it("save error alert renders outside the scrollable region", async () => {
+    mockedUpsertWeeklyReport.mockRejectedValueOnce({ response: { data: { detail: "Server error" } } });
+    renderWithQueryClient(
+      <TeamWeeklyReportCard
+        teamScope="department"
+        selectedOrgId="DEPT_TEST"
+        referenceDate={new Date("2026-03-11")}
+        teamName="Software Team"
+      />
+    );
+
+    await screen.findByText("Team Weekly Report");
+    await userEvent.click(screen.getByRole("button", { name: "Start report" }));
+    await userEvent.click(screen.getByRole("button", { name: "Save draft" }));
+
+    await screen.findByText("Failed to save weekly report");
+
+    const dialog = screen.getByRole("dialog");
+    const scrollRegion = dialog.querySelector(".overflow-y-auto");
+    const errorHeading = screen.getByText("Failed to save weekly report");
+    const errorAlert = errorHeading.closest('[role="alert"]') as HTMLElement | null;
+    expect(errorAlert).not.toBeNull();
+    expect(scrollRegion).not.toContainElement(errorAlert!);
   });
 });

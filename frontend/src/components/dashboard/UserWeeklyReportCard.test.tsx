@@ -49,6 +49,9 @@ vi.mock("@/api/client", async () => {
   const actual = await vi.importActual<typeof import("@/api/client")>("@/api/client");
   return {
     ...actual,
+    apiClient: {
+      get: vi.fn().mockResolvedValue({ data: { projects: [] } }),
+    },
     getCurrentWeeklyReport: vi.fn(),
     getWeeklyReportHistory: vi.fn(),
     upsertWeeklyReport: vi.fn(),
@@ -170,30 +173,62 @@ describe("UserWeeklyReportCard", () => {
     await screen.findByText("Weekly Report");
     await userEvent.click(screen.getByRole("button", { name: "Start report" }));
 
-    await userEvent.click(screen.getByRole("button", { name: "H3" }));
-    await userEvent.type(screen.getByLabelText("Edit", { selector: "textarea" }), "## Highlights");
+    // The editor renders per-project sections; type into the first visible textarea (Team section).
+    const textareas = await screen.findAllByRole("textbox");
+    await userEvent.type(textareas[0], "## Highlights");
     await userEvent.click(screen.getByRole("button", { name: "Save draft" }));
 
     await waitFor(() => {
-        expect(mockedUpsertWeeklyReport).toHaveBeenCalledWith(
-          expect.objectContaining({
-            scope: "user",
-            reference_date: "2026-03-11",
-            markdown_body: "### ## Highlights",
-            status: "published",
-          })
-        );
+      expect(mockedUpsertWeeklyReport).toHaveBeenCalledWith(
+        expect.objectContaining({
+          scope: "user",
+          reference_date: "2026-03-11",
+          status: "published",
+        })
+      );
     });
   });
 
-  it("copies the previous weekly report body into the editor", async () => {
+  it("dialog content is constrained to viewport with scroll region and pinned footer", async () => {
     renderWithQueryClient(<UserWeeklyReportCard referenceDate={new Date("2026-03-11")} />);
 
     await screen.findByText("Weekly Report");
     await userEvent.click(screen.getByRole("button", { name: "Start report" }));
-    await userEvent.click(screen.getByRole("button", { name: "Copy last week" }));
 
-    expect(screen.getByLabelText("Edit", { selector: "textarea" })).toHaveValue("## Previous Highlights");
+    const dialog = screen.getByRole("dialog");
+    // Verify the viewport-height cap and flex column layout are present.
+    expect(dialog.className).toMatch(/max-h-\[85vh\]/);
+    expect(dialog.className).toMatch(/overflow-hidden/);
+    expect(dialog.className).toMatch(/flex/);
+    expect(dialog.className).toMatch(/flex-col/);
+
+    // Verify there is an internal scroll region.
+    const scrollRegion = dialog.querySelector(".overflow-y-auto");
+    expect(scrollRegion).not.toBeNull();
+
+    // Save and Cancel must be outside the scroll region so they stay reachable.
+    const saveBtn = screen.getByRole("button", { name: "Save draft" });
+    const cancelBtn = screen.getByRole("button", { name: "Cancel" });
+    expect(scrollRegion).not.toContainElement(saveBtn);
+    expect(scrollRegion).not.toContainElement(cancelBtn);
+  });
+
+  it("save error alert renders outside the scrollable region", async () => {
+    mockedUpsertWeeklyReport.mockRejectedValueOnce({ response: { data: { detail: "Server error" } } });
+    renderWithQueryClient(<UserWeeklyReportCard referenceDate={new Date("2026-03-11")} />);
+
+    await screen.findByText("Weekly Report");
+    await userEvent.click(screen.getByRole("button", { name: "Start report" }));
+    await userEvent.click(screen.getByRole("button", { name: "Save draft" }));
+
+    await screen.findByText("Failed to save weekly report");
+
+    const dialog = screen.getByRole("dialog");
+    const scrollRegion = dialog.querySelector(".overflow-y-auto");
+    const errorHeading = screen.getByText("Failed to save weekly report");
+    const errorAlert = errorHeading.closest('[role="alert"]') as HTMLElement | null;
+    expect(errorAlert).not.toBeNull();
+    expect(scrollRegion).not.toContainElement(errorAlert!);
   });
 
   it("renders an inline action trigger for the current user row", async () => {

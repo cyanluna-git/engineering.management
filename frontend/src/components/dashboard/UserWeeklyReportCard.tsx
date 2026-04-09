@@ -186,7 +186,7 @@ export function UserWeeklyReportCard({
   const saveErrorMessage = saveMutation.error ? getApiError(saveMutation.error).message : null;
   const editorDialog = (
     <Dialog open={isEditorOpen} onOpenChange={setIsEditorOpen}>
-      <DialogContent className="max-w-4xl">
+      <DialogContent className="max-w-4xl max-h-[85vh] overflow-hidden flex flex-col">
         <DialogHeader>
           <DialogTitle>{t("weeklyReport.editorTitle")}</DialogTitle>
           <DialogDescription className="sr-only">
@@ -198,7 +198,7 @@ export function UserWeeklyReportCard({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4">
+        <div className="flex-1 overflow-y-auto space-y-4 pr-1">
           <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as "edit" | "preview")}>
             <TabsList>
               <TabsTrigger value="edit" className="gap-2">
@@ -249,7 +249,7 @@ export function UserWeeklyReportCard({
                           value={section.body}
                           onChange={(e) => updateSectionBody(idx, e.target.value)}
                           placeholder={isTeam ? "팀 공통사항, 회의, 기타 업무..." : `${section.project_name} 관련 이번주 진행사항...`}
-                          className="min-h-[240px] resize-y font-mono text-sm"
+                          className="min-h-[120px] resize-y font-mono text-sm"
                         />
                       </div>
                     )}
@@ -273,27 +273,27 @@ export function UserWeeklyReportCard({
               </div>
             </TabsContent>
           </Tabs>
+        </div>
 
-          {saveErrorMessage ? (
-            <Alert variant="destructive">
-              <AlertTitle>{t("weeklyReport.saveFailedTitle")}</AlertTitle>
-              <AlertDescription>{saveErrorMessage}</AlertDescription>
-            </Alert>
-          ) : null}
+        {saveErrorMessage ? (
+          <Alert variant="destructive">
+            <AlertTitle>{t("weeklyReport.saveFailedTitle")}</AlertTitle>
+            <AlertDescription>{saveErrorMessage}</AlertDescription>
+          </Alert>
+        ) : null}
 
-          <div className="flex items-center justify-between">
-            <Button variant="outline" onClick={() => setIsEditorOpen(false)}>
-              {t("weeklyReport.cancel")}
-            </Button>
-            <Button
-              onClick={() => saveMutation.mutate()}
-              disabled={saveMutation.isPending}
-              className="gap-2"
-            >
-              <Save className="h-3.5 w-3.5" />
-              {saveMutation.isPending ? t("weeklyReport.saving") : t("weeklyReport.save")}
-            </Button>
-          </div>
+        <div className="flex items-center justify-between">
+          <Button variant="outline" onClick={() => setIsEditorOpen(false)}>
+            {t("weeklyReport.cancel")}
+          </Button>
+          <Button
+            onClick={() => saveMutation.mutate()}
+            disabled={saveMutation.isPending}
+            className="gap-2"
+          >
+            <Save className="h-3.5 w-3.5" />
+            {saveMutation.isPending ? t("weeklyReport.saving") : t("weeklyReport.save")}
+          </Button>
         </div>
       </DialogContent>
     </Dialog>
