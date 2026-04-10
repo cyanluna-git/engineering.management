@@ -83,3 +83,6 @@ docs/opboard-docs/SSL*
 
 # Local scratch workspace
 toys/
+
+# OS
+Thumbs.db
