@@ -19,7 +19,10 @@ from app.prompts.weekly_report_summary import (
     build_group_to_team_prompt,
     build_personal_to_group_prompt,
 )
-from app.services.weekly_report_summary_service import WeeklyReportSummaryService
+from app.services.weekly_report_summary_service import (
+    WeeklyReportSummaryService,
+    _reassign_explicit_plan_projects,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -65,6 +68,38 @@ def _make_report(
         status="published",
         markdown_body=body,
         sections=sections,
+        owner_user_id=owner_user_id,
+        created_by_user_id=owner_user_id,
+        updated_by_user_id=owner_user_id,
+    )
+    db_session.add(report)
+    return report
+
+
+def _make_team_report(
+    db_session,
+    *,
+    target_key: str,
+    team_scope_type: str,
+    scope_id: str,
+    week_start: date,
+    body: str,
+    owner_user_id: str,
+) -> WeeklyReport:
+    from datetime import timedelta
+
+    week_end = week_start + timedelta(days=6)
+    report = WeeklyReport(
+        id=f"team-{target_key}-{week_start}",
+        scope="team",
+        team_scope_type=team_scope_type,
+        scope_id=scope_id,
+        target_key=target_key,
+        week_start=week_start,
+        week_end=week_end,
+        week_key=str(week_start),
+        status="published",
+        markdown_body=body,
         owner_user_id=owner_user_id,
         created_by_user_id=owner_user_id,
         updated_by_user_id=owner_user_id,
@@ -380,6 +415,19 @@ def test_group_prompt_requires_project_regrouping_and_no_invented_plans():
     assert "### Team A" in user_prompt
 
 
+def test_reassign_explicit_plan_projects_prefers_exact_project_phrase_matches():
+    """Plan reassignment should avoid accidental substring-based project matches."""
+    explicit_plans = [
+        {"project_name": "공통/미분류", "content": "Complete API Gateway integration tests"},
+        {"project_name": "공통/미분류", "content": "Review API performance findings"},
+    ]
+
+    _reassign_explicit_plan_projects(explicit_plans, ["API", "API Gateway"])
+
+    assert explicit_plans[0]["project_name"] == "API Gateway"
+    assert explicit_plans[1]["project_name"] == "API"
+
+
 @pytest.mark.asyncio
 async def test_sub_team_prompt_groups_reports_by_project_and_separates_explicit_plans(
     db_session,
@@ -466,3 +514,195 @@ async def test_sub_team_prompt_groups_reports_by_project_and_separates_explicit_
     assert "[공통/미분류] Bob: 배포 확인" in captured["user_prompt"]
     assert "## 다음 주 계획" not in captured["user_prompt"]
     assert "## 이번 주 남은 업무" not in captured["user_prompt"]
+
+
+@pytest.mark.asyncio
+async def test_sub_team_prompt_splits_team_only_sections_using_inline_project_labels(
+    db_session,
+    sample_department,
+    sample_sub_team,
+    sample_position,
+):
+    """Team-only structured sections should still become project-grouped prompt evidence."""
+    week_start = date(2026, 3, 9)
+    captured: dict[str, str] = {}
+    llm = _capturing_llm("## Hardened Summary\n- Done", captured)
+
+    _make_user(
+        db_session,
+        user_id="inline-u1",
+        name="Rachel",
+        position_id=sample_position.id,
+        department_id=sample_department.id,
+        sub_team_id=sample_sub_team.id,
+    )
+    _make_report(
+        db_session,
+        owner_user_id="inline-u1",
+        week_start=week_start,
+        body="",
+        sections=[
+            {
+                "project_name": "Team",
+                "body": "\n".join(
+                    [
+                        "- 공통 운영 회의 및 템플릿 정비",
+                        "Project - VIZEON",
+                        "- B1.2.1 요구사항 수집 및 Raised Stories 구현 진행",
+                        "OQC Digitalization Infrastructure: OQC PoC Field Demo 준비 및 시뮬레이터 오토 테스트 검증 완료",
+                        "## 다음 주 계획",
+                        "- VIZEON Stories 구현 완료 및 검토",
+                    ]
+                ),
+            }
+        ],
+    )
+    db_session.commit()
+
+    admin = _make_user(
+        db_session,
+        user_id="inline-admin",
+        name="Admin6",
+        position_id=sample_position.id,
+        department_id=sample_department.id,
+    )
+    admin.role = "ADMIN"
+    db_session.commit()
+
+    service = WeeklyReportSummaryService(db=db_session, llm_client=llm)
+    result = await service.summarize_for_team(
+        team_scope_type="sub_team",
+        scope_id=sample_sub_team.id,
+        week_start=week_start,
+        current_user=admin,
+        save_intermediate=False,
+    )
+
+    assert result["team_summary_markdown"] == "## Hardened Summary\n- Done"
+    assert "### 공통/미분류" in captured["user_prompt"]
+    assert "### VIZEON" in captured["user_prompt"]
+    assert "### OQC Digitalization Infrastructure" in captured["user_prompt"]
+    assert "공통 운영 회의 및 템플릿 정비" in captured["user_prompt"]
+    assert "Raised Stories 구현 진행" in captured["user_prompt"]
+    assert "시뮬레이터 오토 테스트 검증 완료" in captured["user_prompt"]
+    assert "[VIZEON] Rachel: VIZEON Stories 구현 완료 및 검토" in captured["user_prompt"]
+
+
+@pytest.mark.asyncio
+async def test_sub_team_prompt_ignores_legacy_existing_body_reference(
+    db_session,
+    sample_department,
+    sample_sub_team,
+    sample_position,
+):
+    """Old flat saved team summaries should not be re-injected as prompt reference text."""
+    week_start = date(2026, 3, 9)
+    captured: dict[str, str] = {}
+    llm = _capturing_llm("## Regenerated Summary\n- Done", captured)
+
+    _make_user(
+        db_session,
+        user_id="legacy-u1",
+        name="Alice",
+        position_id=sample_position.id,
+        department_id=sample_department.id,
+        sub_team_id=sample_sub_team.id,
+    )
+    _make_report(
+        db_session,
+        owner_user_id="legacy-u1",
+        week_start=week_start,
+        body="Project Alpha: 설계 변경표 작성 완료",
+    )
+
+    admin = _make_user(
+        db_session,
+        user_id="legacy-admin",
+        name="Admin7",
+        position_id=sample_position.id,
+        department_id=sample_department.id,
+    )
+    admin.role = "ADMIN"
+    _make_team_report(
+        db_session,
+        target_key=f"sub_team:{sample_sub_team.id}",
+        team_scope_type="sub_team",
+        scope_id=sample_sub_team.id,
+        week_start=week_start,
+        body="## 주요 활동\n- 기존 요약\n## 이슈/리스크\n- 오래된 형식",
+        owner_user_id=admin.id,
+    )
+    db_session.commit()
+
+    service = WeeklyReportSummaryService(db=db_session, llm_client=llm)
+    await service.summarize_for_team(
+        team_scope_type="sub_team",
+        scope_id=sample_sub_team.id,
+        week_start=week_start,
+        current_user=admin,
+        save_intermediate=False,
+    )
+
+    assert "## 기존 팀 보고서 (참고용)" not in captured["user_prompt"]
+    assert "## 주요 활동" not in captured["user_prompt"]
+    assert "오래된 형식" not in captured["user_prompt"]
+
+
+@pytest.mark.asyncio
+async def test_sub_team_prompt_keeps_grouped_existing_body_reference(
+    db_session,
+    sample_department,
+    sample_sub_team,
+    sample_position,
+):
+    """Already-grouped saved team summaries should remain available as prompt reference text."""
+    week_start = date(2026, 3, 9)
+    captured: dict[str, str] = {}
+    llm = _capturing_llm("## Regenerated Summary\n- Done", captured)
+
+    _make_user(
+        db_session,
+        user_id="grouped-u1",
+        name="Bob",
+        position_id=sample_position.id,
+        department_id=sample_department.id,
+        sub_team_id=sample_sub_team.id,
+    )
+    _make_report(
+        db_session,
+        owner_user_id="grouped-u1",
+        week_start=week_start,
+        body="Project Alpha: 고객 검토 대응 완료",
+    )
+
+    admin = _make_user(
+        db_session,
+        user_id="grouped-admin",
+        name="Admin8",
+        position_id=sample_position.id,
+        department_id=sample_department.id,
+    )
+    admin.role = "ADMIN"
+    _make_team_report(
+        db_session,
+        target_key=f"sub_team:{sample_sub_team.id}",
+        team_scope_type="sub_team",
+        scope_id=sample_sub_team.id,
+        week_start=week_start,
+        body="## 프로젝트별 주요 결과\n### Project Alpha\n- 직전 버전 요약",
+        owner_user_id=admin.id,
+    )
+    db_session.commit()
+
+    service = WeeklyReportSummaryService(db=db_session, llm_client=llm)
+    await service.summarize_for_team(
+        team_scope_type="sub_team",
+        scope_id=sample_sub_team.id,
+        week_start=week_start,
+        current_user=admin,
+        save_intermediate=False,
+    )
+
+    assert "## 기존 팀 보고서 (참고용)" in captured["user_prompt"]
+    assert "## 프로젝트별 주요 결과" in captured["user_prompt"]
+    assert "직전 버전 요약" in captured["user_prompt"]

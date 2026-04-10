@@ -7,6 +7,7 @@ Provides hierarchical summarization:
 - sub-team summaries → department summary
 """
 
+import re
 from datetime import date, timedelta
 from typing import Optional
 
@@ -34,6 +35,42 @@ _PLAN_SECTION_KEYWORDS = (
     "next week",
     "future plan",
     "planned work",
+)
+_COMMON_PROJECT_ALIASES = {
+    "",
+    "team",
+    "common",
+    "general",
+    "misc",
+    "shared",
+    "공통",
+    "공통/미분류",
+}
+_NON_PROJECT_HEADING_KEYS = {
+    "주요활동",
+    "주간업무",
+    "이슈",
+    "리스크",
+    "이슈리스크",
+    "다음주계획",
+    "향후계획",
+    "이번주남은업무",
+    "명시된향후계획남은업무",
+    "프로젝트별주요결과",
+    "공통운영지원",
+    "작성자",
+    "내용",
+    "업무",
+    "작업내용",
+    "진행상황",
+    "비고",
+}
+_PROJECT_PREFIX_RE = re.compile(
+    r"^\s*(?:[-*•]\s*)?(?:\d+[.)]\s*)?(?:project|프로젝트)\s*[-:]\s*(?P<label>.+?)\s*$",
+    re.IGNORECASE,
+)
+_PROJECT_COLON_RE = re.compile(
+    r"^\s*(?:[-*•]\s*)?(?:\d+[.)]\s*)?(?P<label>[^:\n]{2,80}?)\s*:\s*(?P<rest>.+)\s*$"
 )
 
 
@@ -80,6 +117,172 @@ def _split_content_and_explicit_plans(markdown: str) -> tuple[str, list[str]]:
 
     body = _truncate_content("\n".join(body_lines))
     return body, explicit_plans
+
+
+def _normalize_project_name(project_name: str | None) -> str:
+    normalized = (project_name or "").strip()
+    return normalized or _COMMON_PROJECT_NAME
+
+
+def _is_common_project_name(project_name: str | None) -> bool:
+    compact = _normalize_project_name(project_name).lower()
+    return compact in _COMMON_PROJECT_ALIASES
+
+
+def _compact_heading_key(value: str) -> str:
+    return re.sub(r"[\s:/()_-]+", "", value or "").lower()
+
+
+def _looks_like_project_label(label: str) -> bool:
+    normalized = _normalize_project_name(label)
+    if _is_common_project_name(normalized):
+        return False
+    compact = _compact_heading_key(normalized)
+    if compact in _NON_PROJECT_HEADING_KEYS:
+        return False
+    return len(normalized) <= 80
+
+
+def _extract_project_label(line: str) -> tuple[str, str] | None:
+    stripped = (line or "").strip()
+    if not stripped:
+        return None
+
+    if stripped.startswith("#"):
+        heading = stripped.lstrip("#").strip()
+        if _looks_like_project_label(heading):
+            return _normalize_project_name(heading), ""
+        return None
+
+    prefixed = _PROJECT_PREFIX_RE.match(stripped)
+    if prefixed:
+        label = _normalize_project_name(prefixed.group("label"))
+        if _looks_like_project_label(label):
+            return label, ""
+
+    colon = _PROJECT_COLON_RE.match(stripped)
+    if colon:
+        label = _normalize_project_name(colon.group("label"))
+        if _looks_like_project_label(label):
+            return label, colon.group("rest").strip()
+
+    return None
+
+
+def _split_common_body_by_project(markdown: str) -> list[tuple[str, str]]:
+    current_project: str | None = None
+    current_lines: list[str] = []
+    grouped_blocks: list[tuple[str, str]] = []
+    preamble_lines: list[str] = []
+
+    for raw_line in markdown.splitlines():
+        project_marker = _extract_project_label(raw_line)
+        if project_marker:
+            if current_project:
+                block_body = "\n".join(current_lines).strip()
+                if block_body:
+                    grouped_blocks.append((current_project, block_body))
+            current_project, inline_content = project_marker
+            current_lines = [inline_content] if inline_content else []
+            continue
+
+        if current_project:
+            current_lines.append(raw_line.rstrip())
+        else:
+            preamble_lines.append(raw_line.rstrip())
+
+    if current_project:
+        block_body = "\n".join(current_lines).strip()
+        if block_body:
+            grouped_blocks.append((current_project, block_body))
+
+    preamble_body = "\n".join(preamble_lines).strip()
+    if grouped_blocks and preamble_body:
+        grouped_blocks.insert(0, (_COMMON_PROJECT_NAME, preamble_body))
+
+    return grouped_blocks
+
+
+def _append_project_entries(
+    project_sections: list[dict],
+    explicit_plans: list[dict],
+    project_name: str,
+    body: str,
+) -> None:
+    normalized_body, section_plans = _split_content_and_explicit_plans(body)
+    if normalized_body:
+        project_sections.append(
+            {
+                "project_name": _normalize_project_name(project_name),
+                "content": normalized_body,
+            }
+        )
+    explicit_plans.extend(
+        {
+            "project_name": _normalize_project_name(project_name),
+            "content": plan,
+        }
+        for plan in section_plans
+    )
+
+
+def _reassign_explicit_plan_projects(
+    explicit_plans: list[dict], project_names: list[str]
+) -> None:
+    known_project_names = sorted(
+        {
+            _normalize_project_name(project_name)
+            for project_name in project_names
+            if not _is_common_project_name(project_name)
+        },
+        key=len,
+        reverse=True,
+    )
+    if len(known_project_names) < 2:
+        return
+
+    for plan in explicit_plans:
+        content = str(plan.get("content") or "")
+        current_project = _normalize_project_name(plan.get("project_name"))
+
+        for project_name in known_project_names:
+            if project_name == current_project:
+                continue
+            if re.search(r"\b" + re.escape(project_name) + r"\b", content, re.IGNORECASE):
+                plan["project_name"] = project_name
+                break
+
+
+def _extract_entries_from_common_body(body: str) -> tuple[list[dict], list[dict]]:
+    project_sections: list[dict] = []
+    explicit_plans: list[dict] = []
+
+    grouped_blocks = _split_common_body_by_project(body)
+    if grouped_blocks:
+        for project_name, block_body in grouped_blocks:
+            _append_project_entries(project_sections, explicit_plans, project_name, block_body)
+        _reassign_explicit_plan_projects(
+            explicit_plans,
+            [project_name for project_name, _ in grouped_blocks],
+        )
+        if project_sections or explicit_plans:
+            return project_sections, explicit_plans
+
+    _append_project_entries(project_sections, explicit_plans, _COMMON_PROJECT_NAME, body)
+    return project_sections, explicit_plans
+
+
+def _should_reference_existing_body(existing_body: str) -> bool:
+    normalized = (existing_body or "").strip()
+    if not normalized:
+        return False
+
+    has_grouped_heading = "## 프로젝트별 주요 결과" in normalized
+    has_legacy_flat_heading = any(
+        heading in normalized
+        for heading in ("## 주요 활동", "## 이슈/리스크", "## 다음 주 계획")
+    )
+    return has_grouped_heading or not has_legacy_flat_heading
 
 
 class WeeklyReportSummaryService:
@@ -282,40 +485,20 @@ class WeeklyReportSummaryService:
             if report.sections and isinstance(report.sections, list):
                 for section in report.sections:
                     if section.get("project_id") == project_id:
-                        section_body, section_plans = _split_content_and_explicit_plans(
-                            section.get("body") or ""
-                        )
-                        if section_body:
-                            project_sections.append(
-                                {
-                                    "project_name": project.name,
-                                    "content": section_body,
-                                }
-                            )
-                        explicit_plans.extend(
-                            {
-                                "project_name": project.name,
-                                "content": plan,
-                            }
-                            for plan in section_plans
+                        _append_project_entries(
+                            project_sections=project_sections,
+                            explicit_plans=explicit_plans,
+                            project_name=project.name,
+                            body=section.get("body") or "",
                         )
                         break
             if not project_sections and not explicit_plans:
                 # Fallback: use full body for legacy reports
-                content, raw_plans = _split_content_and_explicit_plans(report.markdown_body or "")
-                if content:
-                    project_sections.append(
-                        {
-                            "project_name": project.name,
-                            "content": content,
-                        }
-                    )
-                explicit_plans.extend(
-                    {
-                        "project_name": project.name,
-                        "content": plan,
-                    }
-                    for plan in raw_plans
+                _append_project_entries(
+                    project_sections=project_sections,
+                    explicit_plans=explicit_plans,
+                    project_name=project.name,
+                    body=report.markdown_body or "",
                 )
             if project_sections or explicit_plans:
                 personal_reports.append(
@@ -579,57 +762,42 @@ class WeeklyReportSummaryService:
                     if not section_body:
                         continue
 
-                    project_name = (
-                        section.get("project_name")
-                        or section.get("title")
-                        or _COMMON_PROJECT_NAME
+                    project_name = _normalize_project_name(
+                        section.get("project_name") or section.get("title")
                     )
-                    normalized_body, section_plans = _split_content_and_explicit_plans(section_body)
-                    if normalized_body:
-                        project_sections.append(
-                            {
-                                "project_name": project_name,
-                                "content": normalized_body,
-                            }
+                    if _is_common_project_name(project_name):
+                        derived_sections, derived_plans = _extract_entries_from_common_body(
+                            section_body
                         )
-                    explicit_plans.extend(
-                        {
-                            "project_name": project_name,
-                            "content": plan,
-                        }
-                        for plan in section_plans
-                    )
+                        project_sections.extend(derived_sections)
+                        explicit_plans.extend(derived_plans)
+                    else:
+                        _append_project_entries(
+                            project_sections=project_sections,
+                            explicit_plans=explicit_plans,
+                            project_name=project_name,
+                            body=section_body,
+                        )
 
             if not project_sections and not explicit_plans:
-                content, raw_plans = _split_content_and_explicit_plans(report.markdown_body or "")
-                if content:
+                derived_sections, derived_plans = _extract_entries_from_common_body(
+                    report.markdown_body or ""
+                )
+                content = ""
+                if derived_sections and all(
+                    section["project_name"] == _COMMON_PROJECT_NAME
+                    for section in derived_sections
+                ):
+                    content = derived_sections[0]["content"]
+                    derived_sections = []
+
+                if content or derived_sections or derived_plans:
                     report_list.append(
                         {
                             "user_name": user_name,
                             "content": content,
-                            "project_sections": [],
-                            "explicit_plans": [
-                                {
-                                    "project_name": _COMMON_PROJECT_NAME,
-                                    "content": plan,
-                                }
-                                for plan in raw_plans
-                            ],
-                        }
-                    )
-                elif raw_plans:
-                    report_list.append(
-                        {
-                            "user_name": user_name,
-                            "content": "",
-                            "project_sections": [],
-                            "explicit_plans": [
-                                {
-                                    "project_name": _COMMON_PROJECT_NAME,
-                                    "content": plan,
-                                }
-                                for plan in raw_plans
-                            ],
+                            "project_sections": derived_sections,
+                            "explicit_plans": derived_plans,
                         }
                     )
                 continue
@@ -658,7 +826,7 @@ class WeeklyReportSummaryService:
             .first()
         )
         if existing and existing.markdown_body:
-            return existing.markdown_body
+            return existing.markdown_body if _should_reference_existing_body(existing.markdown_body) else ""
         return ""
 
     async def _call_llm_personal_to_group(
