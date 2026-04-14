@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { getGatewayMode } from "@/lib/gateway-config";
-import { getPortalSessionFromRequest } from "@/lib/portal-auth";
+import {
+  createPortalHandoffToken,
+  getPortalSessionFromRequest,
+} from "@/lib/portal-auth";
 import { findPortalServiceById } from "@/lib/services";
 
 export const dynamic = "force-dynamic";
@@ -28,6 +31,24 @@ export async function GET(request: NextRequest, context: LaunchRouteParams) {
 
   if (!service.gatewayAudience || getGatewayMode(service.gatewayAudience) === "direct") {
     return NextResponse.redirect(service.url);
+  }
+
+  if (service.gatewayAudience === "eob") {
+    try {
+      const handoff = await createPortalHandoffToken(session, "eob");
+      const destination = new URL("/auth/gateway", service.url);
+      destination.searchParams.set("handoff", handoff.token);
+      destination.searchParams.set(
+        "returnTo",
+        service.defaultReturnPath || "/dashboard",
+      );
+      return NextResponse.redirect(destination);
+    } catch {
+      const destination = new URL("/", request.url);
+      destination.searchParams.set("launchError", "handoff-not-ready");
+      destination.searchParams.set("service", service.id);
+      return NextResponse.redirect(destination);
+    }
   }
 
   const destination = new URL("/", request.url);

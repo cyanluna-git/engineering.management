@@ -5,6 +5,7 @@ export interface PortalService {
   url: string;
   launchPath?: string;
   gatewayAudience?: "eob" | "oqc" | "jarvis";
+  defaultReturnPath?: string;
   icon: string;
   color: string;
   category: "engineering" | "business" | "guide";
@@ -24,6 +25,7 @@ export const PORTAL_SERVICES: PortalService[] = [
     url: EOB_URL,
     launchPath: "/launch/eob-dashboard",
     gatewayAudience: "eob",
+    defaultReturnPath: "/dashboard",
     icon: "LayoutDashboard",
     color: "bg-blue-600",
     category: "engineering",

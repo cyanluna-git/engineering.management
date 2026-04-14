@@ -50,6 +50,7 @@ services:
       args:
         VITE_APP_BASE: ${VITE_APP_BASE:-/}
         VITE_API_URL: ${VITE_API_URL:-/api}
+        VITE_PORTAL_URL: ${VITE_PORTAL_URL:-https://pcas-portal.atlascopco.group}
         VITE_OQC_URL: ${VITE_OQC_URL:-https://oqc.atlascopco.group}
         VITE_JARVIS_URL: ${VITE_JARVIS_URL:-https://sw-portal.atlascopco.group}
         VITE_TESTRIG_URL: ${VITE_TESTRIG_URL:-}

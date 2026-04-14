@@ -88,6 +88,7 @@ def build_domain_overrides(
         "CORS_ORIGINS": cors,
         "VITE_APP_BASE": "/",
         "VITE_API_URL": "/api",
+        "VITE_PORTAL_URL": f"https://{portal_domain}",
         "VITE_OQC_URL": f"https://{oqc_domain}",
         "VITE_JARVIS_URL": f"https://{jarvis_domain}",
         "NEXT_PUBLIC_EOB_URL": f"https://{eob_domain}",

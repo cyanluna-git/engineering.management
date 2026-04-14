@@ -39,7 +39,7 @@ Per-service flags:
 ## Staged Rollout Sequence
 
 1. Deploy secrets and flags everywhere with all services still set to `direct`.
-2. Enable `GATEWAY_MODE_EOB=gateway` and validate the first handoff exchange path.
+2. Enable `GATEWAY_MODE_EOB=gateway` and validate the first handoff exchange path (`pcas-portal /launch/eob-dashboard` -> `eob /auth/gateway` -> `POST /api/auth/gateway/login`).
 3. Monitor exchange success and failure logs before enabling the next service.
 4. Enable `GATEWAY_MODE_OQC=gateway`.
 5. Enable `GATEWAY_MODE_JARVIS=gateway`.

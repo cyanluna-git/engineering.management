@@ -159,6 +159,20 @@ export const loginUser = async (email: string, password: string): Promise<Token>
   return response.data;
 };
 
+export const exchangeGatewayLogin = async (handoffToken: string): Promise<Token> => {
+  const response = await axios.post<Token>(
+    `${API_BASE_URL}/auth/gateway/login`,
+    { handoff_token: handoffToken },
+    {
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    }
+  );
+
+  return response.data;
+};
+
 // ============ SSO Registration API ============
 
 export interface SSORegistrationData {

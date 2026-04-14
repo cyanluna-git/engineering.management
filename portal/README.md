@@ -24,6 +24,7 @@ PCAS Portal is a standalone Next.js 15 App Router application under [`portal/`](
 - Frontend and lightweight backend live in the same Next.js app
 - Guide APIs are implemented as App Router route handlers
 - Portal auth is implemented directly in App Router route handlers and signed HttpOnly cookies
+- EOB launch now routes through `/launch/eob-dashboard` and hands off to `https://eob.../auth/gateway` with a short-lived portal-issued token instead of raw browser auth tokens
 - Guide data persists through the file-backed store at `data/guides.json`
 - Guide writes stay disabled until `PORTAL_GUIDE_WRITE_TOKEN` is configured
 - `/api/health` returns route-local summary data and can probe external services with `?probe=1`

@@ -13,3 +13,4 @@ export { RequestBoardPage } from './RequestBoardPage';
 export { ProfilePage } from './ProfilePage';
 export { UpdatesPage } from './UpdatesPage';
 export { PortalPage } from './PortalPage';
+export { GatewayLoginPage } from './GatewayLoginPage';

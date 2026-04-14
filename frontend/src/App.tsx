@@ -2,7 +2,7 @@ import { lazy, Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './hooks/useAuth';
 import { MainLayout, PortalLayout } from './components/layout';
-import { LoginPage, RegisterPage } from './pages';
+import { GatewayLoginPage, LoginPage, RegisterPage } from './pages';
 import { ROUTER_BASENAME } from './lib/base-path';
 import { lazyWithRetry } from './lib/lazyWithRetry';
 
@@ -83,6 +83,7 @@ function App() {
       <Routes>
         {isAuthenticated ? (
           <>
+            <Route path="/auth/gateway" element={<GatewayLoginPage />} />
             {/* Portal — clean layout, no sidebar */}
             <Route element={<PortalLayout />}>
               <Route path="/" element={<Navigate to="/portal" replace />} />
@@ -113,6 +114,7 @@ function App() {
         ) : (
           <>
             <Route path="/" element={<Navigate to="/introduction" replace />} />
+            <Route path="/auth/gateway" element={<GatewayLoginPage />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
             <Route path="*" element={<Navigate to="/introduction" />} />
