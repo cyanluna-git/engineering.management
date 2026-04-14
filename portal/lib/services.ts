@@ -3,16 +3,18 @@ export interface PortalService {
   name: string;
   description: string;
   url: string;
+  launchPath?: string;
+  gatewayAudience?: "eob" | "oqc" | "jarvis";
   icon: string;
   color: string;
   category: "engineering" | "business" | "guide";
   destination: "internal" | "external";
 }
 
-const BASE_DOMAIN = process.env.NEXT_PUBLIC_BASE_DOMAIN || "10.182.252.32.sslip.io";
-const EOB_URL = process.env.NEXT_PUBLIC_EOB_URL || `https://eob.${BASE_DOMAIN}`;
-const OQC_URL = process.env.NEXT_PUBLIC_OQC_URL || `https://oqc.${BASE_DOMAIN}`;
-const JARVIS_URL = process.env.NEXT_PUBLIC_JARVIS_URL || `https://jarvis.${BASE_DOMAIN}`;
+const EOB_URL = process.env.NEXT_PUBLIC_EOB_URL || "https://eob.atlascopco.group";
+const OQC_URL = process.env.NEXT_PUBLIC_OQC_URL || "https://oqc.atlascopco.group";
+const JARVIS_URL =
+  process.env.NEXT_PUBLIC_JARVIS_URL || "https://sw-portal.atlascopco.group";
 
 export const PORTAL_SERVICES: PortalService[] = [
   {
@@ -20,6 +22,8 @@ export const PORTAL_SERVICES: PortalService[] = [
     name: "Engineering Operation Board",
     description: "Project management, resource planning, and work tracking for EUV Program IS",
     url: EOB_URL,
+    launchPath: "/launch/eob-dashboard",
+    gatewayAudience: "eob",
     icon: "LayoutDashboard",
     color: "bg-blue-600",
     category: "engineering",
@@ -30,6 +34,8 @@ export const PORTAL_SERVICES: PortalService[] = [
     name: "Outbound Quality Control",
     description: "Automated test execution and equipment commissioning quality system",
     url: OQC_URL,
+    launchPath: "/launch/oqc",
+    gatewayAudience: "oqc",
     icon: "ClipboardCheck",
     color: "bg-emerald-600",
     category: "engineering",
@@ -40,6 +46,8 @@ export const PORTAL_SERVICES: PortalService[] = [
     name: "IS Software Portal",
     description: "Jira and Confluence driven software delivery, release, sprint, and knowledge visibility portal",
     url: JARVIS_URL,
+    launchPath: "/launch/jarvis",
+    gatewayAudience: "jarvis",
     icon: "BrainCircuit",
     color: "bg-purple-600",
     category: "engineering",
@@ -86,3 +94,7 @@ export const PORTAL_SERVICES: PortalService[] = [
     destination: "internal",
   },
 ];
+
+export function findPortalServiceById(id: string): PortalService | undefined {
+  return PORTAL_SERVICES.find((service) => service.id === id);
+}

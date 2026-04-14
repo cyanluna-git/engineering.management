@@ -267,7 +267,7 @@ Key variables in `.env` (copy from `.env.example`):
 ## Production Infrastructure
 
 - **Server:** VTISAZUAPP218 (10.182.252.32), Ubuntu 24.04, atlasAdmin
-- **Domain:** https://eob.10.182.252.32.sslip.io (sslip.io wildcard DNS)
+- **Domains:** https://pcas-portal.atlascopco.group, https://eob.atlascopco.group, https://oqc.atlascopco.group, https://sw-portal.atlascopco.group
 - **SSL:** Self-signed cert (expires 2036-02-04), backed up in Azure Key Vault (pcas-keyvault-218)
 - **Routing:** Traefik (Coolify, SSL termination) → Nginx (static + /api proxy) → FastAPI → PostgreSQL
 - **Containers:** edwards-web (:80→3004), edwards-api (:8004), edwards-postgres (:5432→5434 internal)

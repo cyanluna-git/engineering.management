@@ -51,7 +51,10 @@ DEFAULT_OUTPUT = ".env.remote"
 # Server profile: transform rules for generating .env.remote from .env
 # ---------------------------------------------------------------------------
 
-SERVER_DOMAIN_DEFAULT = "pcas-portal.10.182.252.32.sslip.io"
+PORTAL_DOMAIN_DEFAULT = "pcas-portal.atlascopco.group"
+EOB_DOMAIN_DEFAULT = "eob.atlascopco.group"
+OQC_DOMAIN_DEFAULT = "oqc.atlascopco.group"
+JARVIS_DOMAIN_DEFAULT = "sw-portal.atlascopco.group"
 
 # Static overrides applied when --profile server is used
 SERVER_OVERRIDES: Dict[str, str] = {
@@ -63,23 +66,23 @@ SERVER_OVERRIDES: Dict[str, str] = {
 REMOVE_KEYS = {"DATABASE_URL", "VITE_DEV_PROXY_TARGET"}
 
 
-def build_domain_overrides(domain: str) -> Dict[str, str]:
-    """Build overrides that depend on the server domain."""
-    # Derive shared base domain from the portal host (e.g. pcas-portal.<base>)
-    base = domain.split(".", 1)[1] if "." in domain else domain
-    eob_domain = f"eob.{base}"
-    oqc_domain = f"oqc.{base}"
-    jarvis_domain = f"jarvis.{base}"
+def build_domain_overrides(
+    portal_domain: str,
+    eob_domain: str,
+    oqc_domain: str,
+    jarvis_domain: str,
+) -> Dict[str, str]:
+    """Build overrides for the canonical service domains."""
     cors = ",".join([
         "http://localhost:3000",
         "http://localhost:3004",
-        f"http://{domain}",
-        f"https://{domain}",
+        f"http://{portal_domain}",
+        f"https://{portal_domain}",
         f"https://{eob_domain}",
-        f"https://{oqc_domain}",
-        f"https://{jarvis_domain}",
     ])
     return {
+        "PORTAL_OIDC_REDIRECT_URI": f"https://{portal_domain}/auth/callback",
+        "PORTAL_OIDC_POST_LOGOUT_REDIRECT_URI": f"https://{portal_domain}/",
         "OIDC_REDIRECT_URI": f"https://{eob_domain}/api/auth/oidc/callback",
         "OIDC_POST_LOGOUT_REDIRECT_URI": f"https://{eob_domain}/login",
         "CORS_ORIGINS": cors,
@@ -90,9 +93,28 @@ def build_domain_overrides(domain: str) -> Dict[str, str]:
         "NEXT_PUBLIC_EOB_URL": f"https://{eob_domain}",
         "NEXT_PUBLIC_OQC_URL": f"https://{oqc_domain}",
         "NEXT_PUBLIC_JARVIS_URL": f"https://{jarvis_domain}",
-        "PORTAL_DOMAIN": domain,
-        "BASE_DOMAIN": base,
+        "PORTAL_DOMAIN": portal_domain,
+        "EOB_DOMAIN": eob_domain,
+        "OQC_DOMAIN": oqc_domain,
+        "JARVIS_DOMAIN": jarvis_domain,
+        "OQC_UPSTREAM": f"https://{oqc_domain}/",
+        "JARVIS_UPSTREAM": f"https://{jarvis_domain}/",
     }
+
+
+def resolve_service_domains(
+    portal_domain: str,
+    eob_domain: str | None,
+    oqc_domain: str | None,
+    jarvis_domain: str | None,
+) -> tuple[str, str, str]:
+    """Resolve service domains from explicit values or the portal base domain."""
+    base = portal_domain.split(".", 1)[1] if "." in portal_domain else portal_domain
+    return (
+        eob_domain or f"eob.{base}",
+        oqc_domain or f"oqc.{base}",
+        jarvis_domain or f"sw-portal.{base}",
+    )
 
 
 def render_env_from_source(
@@ -196,6 +218,45 @@ def validate_required(lines: List[str]) -> List[str]:
                 "CORS_ORIGINS contains non-http(s) origins: " + ", ".join(bad)
             )
 
+    gateway_modes = [
+        env.get("GATEWAY_MODE_EOB", "direct"),
+        env.get("GATEWAY_MODE_OQC", "direct"),
+        env.get("GATEWAY_MODE_JARVIS", "direct"),
+    ]
+    gateway_enabled = any(mode in {"gateway", "gateway_only"} for mode in gateway_modes)
+    if gateway_enabled:
+        signing_key = env.get("PORTAL_HANDOFF_SIGNING_KEY", "")
+        verify_key = env.get("PORTAL_HANDOFF_VERIFY_KEY", "")
+        if len(signing_key.strip()) < 32:
+            problems.append(
+                "PORTAL_HANDOFF_SIGNING_KEY must be at least 32 chars when any GATEWAY_MODE_* is enabled."
+            )
+        if len(verify_key.strip()) < 32:
+            problems.append(
+                "PORTAL_HANDOFF_VERIFY_KEY must be at least 32 chars when any GATEWAY_MODE_* is enabled."
+            )
+
+    portal_oidc_enabled = env.get("PORTAL_OIDC_ENABLED", "false").strip().lower() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }
+    if portal_oidc_enabled:
+        required = [
+            "PORTAL_OIDC_CLIENT_ID",
+            "PORTAL_OIDC_CLIENT_SECRET",
+            "PORTAL_OIDC_REDIRECT_URI",
+            "PORTAL_OIDC_POST_LOGOUT_REDIRECT_URI",
+        ]
+        for key in required:
+            if not env.get(key, "").strip():
+                problems.append(f"{key} is required when PORTAL_OIDC_ENABLED=true.")
+        if len(env.get("PORTAL_SESSION_SECRET", "").strip()) < 32:
+            problems.append(
+                "PORTAL_SESSION_SECRET must be at least 32 chars when PORTAL_OIDC_ENABLED=true."
+            )
+
     return problems
 
 
@@ -258,12 +319,25 @@ def run_server_profile(args) -> int:
         print(f"[ERROR] No variables found in {env_path}", file=sys.stderr)
         return 2
 
-    domain = args.domain
+    portal_domain = args.domain
+    eob_domain, oqc_domain, jarvis_domain = resolve_service_domains(
+        portal_domain=portal_domain,
+        eob_domain=args.eob_domain,
+        oqc_domain=args.oqc_domain,
+        jarvis_domain=args.jarvis_domain,
+    )
 
     # Build combined overrides: static + domain-based
     overrides: Dict[str, str] = {}
     overrides.update(SERVER_OVERRIDES)
-    overrides.update(build_domain_overrides(domain))
+    overrides.update(
+        build_domain_overrides(
+            portal_domain=portal_domain,
+            eob_domain=eob_domain,
+            oqc_domain=oqc_domain,
+            jarvis_domain=jarvis_domain,
+        )
+    )
 
     # Apply explicit --set overrides (highest priority)
     overrides.update(parse_set_items(args.set_items))
@@ -283,7 +357,10 @@ def run_server_profile(args) -> int:
 
     # Report what was transformed
     print(f"[INFO] Source: {env_path}")
-    print(f"[INFO] Domain: {domain}")
+    print(f"[INFO] Portal domain: {portal_domain}")
+    print(f"[INFO] EOB domain: {eob_domain}")
+    print(f"[INFO] OQC domain: {oqc_domain}")
+    print(f"[INFO] Jarvis domain: {jarvis_domain}")
     print(f"[INFO] Overrides applied: {', '.join(sorted(overrides.keys()))}")
     print(f"[INFO] Keys removed: {', '.join(sorted(k for k in REMOVE_KEYS if k in source_env))}")
 
@@ -433,8 +510,23 @@ def main(argv: Optional[List[str]] = None) -> int:
     )
     parser.add_argument(
         "--domain",
-        default=SERVER_DOMAIN_DEFAULT,
-        help=f"Server domain for OIDC/CORS URLs (default: {SERVER_DOMAIN_DEFAULT})",
+        default=PORTAL_DOMAIN_DEFAULT,
+        help=f"Portal domain for OIDC/CORS URLs (default: {PORTAL_DOMAIN_DEFAULT})",
+    )
+    parser.add_argument(
+        "--eob-domain",
+        default=None,
+        help=f"Canonical EOB domain (default derived from portal domain, e.g. {EOB_DOMAIN_DEFAULT})",
+    )
+    parser.add_argument(
+        "--oqc-domain",
+        default=None,
+        help=f"Canonical OQC domain (default derived from portal domain, e.g. {OQC_DOMAIN_DEFAULT})",
+    )
+    parser.add_argument(
+        "--jarvis-domain",
+        default=None,
+        help=f"Canonical Jarvis domain (default derived from portal domain, e.g. {JARVIS_DOMAIN_DEFAULT})",
     )
     parser.add_argument(
         "--env-source",

@@ -4,6 +4,7 @@ Authentication endpoints
 
 import json
 import logging
+import time
 from datetime import datetime, timedelta, timezone
 from urllib.parse import parse_qsl, quote, urlencode, urlparse, urlunparse
 
@@ -11,6 +12,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Request, Response
 from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.security import OAuth2PasswordRequestForm
 from jose import JWTError, jwt
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
@@ -23,6 +25,8 @@ from app.core.security import (
     get_current_user,
     verify_password,
     get_password_hash,
+    consume_portal_handoff_token,
+    verify_portal_handoff_token,
     require_write_permission,
 )
 from app.core.config import settings
@@ -38,6 +42,7 @@ from app.schemas.auth import (
     CalendarConnectionStatusResponse,
     CalendarConnectStartRequest,
     CalendarConnectStartResponse,
+    GatewayLoginRequest,
     Token,
     TokenRefreshRequest,
     UserResponse,
@@ -135,6 +140,86 @@ async def refresh_token(body: TokenRefreshRequest, db: Session = Depends(get_db)
     )
     new_refresh_token = create_refresh_token(data={"sub": user.id, "role": user.role})
     return Token(access_token=new_access_token, refresh_token=new_refresh_token, token_type="bearer")
+
+
+@router.post("/gateway/login", response_model=Token)
+async def gateway_login(body: GatewayLoginRequest, db: Session = Depends(get_db)):
+    """Exchange a portal-issued handoff token for an EOB-local session token pair."""
+    started_at = time.perf_counter()
+
+    def log_gateway_event(result: str, payload: dict | None = None) -> None:
+        data = {
+            "event": "gateway_handoff",
+            "target": "eob",
+            "result": result,
+            "latency_ms": round((time.perf_counter() - started_at) * 1000, 2),
+        }
+        if payload:
+            if isinstance(payload.get("jti"), str):
+                data["jti"] = payload["jti"]
+            if isinstance(payload.get("sub"), str):
+                data["sub"] = payload["sub"]
+        logger.info("gateway_handoff %s", json.dumps(data, sort_keys=True))
+
+    if settings.GATEWAY_MODE_EOB not in {"gateway", "gateway_only"}:
+        log_gateway_event("disabled")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Portal gateway login is disabled for EOB.",
+        )
+    if not (
+        settings.PORTAL_HANDOFF_VERIFY_KEY.strip()
+        or settings.PORTAL_HANDOFF_VERIFY_KEY_PREV.strip()
+    ):
+        log_gateway_event("misconfigured")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Portal gateway verification keys are not configured for EOB.",
+        )
+
+    payload = verify_portal_handoff_token(body.handoff_token, audience="eob")
+    if payload is None:
+        log_gateway_event("invalid")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired portal handoff token.",
+        )
+    if not consume_portal_handoff_token(payload):
+        log_gateway_event("replayed", payload)
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Portal handoff token has already been used.",
+        )
+
+    email = payload.get("email") or payload.get("sub")
+    if not isinstance(email, str) or not email.strip():
+        log_gateway_event("missing_subject", payload)
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Portal handoff token is missing a usable subject.",
+        )
+
+    user = db.query(User).filter(func.lower(User.email) == func.lower(email)).first()
+    if user is None:
+        log_gateway_event("user_not_found", payload)
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="No active EOB user matches the portal handoff token.",
+        )
+    if not user.is_active:
+        log_gateway_event("inactive_user", payload)
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Inactive user.",
+        )
+
+    access_token = create_access_token(
+        data={"sub": user.id, "role": user.role},
+        expires_delta=timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES),
+    )
+    refresh_token = create_refresh_token(data={"sub": user.id, "role": user.role})
+    log_gateway_event("success", payload)
+    return Token(access_token=access_token, refresh_token=refresh_token, token_type="bearer")
 
 
 @router.get("/me", response_model=UserResponse)
@@ -508,8 +593,6 @@ async def _handle_oidc_callback(request: Request, db: Session):
         )
         _clear_flow_cookie(response)
         return response
-
-    from sqlalchemy import func
 
     user = db.query(User).filter(func.lower(User.email) == func.lower(email)).first()
     frontend_base = _frontend_base_url(request)

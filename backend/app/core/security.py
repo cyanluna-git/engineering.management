@@ -2,12 +2,15 @@
 Security utilities - JWT and password hashing
 """
 
+import time
+from threading import Lock
 from datetime import datetime, timedelta, timezone
 from typing import Optional
-from jose import JWTError, jwt
-from passlib.context import CryptContext
+
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
+from jose import JWTError, jwt
+from passlib.context import CryptContext
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
@@ -21,6 +24,8 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
 
 # Read-only roles (can only view, cannot create/update/delete)
 READ_ONLY_ROLES = ["GUEST", "VIEWER"]
+_portal_handoff_jti_lock = Lock()
+_portal_handoff_jti_cache: dict[str, int] = {}
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
@@ -96,6 +101,83 @@ def decode_token(token: str) -> Optional[dict]:
         return payload
     except JWTError:
         return None
+
+
+def _normalize_audience_claim(value) -> set[str]:
+    if isinstance(value, str):
+        return {value}
+    if isinstance(value, list):
+        return {item for item in value if isinstance(item, str)}
+    return set()
+
+
+def verify_portal_handoff_token(token: str, audience: str) -> Optional[dict]:
+    """Decode a short-lived portal handoff token with current/previous verify keys."""
+    keys = [
+        settings.PORTAL_HANDOFF_VERIFY_KEY.strip(),
+        settings.PORTAL_HANDOFF_VERIFY_KEY_PREV.strip(),
+    ]
+
+    if not any(keys):
+        return None
+
+    payload: dict | None = None
+    for key in keys:
+        if not key:
+            continue
+        try:
+            payload = jwt.decode(
+                token,
+                key,
+                algorithms=[settings.ALGORITHM],
+                options={"verify_aud": False},
+            )
+            break
+        except JWTError:
+            continue
+
+    if payload is None:
+        return None
+    if payload.get("type") != "portal_handoff":
+        return None
+    if payload.get("iss") != "pcas-portal":
+        return None
+
+    token_audience = _normalize_audience_claim(payload.get("aud"))
+    if audience not in token_audience:
+        return None
+
+    subject = payload.get("sub")
+    if not isinstance(subject, str) or not subject.strip():
+        return None
+    jti = payload.get("jti")
+    if not isinstance(jti, str) or not jti.strip():
+        return None
+
+    return payload
+
+
+def consume_portal_handoff_token(payload: dict) -> bool:
+    """Mark a portal handoff token as used once for its remaining TTL window."""
+    jti = payload.get("jti")
+    expires_at = payload.get("exp")
+    if not isinstance(jti, str) or not jti.strip():
+        return False
+    if not isinstance(expires_at, (int, float)):
+        return False
+
+    now = int(time.time())
+    ttl_cutoff = int(expires_at)
+    with _portal_handoff_jti_lock:
+        expired = [key for key, exp in _portal_handoff_jti_cache.items() if exp <= now]
+        for key in expired:
+            del _portal_handoff_jti_cache[key]
+
+        if jti in _portal_handoff_jti_cache:
+            return False
+
+        _portal_handoff_jti_cache[jti] = ttl_cutoff
+        return True
 
 
 async def get_current_user(

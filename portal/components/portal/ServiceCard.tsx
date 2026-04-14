@@ -59,9 +59,9 @@ function CardContent({ service }: { service: PortalService }) {
 }
 
 export function ServiceCard({ service }: { service: PortalService }) {
-  if (service.destination === "internal") {
+  if (service.destination === "internal" || service.launchPath) {
     return (
-      <Link href={service.url} className={cardClassName}>
+      <Link href={service.launchPath || service.url} className={cardClassName}>
         <CardContent service={service} />
       </Link>
     );

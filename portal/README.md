@@ -7,6 +7,10 @@ PCAS Portal is a standalone Next.js 15 App Router application under [`portal/`](
 - `app/`: App Router pages and route handlers
 - `app/api/guides`: Guide CRUD endpoints backed by the current store abstraction
 - `app/api/health`: Portal health summary and optional service probe endpoint
+- `app/api/auth/session`: Current portal-authenticated session summary
+- `app/api/auth/handoff`: Portal-side handoff token issuance contract for downstream services
+- `app/auth/*`: Portal-owned Microsoft Entra login, callback, and logout routes
+- `app/launch/*`: Service launch entrypoints that enforce portal-first access
 - `app/guides`: Public guide hub and detail pages
 - `app/guides/admin`: Admin CMS workspace for publishing and editing guides
 - `components/portal`: Portal UI components
@@ -19,6 +23,7 @@ PCAS Portal is a standalone Next.js 15 App Router application under [`portal/`](
 
 - Frontend and lightweight backend live in the same Next.js app
 - Guide APIs are implemented as App Router route handlers
+- Portal auth is implemented directly in App Router route handlers and signed HttpOnly cookies
 - Guide data persists through the file-backed store at `data/guides.json`
 - Guide writes stay disabled until `PORTAL_GUIDE_WRITE_TOKEN` is configured
 - `/api/health` returns route-local summary data and can probe external services with `?probe=1`
@@ -27,9 +32,11 @@ PCAS Portal is a standalone Next.js 15 App Router application under [`portal/`](
 
 ## Environment
 
-- `NEXT_PUBLIC_BASE_DOMAIN`: Base domain used to build internal service URLs
 - `NEXT_PUBLIC_EOB_URL`, `NEXT_PUBLIC_OQC_URL`, `NEXT_PUBLIC_JARVIS_URL`: Optional explicit service host overrides when the portal should link to canonical service subdomains
 - `NEXT_PUBLIC_TESTRIG_URL`: Optional explicit TestRig URL override
+- `PORTAL_OIDC_ENABLED`, `PORTAL_SESSION_SECRET`, `PORTAL_OIDC_*`: Portal-owned Microsoft Entra configuration and cookie signing secret
+- `PORTAL_HANDOFF_SIGNING_KEY`: Signs short-lived downstream handoff tokens issued by the portal
+- `GATEWAY_MODE_EOB`, `GATEWAY_MODE_OQC`, `GATEWAY_MODE_JARVIS`: Service rollout controls for downstream handoff enablement
 - `PORTAL_GUIDE_WRITE_TOKEN`: Enables guide mutation endpoints when callers send `x-portal-admin-token`
 
 ## Local Development
@@ -55,6 +62,7 @@ API smoke checks:
 ```bash
 curl http://localhost:3000/api/guides
 curl http://localhost:3000/api/health
+curl http://localhost:3000/api/auth/session
 curl -X POST http://localhost:3000/api/guides \
   -H 'Content-Type: application/json' \
   -H 'x-portal-admin-token: <PORTAL_GUIDE_WRITE_TOKEN>' \

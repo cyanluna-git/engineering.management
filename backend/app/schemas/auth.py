@@ -73,6 +73,12 @@ class TokenRefreshRequest(BaseModel):
     refresh_token: str
 
 
+class GatewayLoginRequest(BaseModel):
+    """Portal-issued handoff exchange request."""
+
+    handoff_token: str
+
+
 class ReleaseNotesAckRequest(BaseModel):
     """Request to acknowledge a release note version."""
 

@@ -34,6 +34,13 @@ class Settings(BaseSettings):
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
+    PORTAL_HANDOFF_SIGNING_KEY: str = ""
+    PORTAL_HANDOFF_VERIFY_KEY: str = ""
+    PORTAL_HANDOFF_VERIFY_KEY_PREV: str = ""
+    PORTAL_HANDOFF_TOKEN_EXPIRE_SECONDS: int = 120
+    GATEWAY_MODE_EOB: str = "direct"
+    GATEWAY_MODE_OQC: str = "direct"
+    GATEWAY_MODE_JARVIS: str = "direct"
 
     # CORS
     CORS_ORIGINS: str = (

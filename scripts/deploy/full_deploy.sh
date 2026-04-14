@@ -8,7 +8,10 @@ set -euo pipefail
 # ─────────────────────────────────────────────────────────────
 SERVER_IP="10.182.252.32"
 USERNAME="atlasAdmin"
-DOMAIN="pcas-portal.10.182.252.32.sslip.io"
+DOMAIN="pcas-portal.atlascopco.group"
+EOB_DOMAIN="eob.atlascopco.group"
+OQC_DOMAIN="oqc.atlascopco.group"
+JARVIS_DOMAIN="sw-portal.atlascopco.group"
 REMOTE_PATH="/data/eob/edwards_project"
 SKIP_BACKUP=false
 SKIP_BUILD=false
@@ -64,7 +67,10 @@ usage() {
   echo "Options:"
   echo "  --server-ip <IP>     Target server IP (default: $SERVER_IP)"
   echo "  --username  <USER>   SSH username     (default: $USERNAME)"
-  echo "  --domain    <DOMAIN> App domain       (default: $DOMAIN)"
+  echo "  --domain    <DOMAIN> Portal domain    (default: $DOMAIN)"
+  echo "  --eob-domain <DOMAIN> EOB domain      (default: $EOB_DOMAIN)"
+  echo "  --oqc-domain <DOMAIN> OQC domain      (default: $OQC_DOMAIN)"
+  echo "  --jarvis-domain <DOMAIN> Jarvis domain (default: $JARVIS_DOMAIN)"
   echo "  --remote-path <DIR>  Remote deploy dir (default: $REMOTE_PATH)"
   echo "  --archive <PATH>     Deploy a specific archive file"
   echo "  --skip-backup        Skip DB backup before deploy"
@@ -95,6 +101,21 @@ while [[ $# -gt 0 ]]; do
     --domain)
       require_value "$1" "${2:-}"
       DOMAIN="$2"
+      shift 2
+      ;;
+    --eob-domain)
+      require_value "$1" "${2:-}"
+      EOB_DOMAIN="$2"
+      shift 2
+      ;;
+    --oqc-domain)
+      require_value "$1" "${2:-}"
+      OQC_DOMAIN="$2"
+      shift 2
+      ;;
+    --jarvis-domain)
+      require_value "$1" "${2:-}"
+      JARVIS_DOMAIN="$2"
       shift 2
       ;;
     --remote-path)
@@ -150,7 +171,7 @@ cd "$PROJECT_ROOT"
 # Step 0: Generate .env.remote
 if [[ "$SKIP_ENV_SYNC" == false ]]; then
   info "[0/8] Generating .env.remote from .env..."
-  python3 scripts/deploy/env.py --profile server --domain "$DOMAIN"
+  python3 scripts/deploy/env.py --profile server --domain "$DOMAIN" --eob-domain "$EOB_DOMAIN" --oqc-domain "$OQC_DOMAIN" --jarvis-domain "$JARVIS_DOMAIN"
   info "  ✓ .env.remote generated."
 else
   warn "[0/8] Skipping .env.remote generation..."
@@ -251,10 +272,9 @@ info "  ✓ Portal responded on localhost:3000."
 
 echo ""
 print_header "          🚀 Deployment Complete! 🚀"
-BASE_DOMAIN="${DOMAIN#*.}"
 plain "  Portal:   https://$DOMAIN"
-plain "  EOB:      https://eob.$BASE_DOMAIN"
-plain "  OQC:      https://oqc.$BASE_DOMAIN"
-plain "  Jarvis:   https://jarvis.$BASE_DOMAIN"
+plain "  EOB:      https://$EOB_DOMAIN"
+plain "  OQC:      https://$OQC_DOMAIN"
+plain "  Jarvis:   https://$JARVIS_DOMAIN"
 plain "  Coolify:  http://coolify.$SERVER_IP.sslip.io"
 echo ""

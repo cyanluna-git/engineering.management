@@ -72,8 +72,10 @@ export default defineConfig({
   server: {
     port: 3004,
     host: '0.0.0.0',
-    // Allow the specific sslip.io host
+    // Allow the canonical portal and EOB hosts in local dev.
     allowedHosts: [
+      'eob.atlascopco.group',
+      'pcas-portal.atlascopco.group',
       'eob.10.182.252.32.sslip.io',
       'pcas-portal.10.182.252.32.sslip.io',
       'VTISAZUAPP218',

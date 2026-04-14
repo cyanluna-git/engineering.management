@@ -107,7 +107,7 @@ bash scripts/deploy/full_deploy.sh [--skip-backup]
 | Host | 10.182.252.32 (VTISAZUAPP218) |
 | User | atlasAdmin (SSH key) |
 | App Dir | /data/eob/edwards_project |
-| Frontend | https://eob.10.182.252.32.sslip.io |
+| Frontend | https://eob.atlascopco.group |
 | Backend | http://localhost:8004 |
 | DB | PostgreSQL :5434 (절대 건드리지 않음) |
 

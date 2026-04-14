@@ -9,9 +9,13 @@ Finalize Server Infrastructure:
 import argparse
 import os
 import subprocess
-import sys
 import tempfile
 from pathlib import Path
+
+PORTAL_DOMAIN_DEFAULT = "pcas-portal.atlascopco.group"
+EOB_DOMAIN_DEFAULT = "eob.atlascopco.group"
+OQC_DOMAIN_DEFAULT = "oqc.atlascopco.group"
+JARVIS_DOMAIN_DEFAULT = "sw-portal.atlascopco.group"
 
 class Colors:
     CYAN = '\033[36m'
@@ -31,25 +35,49 @@ def run_remote(ssh_base, cmd, desc):
         print_colored(f"Warning: {desc} returned non-zero exit code.", Colors.YELLOW)
     return result.returncode == 0
 
+
+def resolve_service_domains(portal_domain, eob_domain, oqc_domain, jarvis_domain):
+    base = portal_domain.split(".", 1)[1] if "." in portal_domain else portal_domain
+    return (
+        eob_domain or f"eob.{base}",
+        oqc_domain or f"oqc.{base}",
+        jarvis_domain or f"sw-portal.{base}",
+    )
+
 def main():
     parser = argparse.ArgumentParser(description="Finalize Server Proxy Infrastructure")
     parser.add_argument("--host", default="10.182.252.32", help="Remote host IP")
     parser.add_argument("--user", default="atlasAdmin", help="Remote SSH user")
     parser.add_argument(
         "--portal-domain",
-        default=None,
-        help="Portal domain to configure (default: pcas-portal.<host>.sslip.io)",
+        default=PORTAL_DOMAIN_DEFAULT,
+        help=f"Portal domain to configure (default: {PORTAL_DOMAIN_DEFAULT})",
     )
     parser.add_argument(
-        "--base-domain",
+        "--eob-domain",
         default=None,
-        help="Base domain for legacy redirects (default: <host>.sslip.io)",
+        help=f"EOB domain to configure (default derived from portal domain, e.g. {EOB_DOMAIN_DEFAULT})",
+    )
+    parser.add_argument(
+        "--oqc-domain",
+        default=None,
+        help=f"OQC domain to configure (default derived from portal domain, e.g. {OQC_DOMAIN_DEFAULT})",
+    )
+    parser.add_argument(
+        "--jarvis-domain",
+        default=None,
+        help=f"Jarvis domain to configure (default derived from portal domain, e.g. {JARVIS_DOMAIN_DEFAULT})",
     )
     args = parser.parse_args()
 
     ssh_base = ["ssh", "-t", f"{args.user}@{args.host}"]
-    base_domain = args.base_domain or f"{args.host}.sslip.io"
-    portal_domain = args.portal_domain or f"pcas-portal.{base_domain}"
+    portal_domain = args.portal_domain
+    eob_domain, oqc_domain, jarvis_domain = resolve_service_domains(
+        portal_domain,
+        args.eob_domain,
+        args.oqc_domain,
+        args.jarvis_domain,
+    )
     
     # 1. Stop Traefik/Coolify Proxy
     run_remote(ssh_base, 
@@ -70,10 +98,13 @@ def main():
     rendered = (
         local_conf.read_text(encoding="utf-8")
         .replace("pcas-portal.10.182.252.32.sslip.io", portal_domain)
-        .replace("eob.10.182.252.32.sslip.io", f"eob.{base_domain}")
-        .replace("oqc.10.182.252.32.sslip.io", f"oqc.{base_domain}")
-        .replace("jarvis.10.182.252.32.sslip.io", f"jarvis.{base_domain}")
-        .replace("10.182.252.32.sslip.io", base_domain)
+        .replace("pcas-portal.atlascopco.group", portal_domain)
+        .replace("eob.10.182.252.32.sslip.io", eob_domain)
+        .replace("eob.atlascopco.group", eob_domain)
+        .replace("oqc.10.182.252.32.sslip.io", oqc_domain)
+        .replace("oqc.atlascopco.group", oqc_domain)
+        .replace("jarvis.10.182.252.32.sslip.io", jarvis_domain)
+        .replace("sw-portal.atlascopco.group", jarvis_domain)
     )
 
     with tempfile.NamedTemporaryFile("w", encoding="utf-8", delete=False) as tmp:

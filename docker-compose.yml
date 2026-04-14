@@ -26,7 +26,7 @@ services:
       SECRET_KEY: ${SECRET_KEY:?SECRET_KEY is required}
       DEBUG: ${DEBUG:-false}
       LOG_LEVEL: ${LOG_LEVEL:-info}
-      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000,http://localhost:3004,https://pcas-portal.10.182.252.32.sslip.io,https://eob.10.182.252.32.sslip.io}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000,http://localhost:3004,https://pcas-portal.atlascopco.group,https://eob.atlascopco.group}
       # Use the system CA bundle after update-ca-certificates merges public and custom roots.
       SSL_CERT_FILE: "/etc/ssl/certs/ca-certificates.crt"
       REQUESTS_CA_BUNDLE: "/etc/ssl/certs/ca-certificates.crt"
@@ -50,8 +50,8 @@ services:
       args:
         VITE_APP_BASE: ${VITE_APP_BASE:-/}
         VITE_API_URL: ${VITE_API_URL:-/api}
-        VITE_OQC_URL: ${VITE_OQC_URL:-https://oqc.10.182.252.32.sslip.io}
-        VITE_JARVIS_URL: ${VITE_JARVIS_URL:-https://jarvis.10.182.252.32.sslip.io}
+        VITE_OQC_URL: ${VITE_OQC_URL:-https://oqc.atlascopco.group}
+        VITE_JARVIS_URL: ${VITE_JARVIS_URL:-https://sw-portal.atlascopco.group}
         VITE_TESTRIG_URL: ${VITE_TESTRIG_URL:-}
     container_name: edwards-web
     restart: unless-stopped
@@ -69,10 +69,23 @@ services:
     container_name: pcas-portal
     restart: unless-stopped
     environment:
-      NEXT_PUBLIC_BASE_DOMAIN: ${NEXT_PUBLIC_BASE_DOMAIN:-10.182.252.32.sslip.io}
-      NEXT_PUBLIC_EOB_URL: ${NEXT_PUBLIC_EOB_URL:-https://eob.10.182.252.32.sslip.io}
-      NEXT_PUBLIC_OQC_URL: ${NEXT_PUBLIC_OQC_URL:-https://oqc.10.182.252.32.sslip.io}
-      NEXT_PUBLIC_JARVIS_URL: ${NEXT_PUBLIC_JARVIS_URL:-https://jarvis.10.182.252.32.sslip.io}
+      NEXT_PUBLIC_EOB_URL: ${NEXT_PUBLIC_EOB_URL:-https://eob.atlascopco.group}
+      NEXT_PUBLIC_OQC_URL: ${NEXT_PUBLIC_OQC_URL:-https://oqc.atlascopco.group}
+      NEXT_PUBLIC_JARVIS_URL: ${NEXT_PUBLIC_JARVIS_URL:-https://sw-portal.atlascopco.group}
+      PORTAL_OIDC_ENABLED: ${PORTAL_OIDC_ENABLED:-false}
+      PORTAL_SESSION_SECRET: ${PORTAL_SESSION_SECRET:-}
+      PORTAL_OIDC_CLIENT_ID: ${PORTAL_OIDC_CLIENT_ID:-}
+      PORTAL_OIDC_CLIENT_SECRET: ${PORTAL_OIDC_CLIENT_SECRET:-}
+      PORTAL_OIDC_TENANT_ID: ${PORTAL_OIDC_TENANT_ID:-}
+      PORTAL_OIDC_AUTHORITY: ${PORTAL_OIDC_AUTHORITY:-}
+      PORTAL_OIDC_REDIRECT_URI: ${PORTAL_OIDC_REDIRECT_URI:-http://localhost:3000/auth/callback}
+      PORTAL_OIDC_POST_LOGOUT_REDIRECT_URI: ${PORTAL_OIDC_POST_LOGOUT_REDIRECT_URI:-http://localhost:3000/}
+      PORTAL_OIDC_SCOPES: ${PORTAL_OIDC_SCOPES:-openid,profile,email,offline_access,User.Read}
+      PORTAL_HANDOFF_SIGNING_KEY: ${PORTAL_HANDOFF_SIGNING_KEY:-}
+      PORTAL_HANDOFF_TOKEN_EXPIRE_SECONDS: ${PORTAL_HANDOFF_TOKEN_EXPIRE_SECONDS:-120}
+      GATEWAY_MODE_EOB: ${GATEWAY_MODE_EOB:-direct}
+      GATEWAY_MODE_OQC: ${GATEWAY_MODE_OQC:-direct}
+      GATEWAY_MODE_JARVIS: ${GATEWAY_MODE_JARVIS:-direct}
     ports:
       - "${PORTAL_PORT:-3000}:3000"
     networks:
@@ -87,11 +100,13 @@ services:
     container_name: pcas-edge-proxy
     restart: unless-stopped
     environment:
-      PORTAL_DOMAIN: ${PORTAL_DOMAIN:-pcas-portal.10.182.252.32.sslip.io}
-      BASE_DOMAIN: ${BASE_DOMAIN:-10.182.252.32.sslip.io}
-      OQC_UPSTREAM: ${OQC_UPSTREAM:-https://oqc.10.182.252.32.sslip.io/}
-      JARVIS_UPSTREAM: ${JARVIS_UPSTREAM:-https://jarvis.10.182.252.32.sslip.io/}
-      NGINX_CERT_DOMAIN: ${PORTAL_DOMAIN:-pcas-portal.10.182.252.32.sslip.io}
+      PORTAL_DOMAIN: ${PORTAL_DOMAIN:-pcas-portal.atlascopco.group}
+      EOB_DOMAIN: ${EOB_DOMAIN:-eob.atlascopco.group}
+      OQC_DOMAIN: ${OQC_DOMAIN:-oqc.atlascopco.group}
+      JARVIS_DOMAIN: ${JARVIS_DOMAIN:-sw-portal.atlascopco.group}
+      OQC_UPSTREAM: ${OQC_UPSTREAM:-https://oqc.atlascopco.group/}
+      JARVIS_UPSTREAM: ${JARVIS_UPSTREAM:-https://sw-portal.atlascopco.group/}
+      NGINX_CERT_DOMAIN: ${PORTAL_DOMAIN:-pcas-portal.atlascopco.group}
       NGINX_SSL_CERT: /etc/nginx/ssl/nginx-selfsigned.crt
       NGINX_SSL_KEY: /etc/nginx/ssl/nginx-selfsigned.key
     ports:

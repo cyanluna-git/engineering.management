@@ -1,4 +1,6 @@
 import { getGuideWritePolicy } from "@/lib/guide-write-guard";
+import { getGatewayHealth } from "@/lib/gateway-config";
+import { getPortalAuthHealth } from "@/lib/portal-auth";
 import { getGuideStoreInfo } from "@/lib/guides-store";
 import { PORTAL_SERVICES, type PortalService } from "@/lib/services";
 
@@ -131,6 +133,8 @@ export async function getPortalHealthSummary(options?: { probe?: boolean }) {
     probeMode: probe ? "live" : "summary",
     guideStore: getGuideStoreInfo(),
     guideWritePolicy: getGuideWritePolicy(),
+    auth: getPortalAuthHealth(),
+    gateway: getGatewayHealth(),
     summary,
     services,
   };
