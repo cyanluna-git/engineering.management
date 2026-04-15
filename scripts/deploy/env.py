@@ -52,7 +52,7 @@ DEFAULT_OUTPUT = ".env.remote"
 # ---------------------------------------------------------------------------
 
 PORTAL_DOMAIN_DEFAULT = "pcas-portal.atlascopco.group"
-EOB_DOMAIN_DEFAULT = "eob.atlascopco.group"
+EOB_DOMAIN_DEFAULT = "eob.10.182.252.32.sslip.io"
 OQC_DOMAIN_DEFAULT = "oqc.atlascopco.group"
 JARVIS_DOMAIN_DEFAULT = "sw-portal.atlascopco.group"
 
@@ -112,7 +112,7 @@ def resolve_service_domains(
     """Resolve service domains from explicit values or the portal base domain."""
     base = portal_domain.split(".", 1)[1] if "." in portal_domain else portal_domain
     return (
-        eob_domain or f"eob.{base}",
+        eob_domain or EOB_DOMAIN_DEFAULT,
         oqc_domain or f"oqc.{base}",
         jarvis_domain or f"sw-portal.{base}",
     )
@@ -339,6 +339,32 @@ def run_server_profile(args) -> int:
             jarvis_domain=jarvis_domain,
         )
     )
+
+    source_oidc_enabled = source_env.get("OIDC_ENABLED", "").strip().lower() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }
+    if source_oidc_enabled and not source_env.get("PORTAL_OIDC_ENABLED", "").strip():
+        overrides["PORTAL_OIDC_ENABLED"] = "true"
+
+    for portal_key, legacy_key in (
+        ("PORTAL_OIDC_CLIENT_ID", "OIDC_CLIENT_ID"),
+        ("PORTAL_OIDC_CLIENT_SECRET", "OIDC_CLIENT_SECRET"),
+        ("PORTAL_OIDC_TENANT_ID", "OIDC_TENANT_ID"),
+        ("PORTAL_OIDC_AUTHORITY", "OIDC_AUTHORITY"),
+    ):
+        if not source_env.get(portal_key, "").strip() and source_env.get(
+            legacy_key, ""
+        ).strip():
+            overrides[portal_key] = source_env[legacy_key].strip()
+
+    if (
+        not source_env.get("PORTAL_SESSION_SECRET", "").strip()
+        and len(source_env.get("SECRET_KEY", "").strip()) >= 32
+    ):
+        overrides["PORTAL_SESSION_SECRET"] = source_env["SECRET_KEY"].strip()
 
     # Apply explicit --set overrides (highest priority)
     overrides.update(parse_set_items(args.set_items))

@@ -13,7 +13,7 @@ import tempfile
 from pathlib import Path
 
 PORTAL_DOMAIN_DEFAULT = "pcas-portal.atlascopco.group"
-EOB_DOMAIN_DEFAULT = "eob.atlascopco.group"
+EOB_DOMAIN_DEFAULT = "eob.10.182.252.32.sslip.io"
 OQC_DOMAIN_DEFAULT = "oqc.atlascopco.group"
 JARVIS_DOMAIN_DEFAULT = "sw-portal.atlascopco.group"
 
@@ -39,7 +39,7 @@ def run_remote(ssh_base, cmd, desc):
 def resolve_service_domains(portal_domain, eob_domain, oqc_domain, jarvis_domain):
     base = portal_domain.split(".", 1)[1] if "." in portal_domain else portal_domain
     return (
-        eob_domain or f"eob.{base}",
+        eob_domain or EOB_DOMAIN_DEFAULT,
         oqc_domain or f"oqc.{base}",
         jarvis_domain or f"sw-portal.{base}",
     )

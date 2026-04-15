@@ -16,7 +16,7 @@ SERVER_IP="10.182.252.32"
 USERNAME="atlasAdmin"
 REMOTE_PATH="/data/eob/edwards_project"
 PORTAL_DOMAIN="pcas-portal.atlascopco.group"
-EOB_DOMAIN="eob.atlascopco.group"
+EOB_DOMAIN="eob.10.182.252.32.sslip.io"
 OQC_DOMAIN="oqc.atlascopco.group"
 JARVIS_DOMAIN="sw-portal.atlascopco.group"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -121,7 +121,7 @@ deploy_service() {
   info "[LOAD + RESTART] $container"
   ssh "$USERNAME@$SERVER_IP" "
     docker load < /tmp/$tar_name && rm /tmp/$tar_name
-    cd $REMOTE_PATH && docker-compose up -d --no-deps --force-recreate $service
+    cd $REMOTE_PATH && APP_ENV_FILE=.env.remote docker-compose --env-file .env.remote up -d --no-deps --force-recreate $service
   "
 
   info "[HEALTH] Checking $container..."

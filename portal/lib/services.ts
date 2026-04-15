@@ -12,7 +12,7 @@ export interface PortalService {
   destination: "internal" | "external";
 }
 
-const EOB_URL = process.env.NEXT_PUBLIC_EOB_URL || "https://eob.atlascopco.group";
+const EOB_URL = process.env.NEXT_PUBLIC_EOB_URL || "https://eob.10.182.252.32.sslip.io";
 const OQC_URL = process.env.NEXT_PUBLIC_OQC_URL || "https://oqc.atlascopco.group";
 const JARVIS_URL =
   process.env.NEXT_PUBLIC_JARVIS_URL || "https://sw-portal.atlascopco.group";
@@ -38,6 +38,7 @@ export const PORTAL_SERVICES: PortalService[] = [
     url: OQC_URL,
     launchPath: "/launch/oqc",
     gatewayAudience: "oqc",
+    defaultReturnPath: "/",
     icon: "ClipboardCheck",
     color: "bg-emerald-600",
     category: "engineering",
@@ -50,6 +51,7 @@ export const PORTAL_SERVICES: PortalService[] = [
     url: JARVIS_URL,
     launchPath: "/launch/jarvis",
     gatewayAudience: "jarvis",
+    defaultReturnPath: "/",
     icon: "BrainCircuit",
     color: "bg-purple-600",
     category: "engineering",

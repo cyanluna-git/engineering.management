@@ -9,7 +9,7 @@ set -euo pipefail
 SERVER_IP="10.182.252.32"
 USERNAME="atlasAdmin"
 DOMAIN="pcas-portal.atlascopco.group"
-EOB_DOMAIN="eob.atlascopco.group"
+EOB_DOMAIN="eob.10.182.252.32.sslip.io"
 OQC_DOMAIN="oqc.atlascopco.group"
 JARVIS_DOMAIN="sw-portal.atlascopco.group"
 REMOTE_PATH="/data/eob/edwards_project"
@@ -256,7 +256,7 @@ ssh "$USERNAME@$SERVER_IP" \
 # Step 7: Start containers
 echo ""
 info "[7/8] Starting containers..."
-ssh "$USERNAME@$SERVER_IP" "cd $REMOTE_PATH && docker-compose up -d"
+ssh "$USERNAME@$SERVER_IP" "cd $REMOTE_PATH && APP_ENV_FILE=.env.remote docker-compose --env-file .env.remote up -d"
 
 # Step 8: Verify
 echo ""

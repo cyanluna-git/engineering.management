@@ -20,13 +20,14 @@ services:
       dockerfile: Dockerfile
     container_name: edwards-api
     restart: unless-stopped
-    env_file: .env
+    env_file:
+      - ${APP_ENV_FILE:-.env}
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-edwards}
       SECRET_KEY: ${SECRET_KEY:?SECRET_KEY is required}
       DEBUG: ${DEBUG:-false}
       LOG_LEVEL: ${LOG_LEVEL:-info}
-      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000,http://localhost:3004,https://pcas-portal.atlascopco.group,https://eob.atlascopco.group}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000,http://localhost:3004,https://pcas-portal.atlascopco.group,https://eob.10.182.252.32.sslip.io}
       # Use the system CA bundle after update-ca-certificates merges public and custom roots.
       SSL_CERT_FILE: "/etc/ssl/certs/ca-certificates.crt"
       REQUESTS_CA_BUNDLE: "/etc/ssl/certs/ca-certificates.crt"
@@ -70,7 +71,7 @@ services:
     container_name: pcas-portal
     restart: unless-stopped
     environment:
-      NEXT_PUBLIC_EOB_URL: ${NEXT_PUBLIC_EOB_URL:-https://eob.atlascopco.group}
+      NEXT_PUBLIC_EOB_URL: ${NEXT_PUBLIC_EOB_URL:-https://eob.10.182.252.32.sslip.io}
       NEXT_PUBLIC_OQC_URL: ${NEXT_PUBLIC_OQC_URL:-https://oqc.atlascopco.group}
       NEXT_PUBLIC_JARVIS_URL: ${NEXT_PUBLIC_JARVIS_URL:-https://sw-portal.atlascopco.group}
       PORTAL_OIDC_ENABLED: ${PORTAL_OIDC_ENABLED:-false}
@@ -102,7 +103,7 @@ services:
     restart: unless-stopped
     environment:
       PORTAL_DOMAIN: ${PORTAL_DOMAIN:-pcas-portal.atlascopco.group}
-      EOB_DOMAIN: ${EOB_DOMAIN:-eob.atlascopco.group}
+      EOB_DOMAIN: ${EOB_DOMAIN:-eob.10.182.252.32.sslip.io}
       OQC_DOMAIN: ${OQC_DOMAIN:-oqc.atlascopco.group}
       JARVIS_DOMAIN: ${JARVIS_DOMAIN:-sw-portal.atlascopco.group}
       OQC_UPSTREAM: ${OQC_UPSTREAM:-https://oqc.atlascopco.group/}

@@ -5,7 +5,7 @@ DOMAIN="${1:-pcas-portal.atlascopco.group}"
 OUTPUT_DIR="${2:-nginx/ssl}"
 CRT_PATH="${OUTPUT_DIR}/nginx-selfsigned.crt"
 KEY_PATH="${OUTPUT_DIR}/nginx-selfsigned.key"
-EOB_DOMAIN="${3:-eob.atlascopco.group}"
+EOB_DOMAIN="${3:-eob.10.182.252.32.sslip.io}"
 OQC_DOMAIN="${4:-oqc.atlascopco.group}"
 JARVIS_DOMAIN="${5:-sw-portal.atlascopco.group}"
 
