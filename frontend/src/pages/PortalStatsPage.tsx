@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { usePermissions } from '@/hooks/usePermissions';
 import { apiClient } from '@/api/client';
 import {
@@ -42,9 +41,10 @@ const SERVICE_LABELS: Record<string, string> = {
 
 type TabKey = 'usage' | 'containers';
 
+const PORTAL_URL = import.meta.env.VITE_PORTAL_URL || 'https://pcas-portal.atlascopco.group';
+
 export default function PortalStatsPage() {
   const { isAdmin } = usePermissions();
-  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<TabKey>('usage');
 
   if (!isAdmin) {
@@ -60,7 +60,7 @@ export default function PortalStatsPage() {
       {/* Header */}
       <div className="flex items-center gap-4">
         <button
-          onClick={() => navigate('/portal')}
+          onClick={() => window.location.assign(PORTAL_URL)}
           className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-500 shadow-sm transition hover:bg-slate-50"
         >
           <ArrowLeft className="h-5 w-5" />
@@ -114,7 +114,6 @@ function TabButton({ active, onClick, children }: {
 /* ─── Portal Usage Tab (existing content) ────────────────── */
 
 function PortalUsageTab() {
-  const navigate = useNavigate();
   const [stats, setStats] = useState<PortalStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -138,7 +137,7 @@ function PortalUsageTab() {
     return (
       <div className="flex min-h-[40vh] flex-col items-center justify-center gap-4">
         <p className="text-lg text-red-500">{error || 'No data'}</p>
-        <button onClick={() => navigate('/portal')} className="text-sm text-slate-500 underline">
+        <button onClick={() => window.location.assign(PORTAL_URL)} className="text-sm text-slate-500 underline">
           Back to Portal
         </button>
       </div>

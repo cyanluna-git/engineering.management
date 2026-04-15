@@ -1,4 +1,4 @@
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './hooks/useAuth';
 import { MainLayout, PortalLayout } from './components/layout';
@@ -56,9 +56,10 @@ const UpdatesPage = lazy(() => lazyWithRetry(
   'updates-page',
 ));
 const IntroductionPage = lazy(() => lazyWithRetry(() => import('./pages/IntroductionPage'), 'introduction-page'));
-const PortalPage = lazy(() => lazyWithRetry(() => import('./pages/PortalPage'), 'portal-page'));
 const PortalStatsPage = lazy(() => lazyWithRetry(() => import('./pages/PortalStatsPage'), 'portal-stats-page'));
 const TeamCapacityPage = lazy(() => lazyWithRetry(() => import('./pages/TeamCapacityPage'), 'team-capacity-page'));
+
+const EXTERNAL_PORTAL_URL = import.meta.env.VITE_PORTAL_URL || 'https://pcas-portal.atlascopco.group';
 
 // Loading fallback for lazy-loaded routes
 const PageLoader = () => (
@@ -66,6 +67,20 @@ const PageLoader = () => (
     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
   </div>
 );
+
+function ExternalPortalRedirect() {
+  useEffect(() => {
+    window.location.replace(EXTERNAL_PORTAL_URL);
+  }, []);
+
+  return (
+    <div className="flex min-h-screen items-center justify-center px-4 text-center">
+      <a className="text-sm text-blue-600 underline" href={EXTERNAL_PORTAL_URL}>
+        Redirecting to PCAS Portal...
+      </a>
+    </div>
+  );
+}
 
 function App() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -84,10 +99,11 @@ function App() {
         {isAuthenticated ? (
           <>
             <Route path="/auth/gateway" element={<GatewayLoginPage />} />
-            {/* Portal — clean layout, no sidebar */}
+            <Route path="/" element={<Navigate to="/dashboard" replace />} />
+            <Route path="/portal" element={<ExternalPortalRedirect />} />
+
+            {/* Portal stats — legacy internal admin page */}
             <Route element={<PortalLayout />}>
-              <Route path="/" element={<Navigate to="/portal" replace />} />
-              <Route path="/portal" element={<Suspense fallback={<PageLoader />}><PortalPage /></Suspense>} />
               <Route path="/portal/stats" element={<Suspense fallback={<PageLoader />}><PortalStatsPage /></Suspense>} />
             </Route>
 
@@ -108,7 +124,7 @@ function App() {
               <Route path="/profile" element={<Suspense fallback={<PageLoader />}><ProfilePage /></Suspense>} />
               <Route path="/updates" element={<Suspense fallback={<PageLoader />}><UpdatesPage /></Suspense>} />
               <Route path="/introduction" element={<Suspense fallback={<PageLoader />}><IntroductionPage /></Suspense>} />
-              <Route path="*" element={<Navigate to="/portal" />} />
+              <Route path="*" element={<Navigate to="/dashboard" />} />
             </Route>
           </>
         ) : (

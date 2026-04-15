@@ -67,6 +67,8 @@ interface SidebarProps {
   onToggle: () => void;
 }
 
+const PORTAL_URL = import.meta.env.VITE_PORTAL_URL || "https://pcas-portal.atlascopco.group";
+
 export function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
   const location = useLocation();
   const navigate = useNavigate();
@@ -237,16 +239,17 @@ export function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
       <div className={cn("px-2 pb-3", isCollapsed && "pb-2")}>
         {isCollapsed ? (
           <div className="space-y-1">
-            <Link
-              to="/portal"
+            <a
+              href={PORTAL_URL}
               title="Portal"
+              target="_blank"
+              rel="noopener noreferrer"
               className={cn(
                 "flex w-full items-center justify-center rounded-lg px-2 py-1.5 text-sm font-medium text-slate-300 transition-colors hover:bg-slate-800 hover:text-white",
-                location.pathname.startsWith("/portal") && "bg-slate-800 text-white",
               )}
             >
               <Grid3x3 className="h-5 w-5 flex-shrink-0" />
-            </Link>
+            </a>
             <Link
               to="/updates"
               title={t("sidebar.updateHistory")}
@@ -270,16 +273,17 @@ export function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
           </div>
         ) : (
           <div className="flex items-center gap-2">
-            <Link
-              to="/portal"
+            <a
+              href={PORTAL_URL}
               title="Portal"
+              target="_blank"
+              rel="noopener noreferrer"
               className={cn(
                 "flex h-10 w-10 items-center justify-center rounded-lg text-slate-300 transition-colors hover:bg-slate-800 hover:text-white",
-                location.pathname.startsWith("/portal") && "bg-slate-800 text-white",
               )}
             >
               <Grid3x3 className="h-4.5 w-4.5" />
-            </Link>
+            </a>
             <Link
               to="/updates"
               title={t("sidebar.updateHistory")}
