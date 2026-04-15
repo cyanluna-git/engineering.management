@@ -97,6 +97,7 @@ def build_domain_overrides(
         "NEXT_PUBLIC_OQC_URL": f"https://{oqc_domain}",
         "NEXT_PUBLIC_JARVIS_URL": f"https://{jarvis_domain}",
         "NEXT_PUBLIC_TESTRIG_URL": TESTRIG_URL_DEFAULT,
+        "EOB_INTERNAL_API_URL": "http://backend:8004",
         "PORTAL_DOMAIN": portal_domain,
         "EOB_DOMAIN": eob_domain,
         "OQC_DOMAIN": oqc_domain,

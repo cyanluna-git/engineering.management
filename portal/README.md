@@ -37,6 +37,7 @@ PCAS Portal is a standalone Next.js 15 App Router application under [`portal/`](
 
 - `NEXT_PUBLIC_EOB_URL`, `NEXT_PUBLIC_OQC_URL`, `NEXT_PUBLIC_JARVIS_URL`: Optional explicit service host overrides when the portal should link to canonical service subdomains
 - `NEXT_PUBLIC_TESTRIG_URL`: Optional explicit TestRig dashboard URL override for token relay launches
+- `EOB_INTERNAL_API_URL`: Internal backend base URL used by portal server routes for relay token exchange
 - `PORTAL_OIDC_ENABLED`, `PORTAL_SESSION_SECRET`, `PORTAL_OIDC_*`: Portal-owned Microsoft Entra configuration and cookie signing secret
 - `PORTAL_HANDOFF_SIGNING_KEY`: Signs short-lived downstream handoff tokens issued by the portal
 - `GATEWAY_MODE_EOB`, `GATEWAY_MODE_OQC`, `GATEWAY_MODE_JARVIS`: Service rollout controls for downstream handoff enablement

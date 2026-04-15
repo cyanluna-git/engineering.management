@@ -15,6 +15,13 @@ interface RelayTokenPair {
   refresh_token: string;
 }
 
+function getInternalGatewayExchangeBaseUrl(audience: "eob") {
+  if (audience === "eob") {
+    return process.env.EOB_INTERNAL_API_URL?.trim() || "http://backend:8004";
+  }
+  return "";
+}
+
 interface LaunchRouteParams {
   params: Promise<{
     serviceId: string;
@@ -45,14 +52,13 @@ async function exchangeRelaySessionForAudience(
   handoffToken: string,
   audience: "eob",
 ) {
-  const relaySource = findPortalServiceById("eob-dashboard");
-  if (!relaySource) {
-    throw new Error("EOB relay source is not registered.");
-  }
-
   const exchangePath =
     audience === "eob" ? "/api/auth/gateway/relay-login" : "/api/auth/gateway/login";
-  const exchangeUrl = new URL(exchangePath, relaySource.url);
+  const exchangeBaseUrl = getInternalGatewayExchangeBaseUrl(audience);
+  if (!exchangeBaseUrl) {
+    throw new Error("Relay exchange base URL is not configured.");
+  }
+  const exchangeUrl = new URL(exchangePath, exchangeBaseUrl);
   const response = await fetch(exchangeUrl, {
     method: "POST",
     headers: {
@@ -108,7 +114,11 @@ export async function GET(request: NextRequest, context: LaunchRouteParams) {
       return NextResponse.redirect(
         buildTokenRelayDestination(service.url, relaySession, service.tokenRelay),
       );
-    } catch {
+    } catch (error) {
+      console.error("Token relay launch failed", {
+        service: service.id,
+        error: error instanceof Error ? error.message : String(error),
+      });
       const destination = buildPortalUrl("/");
       destination.searchParams.set("launchError", "handoff-not-ready");
       destination.searchParams.set("service", service.id);

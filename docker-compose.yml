@@ -75,6 +75,7 @@ services:
       NEXT_PUBLIC_OQC_URL: ${NEXT_PUBLIC_OQC_URL:-https://oqc.atlascopco.group}
       NEXT_PUBLIC_JARVIS_URL: ${NEXT_PUBLIC_JARVIS_URL:-https://sw-portal.atlascopco.group}
       NEXT_PUBLIC_TESTRIG_URL: ${NEXT_PUBLIC_TESTRIG_URL:-http://dashboard.10-182-252-5.sslip.io}
+      EOB_INTERNAL_API_URL: ${EOB_INTERNAL_API_URL:-http://backend:8004}
       PORTAL_OIDC_ENABLED: ${PORTAL_OIDC_ENABLED:-false}
       PORTAL_SESSION_SECRET: ${PORTAL_SESSION_SECRET:-}
       PORTAL_OIDC_CLIENT_ID: ${PORTAL_OIDC_CLIENT_ID:-}
