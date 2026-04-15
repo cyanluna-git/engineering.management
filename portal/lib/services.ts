@@ -1,10 +1,14 @@
+import type { GatewayTarget } from "@/lib/gateway-config";
+
 export interface PortalService {
   id: string;
   name: string;
   description: string;
   url: string;
   launchPath?: string;
-  gatewayAudience?: "eob" | "oqc" | "jarvis";
+  gatewayAudience?: GatewayTarget;
+  tokenRelayAudience?: GatewayTarget;
+  tokenRelay?: "fragment" | "query";
   defaultReturnPath?: string;
   icon: string;
   color: string;
@@ -16,6 +20,8 @@ const EOB_URL = process.env.NEXT_PUBLIC_EOB_URL || "https://eob.10.182.252.32.ss
 const OQC_URL = process.env.NEXT_PUBLIC_OQC_URL || "https://oqc.atlascopco.group";
 const JARVIS_URL =
   process.env.NEXT_PUBLIC_JARVIS_URL || "https://sw-portal.atlascopco.group";
+const TESTRIG_URL =
+  process.env.NEXT_PUBLIC_TESTRIG_URL || "http://dashboard.10-182-252-5.sslip.io";
 
 export const PORTAL_SERVICES: PortalService[] = [
   {
@@ -61,7 +67,10 @@ export const PORTAL_SERVICES: PortalService[] = [
     id: "testrig",
     name: "Virtual TestRig",
     description: "Digital Twin product end-to-end integrated test bench service",
-    url: process.env.NEXT_PUBLIC_TESTRIG_URL || `http://dashboard.10-182-252-5.sslip.io`,
+    url: TESTRIG_URL,
+    launchPath: "/launch/testrig",
+    tokenRelayAudience: "eob",
+    tokenRelay: "fragment",
     icon: "Wrench",
     color: "bg-amber-600",
     category: "engineering",

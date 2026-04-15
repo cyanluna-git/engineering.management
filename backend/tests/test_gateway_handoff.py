@@ -95,6 +95,43 @@ def test_gateway_login_returns_503_when_keys_are_missing(client, monkeypatch):
     assert response.status_code == 503
 
 
+def test_gateway_relay_login_works_even_when_gateway_mode_is_direct(
+    client,
+    db_session,
+    sample_position,
+    monkeypatch,
+):
+    secret = "current-secret-1234567890-current-secret"
+    monkeypatch.setattr("app.api.endpoints.auth.settings.GATEWAY_MODE_EOB", "direct")
+    monkeypatch.setattr("app.api.endpoints.auth.settings.PORTAL_HANDOFF_VERIFY_KEY", secret)
+    monkeypatch.setattr("app.api.endpoints.auth.settings.PORTAL_HANDOFF_VERIFY_KEY_PREV", "")
+
+    user = _create_user(
+        db_session,
+        "gateway-relay-u1",
+        "gateway-relay@example.com",
+        sample_position.id,
+    )
+    token = _sign_handoff_token(secret, sub=user.email)
+
+    response = client.post("/api/auth/gateway/relay-login", json={"handoff_token": token})
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["token_type"] == "bearer"
+    assert data["access_token"]
+    assert data["refresh_token"]
+
+
+def test_gateway_relay_login_returns_503_when_keys_are_missing(client, monkeypatch):
+    monkeypatch.setattr("app.api.endpoints.auth.settings.PORTAL_HANDOFF_VERIFY_KEY", "")
+    monkeypatch.setattr("app.api.endpoints.auth.settings.PORTAL_HANDOFF_VERIFY_KEY_PREV", "")
+
+    response = client.post("/api/auth/gateway/relay-login", json={"handoff_token": "token"})
+
+    assert response.status_code == 503
+
+
 def test_gateway_login_exchanges_valid_handoff_token(
     client,
     db_session,

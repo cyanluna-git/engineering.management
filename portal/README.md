@@ -25,6 +25,8 @@ PCAS Portal is a standalone Next.js 15 App Router application under [`portal/`](
 - Guide APIs are implemented as App Router route handlers
 - Portal auth is implemented directly in App Router route handlers and signed HttpOnly cookies
 - EOB launch now routes through `/launch/eob-dashboard` and hands off to `https://eob.../auth/gateway` with a short-lived portal-issued token instead of raw browser auth tokens
+- OQC and Jarvis launch now also mint audience-scoped portal handoff tokens and target each service's expected `/auth/gateway` entry path when `GATEWAY_MODE_OQC` or `GATEWAY_MODE_JARVIS` is enabled
+- TestRig launch routes through `/launch/testrig`, exchanges a portal handoff for EOB-local tokens, and relays them to the dashboard URL as fragment params for legacy token consumers
 - Guide data persists through the file-backed store at `data/guides.json`
 - Guide writes stay disabled until `PORTAL_GUIDE_WRITE_TOKEN` is configured
 - `/api/health` returns route-local summary data and can probe external services with `?probe=1`
@@ -34,11 +36,19 @@ PCAS Portal is a standalone Next.js 15 App Router application under [`portal/`](
 ## Environment
 
 - `NEXT_PUBLIC_EOB_URL`, `NEXT_PUBLIC_OQC_URL`, `NEXT_PUBLIC_JARVIS_URL`: Optional explicit service host overrides when the portal should link to canonical service subdomains
-- `NEXT_PUBLIC_TESTRIG_URL`: Optional explicit TestRig URL override
+- `NEXT_PUBLIC_TESTRIG_URL`: Optional explicit TestRig dashboard URL override for token relay launches
 - `PORTAL_OIDC_ENABLED`, `PORTAL_SESSION_SECRET`, `PORTAL_OIDC_*`: Portal-owned Microsoft Entra configuration and cookie signing secret
 - `PORTAL_HANDOFF_SIGNING_KEY`: Signs short-lived downstream handoff tokens issued by the portal
 - `GATEWAY_MODE_EOB`, `GATEWAY_MODE_OQC`, `GATEWAY_MODE_JARVIS`: Service rollout controls for downstream handoff enablement
 - `PORTAL_GUIDE_WRITE_TOKEN`: Enables guide mutation endpoints when callers send `x-portal-admin-token`
+
+Current downstream contract:
+
+- `eob.10.182.252.32.sslip.io/auth/gateway?handoff=<token>&returnTo=<path>`
+- `oqc.atlascopco.group/auth/gateway?handoff=<token>&returnTo=<path>`
+- `sw-portal.atlascopco.group/auth/gateway?handoff=<token>&returnTo=<path>`
+
+Each downstream service is expected to redeem `handoff` through its own backend exchange endpoint and present a failure screen with both local-login and portal-return actions.
 
 ## Local Development
 

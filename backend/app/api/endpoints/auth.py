@@ -61,6 +61,90 @@ logger = logging.getLogger(__name__)
 OIDC_FLOW_COOKIE_NAME = "eob_oidc_flow"
 
 
+def _exchange_portal_handoff_for_eob_token_pair(
+    handoff_token: str,
+    db: Session,
+    *,
+    require_gateway_mode: bool,
+    log_target: str,
+) -> Token:
+    started_at = time.perf_counter()
+
+    def log_gateway_event(result: str, payload: dict | None = None) -> None:
+        data = {
+            "event": "gateway_handoff",
+            "target": log_target,
+            "result": result,
+            "latency_ms": round((time.perf_counter() - started_at) * 1000, 2),
+        }
+        if payload:
+            if isinstance(payload.get("jti"), str):
+                data["jti"] = payload["jti"]
+            if isinstance(payload.get("sub"), str):
+                data["sub"] = payload["sub"]
+        logger.info("gateway_handoff %s", json.dumps(data, sort_keys=True))
+
+    if require_gateway_mode and settings.GATEWAY_MODE_EOB not in {"gateway", "gateway_only"}:
+        log_gateway_event("disabled")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Portal gateway login is disabled for EOB.",
+        )
+    if not (
+        settings.PORTAL_HANDOFF_VERIFY_KEY.strip()
+        or settings.PORTAL_HANDOFF_VERIFY_KEY_PREV.strip()
+    ):
+        log_gateway_event("misconfigured")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Portal gateway verification keys are not configured for EOB.",
+        )
+
+    payload = verify_portal_handoff_token(handoff_token, audience="eob")
+    if payload is None:
+        log_gateway_event("invalid")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired portal handoff token.",
+        )
+    if not consume_portal_handoff_token(payload):
+        log_gateway_event("replayed", payload)
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Portal handoff token has already been used.",
+        )
+
+    email = payload.get("email") or payload.get("sub")
+    if not isinstance(email, str) or not email.strip():
+        log_gateway_event("missing_subject", payload)
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Portal handoff token is missing a usable subject.",
+        )
+
+    user = db.query(User).filter(func.lower(User.email) == func.lower(email)).first()
+    if user is None:
+        log_gateway_event("user_not_found", payload)
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="No active EOB user matches the portal handoff token.",
+        )
+    if not user.is_active:
+        log_gateway_event("inactive_user", payload)
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Inactive user.",
+        )
+
+    access_token = create_access_token(
+        data={"sub": user.id, "role": user.role},
+        expires_delta=timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES),
+    )
+    refresh_token = create_refresh_token(data={"sub": user.id, "role": user.role})
+    log_gateway_event("success", payload)
+    return Token(access_token=access_token, refresh_token=refresh_token, token_type="bearer")
+
+
 @router.post("/login", response_model=Token)
 async def login(
     form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)
@@ -145,81 +229,23 @@ async def refresh_token(body: TokenRefreshRequest, db: Session = Depends(get_db)
 @router.post("/gateway/login", response_model=Token)
 async def gateway_login(body: GatewayLoginRequest, db: Session = Depends(get_db)):
     """Exchange a portal-issued handoff token for an EOB-local session token pair."""
-    started_at = time.perf_counter()
-
-    def log_gateway_event(result: str, payload: dict | None = None) -> None:
-        data = {
-            "event": "gateway_handoff",
-            "target": "eob",
-            "result": result,
-            "latency_ms": round((time.perf_counter() - started_at) * 1000, 2),
-        }
-        if payload:
-            if isinstance(payload.get("jti"), str):
-                data["jti"] = payload["jti"]
-            if isinstance(payload.get("sub"), str):
-                data["sub"] = payload["sub"]
-        logger.info("gateway_handoff %s", json.dumps(data, sort_keys=True))
-
-    if settings.GATEWAY_MODE_EOB not in {"gateway", "gateway_only"}:
-        log_gateway_event("disabled")
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Portal gateway login is disabled for EOB.",
-        )
-    if not (
-        settings.PORTAL_HANDOFF_VERIFY_KEY.strip()
-        or settings.PORTAL_HANDOFF_VERIFY_KEY_PREV.strip()
-    ):
-        log_gateway_event("misconfigured")
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Portal gateway verification keys are not configured for EOB.",
-        )
-
-    payload = verify_portal_handoff_token(body.handoff_token, audience="eob")
-    if payload is None:
-        log_gateway_event("invalid")
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid or expired portal handoff token.",
-        )
-    if not consume_portal_handoff_token(payload):
-        log_gateway_event("replayed", payload)
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Portal handoff token has already been used.",
-        )
-
-    email = payload.get("email") or payload.get("sub")
-    if not isinstance(email, str) or not email.strip():
-        log_gateway_event("missing_subject", payload)
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Portal handoff token is missing a usable subject.",
-        )
-
-    user = db.query(User).filter(func.lower(User.email) == func.lower(email)).first()
-    if user is None:
-        log_gateway_event("user_not_found", payload)
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="No active EOB user matches the portal handoff token.",
-        )
-    if not user.is_active:
-        log_gateway_event("inactive_user", payload)
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Inactive user.",
-        )
-
-    access_token = create_access_token(
-        data={"sub": user.id, "role": user.role},
-        expires_delta=timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES),
+    return _exchange_portal_handoff_for_eob_token_pair(
+        body.handoff_token,
+        db,
+        require_gateway_mode=True,
+        log_target="eob",
     )
-    refresh_token = create_refresh_token(data={"sub": user.id, "role": user.role})
-    log_gateway_event("success", payload)
-    return Token(access_token=access_token, refresh_token=refresh_token, token_type="bearer")
+
+
+@router.post("/gateway/relay-login", response_model=Token)
+async def gateway_relay_login(body: GatewayLoginRequest, db: Session = Depends(get_db)):
+    """Exchange a portal-issued handoff token for EOB tokens used by downstream relay consumers."""
+    return _exchange_portal_handoff_for_eob_token_pair(
+        body.handoff_token,
+        db,
+        require_gateway_mode=False,
+        log_target="eob-relay",
+    )
 
 
 @router.get("/me", response_model=UserResponse)

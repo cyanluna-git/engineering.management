@@ -55,6 +55,7 @@ PORTAL_DOMAIN_DEFAULT = "pcas-portal.atlascopco.group"
 EOB_DOMAIN_DEFAULT = "eob.10.182.252.32.sslip.io"
 OQC_DOMAIN_DEFAULT = "oqc.atlascopco.group"
 JARVIS_DOMAIN_DEFAULT = "sw-portal.atlascopco.group"
+TESTRIG_URL_DEFAULT = "http://dashboard.10-182-252-5.sslip.io"
 
 # Static overrides applied when --profile server is used
 SERVER_OVERRIDES: Dict[str, str] = {
@@ -79,6 +80,7 @@ def build_domain_overrides(
         f"http://{portal_domain}",
         f"https://{portal_domain}",
         f"https://{eob_domain}",
+        TESTRIG_URL_DEFAULT,
     ])
     return {
         "PORTAL_OIDC_REDIRECT_URI": f"https://{portal_domain}/auth/callback",
@@ -94,6 +96,7 @@ def build_domain_overrides(
         "NEXT_PUBLIC_EOB_URL": f"https://{eob_domain}",
         "NEXT_PUBLIC_OQC_URL": f"https://{oqc_domain}",
         "NEXT_PUBLIC_JARVIS_URL": f"https://{jarvis_domain}",
+        "NEXT_PUBLIC_TESTRIG_URL": TESTRIG_URL_DEFAULT,
         "PORTAL_DOMAIN": portal_domain,
         "EOB_DOMAIN": eob_domain,
         "OQC_DOMAIN": oqc_domain,
