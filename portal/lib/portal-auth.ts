@@ -20,6 +20,7 @@ interface OidcMetadata {
   authorization_endpoint: string;
   token_endpoint: string;
   jwks_uri: string;
+  userinfo_endpoint?: string;
   end_session_endpoint?: string;
 }
 
@@ -70,6 +71,14 @@ interface PortalTokenResponse {
   token_type?: string;
   error?: string;
   error_description?: string;
+}
+
+interface OidcUserInfo {
+  sub?: string;
+  email?: string;
+  preferred_username?: string;
+  upn?: string;
+  name?: string;
 }
 
 let oidcMetadataPromise: Promise<OidcMetadata> | null = null;
@@ -131,6 +140,25 @@ function getPortalSessionSecret(): string {
 
 function getPortalHandoffSigningKey(): string {
   return readEnv("PORTAL_HANDOFF_SIGNING_KEY");
+}
+
+function getPortalPublicOrigin(): string {
+  for (const candidate of [
+    getPortalOidcPostLogoutRedirectUri(),
+    getPortalOidcRedirectUri(),
+  ]) {
+    try {
+      return new URL(candidate).origin;
+    } catch {
+      continue;
+    }
+  }
+
+  return "http://localhost:3000";
+}
+
+export function buildPortalUrl(path: string): URL {
+  return new URL(path, `${getPortalPublicOrigin()}/`);
 }
 
 export function getPortalOidcRedirectUri(): string {
@@ -388,6 +416,7 @@ async function getOidcMetadata(): Promise<OidcMetadata> {
           authorization_endpoint: metadata.authorization_endpoint,
           token_endpoint: metadata.token_endpoint,
           jwks_uri: metadata.jwks_uri,
+          userinfo_endpoint: metadata.userinfo_endpoint,
           end_session_endpoint: metadata.end_session_endpoint,
         };
       })
@@ -445,6 +474,55 @@ async function verifyOidcIdToken(idToken: string, nonce: string): Promise<Portal
   };
 }
 
+async function fetchOidcUserInfo(accessToken: string): Promise<PortalSession> {
+  const metadata = await getOidcMetadata();
+  if (!metadata.userinfo_endpoint) {
+    throw new Error("Portal OIDC userinfo endpoint is not available.");
+  }
+
+  const response = await fetch(metadata.userinfo_endpoint, {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+    cache: "no-store",
+  });
+
+  const payload = (await response.json()) as OidcUserInfo & {
+    error?: string;
+    error_description?: string;
+  };
+
+  if (!response.ok || payload.error) {
+    throw new Error(
+      payload.error_description ||
+        payload.error ||
+        `Portal OIDC userinfo failed: HTTP ${response.status}`,
+    );
+  }
+
+  const emailCandidate =
+    (typeof payload.preferred_username === "string" &&
+      payload.preferred_username) ||
+    (typeof payload.email === "string" && payload.email) ||
+    (typeof payload.upn === "string" && payload.upn);
+
+  if (!emailCandidate) {
+    throw new Error("Portal OIDC userinfo did not include an email address.");
+  }
+
+  return {
+    subject: typeof payload.sub === "string" ? payload.sub : emailCandidate,
+    email: emailCandidate,
+    name:
+      (typeof payload.name === "string" && payload.name) || emailCandidate,
+    providerId: typeof payload.sub === "string" ? payload.sub : null,
+    tenantId: null,
+    grantedScopes: [],
+    idToken: null,
+    expiresAt: null,
+  };
+}
+
 async function exchangeAuthorizationCode(code: string): Promise<PortalTokenResponse> {
   const metadata = await getOidcMetadata();
   const body = new URLSearchParams({
@@ -481,7 +559,7 @@ function redirectToPortalStatus(
   request: NextRequest,
   params: Record<string, string>,
 ): NextResponse {
-  const destination = new URL("/", request.url);
+  const destination = buildPortalUrl("/");
   for (const [key, value] of Object.entries(params)) {
     destination.searchParams.set(key, value);
   }
@@ -526,7 +604,7 @@ export async function createPortalLoginResponse(
   const returnTo = normalizeReturnTo(request.nextUrl.searchParams.get("returnTo"));
   const existingSession = await getPortalSessionFromRequest(request);
   if (existingSession) {
-    return NextResponse.redirect(new URL(returnTo, request.url));
+    return NextResponse.redirect(buildPortalUrl(returnTo));
   }
 
   try {
@@ -557,6 +635,7 @@ export async function createPortalLoginResponse(
     setCookie(response, FLOW_COOKIE_NAME, flowToken, FLOW_MAX_AGE_SECONDS);
     return response;
   } catch (error) {
+    console.error("Portal OIDC login initialization failed.", error);
     return redirectToPortalStatus(request, {
       authError:
         error instanceof Error && error.message.includes("disabled")
@@ -593,11 +672,28 @@ export async function createPortalCallbackResponse(
 
   try {
     const tokenResult = await exchangeAuthorizationCode(code);
-    if (!tokenResult.id_token) {
-      throw new Error("Portal OIDC token response did not include an id_token.");
+    let verifiedSession: PortalSession;
+    if (tokenResult.id_token) {
+      try {
+        verifiedSession = await verifyOidcIdToken(tokenResult.id_token, flow.nonce);
+      } catch (error) {
+        if (!tokenResult.access_token) {
+          throw error;
+        }
+        console.warn(
+          "Portal OIDC ID token verification failed, falling back to userinfo.",
+          error,
+        );
+        verifiedSession = await fetchOidcUserInfo(tokenResult.access_token);
+      }
+    } else if (tokenResult.access_token) {
+      verifiedSession = await fetchOidcUserInfo(tokenResult.access_token);
+    } else {
+      throw new Error(
+        "Portal OIDC token response did not include an id_token or access_token.",
+      );
     }
 
-    const verifiedSession = await verifyOidcIdToken(tokenResult.id_token, flow.nonce);
     const sessionToken = await signPortalCookieToken(
       {
         email: verifiedSession.email,
@@ -605,18 +701,19 @@ export async function createPortalCallbackResponse(
         providerId: verifiedSession.providerId || "",
         tenantId: verifiedSession.tenantId || "",
         grantedScopes: normalizeScopes(tokenResult.scope),
-        idToken: tokenResult.id_token,
+        idToken: tokenResult.id_token || "",
       },
       "portal_session",
       verifiedSession.subject,
       SESSION_MAX_AGE_SECONDS,
     );
 
-    const response = NextResponse.redirect(new URL(flow.returnTo, request.url));
+    const response = NextResponse.redirect(buildPortalUrl(flow.returnTo));
     setCookie(response, SESSION_COOKIE_NAME, sessionToken, SESSION_MAX_AGE_SECONDS);
     clearCookie(response, FLOW_COOKIE_NAME);
     return response;
-  } catch {
+  } catch (error) {
+    console.error("Portal OIDC callback failed.", error);
     const response = redirectToPortalStatus(request, { authError: "token-exchange" });
     clearCookie(response, FLOW_COOKIE_NAME);
     clearCookie(response, SESSION_COOKIE_NAME);

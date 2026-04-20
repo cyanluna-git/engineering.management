@@ -60,8 +60,20 @@ function CardContent({ service }: { service: PortalService }) {
 
 export function ServiceCard({ service }: { service: PortalService }) {
   if (service.destination === "internal" || service.launchPath) {
+    const href = service.launchPath || service.url;
+    const needsDocumentNavigation =
+      href.startsWith("/launch/") || href.startsWith("/auth/");
+
+    if (needsDocumentNavigation) {
+      return (
+        <a href={href} className={cardClassName}>
+          <CardContent service={service} />
+        </a>
+      );
+    }
+
     return (
-      <Link href={service.launchPath || service.url} className={cardClassName}>
+      <Link href={href} className={cardClassName}>
         <CardContent service={service} />
       </Link>
     );

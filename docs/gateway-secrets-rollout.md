@@ -41,8 +41,25 @@ Per-service flags:
 1. Deploy secrets and flags everywhere with all services still set to `direct`.
 2. Enable `GATEWAY_MODE_EOB=gateway` and validate the first handoff exchange path (`pcas-portal /launch/eob-dashboard` -> `eob /auth/gateway` -> `POST /api/auth/gateway/login`).
 3. Monitor exchange success and failure logs before enabling the next service.
-4. Enable `GATEWAY_MODE_OQC=gateway`.
-5. Enable `GATEWAY_MODE_JARVIS=gateway`.
+4. Enable `GATEWAY_MODE_OQC=gateway` only after OQC exposes its own `/auth/gateway` landing route and backend exchange endpoint.
+5. Enable `GATEWAY_MODE_JARVIS=gateway` only after Jarvis exposes its own `/auth/gateway` landing route and backend exchange endpoint.
+
+## Expected Downstream Consumer Pattern
+
+Every downstream service should implement the same consumer shape as EOB:
+
+1. Service-side `/auth/gateway` page/route that receives `handoff` and `returnTo`.
+2. Backend exchange endpoint that validates the portal-issued token for the service-specific audience.
+3. Local session creation after successful exchange.
+4. Failure screen that offers both:
+   - local direct-login fallback
+   - return to `https://pcas-portal.atlascopco.group`
+
+Expected audiences:
+
+- `eob`
+- `oqc`
+- `jarvis`
 
 ## Fallback and Rollback
 

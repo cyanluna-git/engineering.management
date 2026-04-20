@@ -31,20 +31,20 @@ export default async function RootLayout({
                   <span className="hidden text-sm text-slate-500 sm:inline">
                     {session.name}
                   </span>
-                  <Link
+                  <a
                     href="/auth/logout"
                     className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 transition hover:border-red-200 hover:text-red-600"
                   >
                     Sign out
-                  </Link>
+                  </a>
                 </>
               ) : (
-                <Link
+                <a
                   href="/auth/login"
                   className="rounded-full bg-red-600 px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-red-700"
                 >
                   Sign in
-                </Link>
+                </a>
               )}
             </div>
           </div>

@@ -55,7 +55,6 @@ DEPLOY_EXCLUDE_PARTS = {
     'dev_tools',
     'workthrough',
     'logs',
-    'reports',
     'coverage',
     '.coverage',
     'htmlcov',

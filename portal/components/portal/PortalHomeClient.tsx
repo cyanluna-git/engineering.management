@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { ChevronDown, ChevronRight, Search } from "lucide-react";
 
@@ -131,20 +130,20 @@ export function PortalHomeClient({ currentUserName }: PortalHomeClientProps) {
                   <div className="rounded-full border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-medium text-emerald-700">
                     Signed in as {currentUserName}
                   </div>
-                  <Link
+                  <a
                     href="/auth/logout"
                     className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-red-200 hover:text-red-600"
                   >
                     Sign out
-                  </Link>
+                  </a>
                 </>
               ) : (
-                <Link
+                <a
                   href="/auth/login"
                   className="rounded-full bg-red-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-700"
                 >
                   Sign in with Microsoft Entra
-                </Link>
+                </a>
               )}
             </div>
           </div>
