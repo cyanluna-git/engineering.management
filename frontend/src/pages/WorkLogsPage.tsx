@@ -54,6 +54,7 @@ export function WorkLogsPage() {
     const [meetingImportItems, setMeetingImportItems] = useState<MeetingImportDraft[]>([]);
     const [meetingImportSkippedCount, setMeetingImportSkippedCount] = useState(0);
     const [isMeetingImportModalOpen, setIsMeetingImportModalOpen] = useState(false);
+    const [importingDate, setImportingDate] = useState<string | null>(null);
     const [calendarNotice, setCalendarNotice] = useState<string | null>(null);
 
     // Calculate week range for API query
@@ -223,6 +224,31 @@ export function WorkLogsPage() {
         }
     };
 
+    const handleDayMeetingImport = async (date: string) => {
+        if (!calendarStatusQuery.data?.has_calendar_scope) {
+            await handleCalendarConnect();
+            return;
+        }
+
+        setImportingDate(date);
+        try {
+            const response = await previewMeetingImportMutation.mutateAsync({
+                start_date: date,
+                end_date: date,
+            });
+            setMeetingImportItems(response.items);
+            setMeetingImportSkippedCount(response.skipped_count);
+            // TODO: MeetingImportPreviewModal title copy currently reads "this week"; make it
+            // context-aware (per-day vs per-week) when the modal supports a range-aware title.
+            setIsMeetingImportModalOpen(true);
+        } catch (error: unknown) {
+            console.error('Day meeting import preview failed', error);
+            alert(getErrorMessage(error));
+        } finally {
+            setImportingDate(null);
+        }
+    };
+
     const handleMeetingImportConfirm = async (selectedItems: MeetingImportDraft[]) => {
         try {
             const response = await commitMeetingImportMutation.mutateAsync({
@@ -386,6 +412,9 @@ export function WorkLogsPage() {
                             onWorklogDelete={handleWorklogDelete}
                             onWorklogMove={handleWorklogMove}
                             onAIInputClick={handleAIInputClick}
+                            onDayMeetingImportClick={handleDayMeetingImport}
+                            calendarConnected={calendarStatusQuery.data?.has_calendar_scope ?? false}
+                            importingDate={importingDate}
                             movingWorklogId={movingWorklogId}
                         />
                     )}

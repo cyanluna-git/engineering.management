@@ -4,7 +4,7 @@
  */
 import React, { useState } from 'react';
 import { format, addDays, isToday } from 'date-fns';
-import { Sparkles } from 'lucide-react';
+import { CalendarCheck, Loader2, Sparkles } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -19,6 +19,9 @@ interface WeeklyCalendarGridProps {
     onWorklogDelete: (worklogId: number) => void;
     onWorklogMove?: (worklog: WorkLog, targetDate: string) => Promise<void> | void;
     onAIInputClick?: (date: string) => void;
+    onDayMeetingImportClick?: (date: string) => void;
+    calendarConnected?: boolean;
+    importingDate?: string | null;
     movingWorklogId?: number | null;
 }
 
@@ -30,6 +33,9 @@ export const WeeklyCalendarGrid: React.FC<WeeklyCalendarGridProps> = ({
     onWorklogDelete,
     onWorklogMove,
     onAIInputClick,
+    onDayMeetingImportClick,
+    calendarConnected = false,
+    importingDate = null,
     movingWorklogId = null,
 }) => {
     const { t, i18n } = useTranslation('worklogs');
@@ -142,19 +148,39 @@ export const WeeklyCalendarGrid: React.FC<WeeklyCalendarGridProps> = ({
                                             {format(date, 'MM/dd')}
                                         </span>
                                     </CardTitle>
-                                    {onAIInputClick && (
-                                        <Button
-                                            type="button"
-                                            variant="outline"
-                                            size="sm"
-                                            className="h-7 w-7 shrink-0 rounded-full border-sky-200 bg-sky-50 p-0 text-sky-700 shadow-none hover:border-sky-300 hover:bg-sky-100 hover:text-sky-800"
-                                            onClick={() => onAIInputClick(dateStr)}
-                                            title={t('calendar.aiEntry')}
-                                            aria-label={t('calendar.aiEntry')}
-                                        >
-                                            <Sparkles className="h-3.5 w-3.5" />
-                                        </Button>
-                                    )}
+                                    <div className="flex items-center gap-1">
+                                        {onAIInputClick && (
+                                            <Button
+                                                type="button"
+                                                variant="outline"
+                                                size="sm"
+                                                className="h-7 w-7 shrink-0 rounded-full border-sky-200 bg-sky-50 p-0 text-sky-700 shadow-none hover:border-sky-300 hover:bg-sky-100 hover:text-sky-800"
+                                                onClick={() => onAIInputClick(dateStr)}
+                                                title={t('calendar.aiEntry')}
+                                                aria-label={t('calendar.aiEntry')}
+                                            >
+                                                <Sparkles className="h-3.5 w-3.5" />
+                                            </Button>
+                                        )}
+                                        {calendarConnected && onDayMeetingImportClick && (
+                                            <Button
+                                                type="button"
+                                                variant="outline"
+                                                size="sm"
+                                                disabled={importingDate === dateStr}
+                                                className="h-7 w-7 shrink-0 rounded-full border-violet-200 bg-violet-50 p-0 text-violet-700 shadow-none hover:border-violet-300 hover:bg-violet-100 hover:text-violet-800"
+                                                onClick={() => onDayMeetingImportClick(dateStr)}
+                                                title={t('calendar.dayMeetingImport')}
+                                                aria-label={t('calendar.dayMeetingImport')}
+                                            >
+                                                {importingDate === dateStr ? (
+                                                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                                ) : (
+                                                    <CalendarCheck className="h-3.5 w-3.5" />
+                                                )}
+                                            </Button>
+                                        )}
+                                    </div>
                                 </div>
                             </CardHeader>
                             <CardContent className="flex flex-1 flex-col gap-2 p-2">

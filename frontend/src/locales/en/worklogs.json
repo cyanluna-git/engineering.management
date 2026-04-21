@@ -126,6 +126,7 @@
     "daySat": "Sat",
     "daySun": "Sun",
     "aiEntry": "AI work entry",
+    "dayMeetingImport": "Import today's meetings",
     "addEntry": "+ Add",
     "dragHint": "Drag a worklog card onto another date to move it.",
     "dropHere": "Drop here to move",
