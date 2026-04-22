@@ -663,6 +663,32 @@ export interface JiraRequestResponse {
     web_url: string
 }
 
+export interface JiraTicket {
+    key: string
+    summary: string
+    status: string
+    status_category: string  // "new" | "indeterminate" | "done"
+    created: string
+    reporter_name: string
+    assignee_name: string | null
+    priority: string | null
+}
+
+export interface JiraTicketDetail {
+    key: string
+    summary: string
+    status: string
+    status_category: string
+    description: unknown  // ADF JSON
+    created: string
+    updated: string
+    reporter_name: string
+    reporter_avatar: string | null
+    assignee_name: string | null
+    assignee_avatar: string | null
+    priority: string | null
+}
+
 // Generated AI Report
 export interface GeneratedReport {
     id: string

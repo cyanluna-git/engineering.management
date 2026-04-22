@@ -1,6 +1,7 @@
 """Jira Service Desk API integration."""
 import base64
 import logging
+from dataclasses import dataclass
 from typing import Optional
 
 import httpx
@@ -32,6 +33,34 @@ class JiraPartialFailureError(Exception):
     def __init__(self, message: str, temp_attachment_ids: list[str]) -> None:
         super().__init__(message)
         self.temp_attachment_ids = temp_attachment_ids
+
+
+@dataclass(frozen=True)
+class JiraTicket:
+    key: str
+    summary: str
+    status: str
+    status_category: str  # "new" | "indeterminate" | "done"
+    created: str
+    reporter_name: str
+    assignee_name: str | None
+    priority: str | None
+
+
+@dataclass(frozen=True)
+class JiraTicketDetail:
+    key: str
+    summary: str
+    status: str
+    status_category: str
+    description: object  # Raw ADF JSON or None
+    created: str
+    updated: str
+    reporter_name: str
+    reporter_avatar: str | None
+    assignee_name: str | None
+    assignee_avatar: str | None
+    priority: str | None
 
 
 class JiraService:
@@ -162,3 +191,87 @@ class JiraService:
         issue_id = data.get("issueId", "")
         web_url = f"{self._base_url}/browse/{issue_key}" if issue_key else ""
         return {"issue_key": issue_key, "issue_id": issue_id, "web_url": web_url}
+
+    def list_requests(self, *, max_results: int = 50) -> list[JiraTicket]:
+        """List issues with component=eob, newest first."""
+        self._check_credentials()
+        jql = f'component = "{self._component}" ORDER BY created DESC'
+        try:
+            resp = httpx.get(
+                f"{self._base_url}/rest/api/3/search/jql",
+                headers={"Authorization": self._auth_header(), "X-Atlassian-Token": "no-check"},
+                params={
+                    "jql": jql,
+                    "maxResults": max_results,
+                    "fields": "summary,status,created,reporter,assignee,priority",
+                },
+                timeout=self._timeout,
+            )
+        except httpx.TimeoutException as exc:
+            raise JiraTimeoutError("Jira ticket list timed out") from exc
+        if resp.status_code in (401, 403):
+            raise JiraAuthError("Jira authentication failed")
+        if resp.status_code != 200:
+            raise JiraUpstreamError(f"Jira ticket list failed: {resp.status_code}", resp.status_code)
+        tickets: list[JiraTicket] = []
+        for issue in resp.json().get("issues", []):
+            fields = issue.get("fields", {})
+            status_obj = fields.get("status") or {}
+            reporter = fields.get("reporter") or {}
+            assignee = fields.get("assignee")
+            priority = fields.get("priority")
+            tickets.append(JiraTicket(
+                key=issue["key"],
+                summary=fields.get("summary", ""),
+                status=status_obj.get("name", ""),
+                status_category=status_obj.get("statusCategory", {}).get("key", ""),
+                created=fields.get("created", ""),
+                reporter_name=reporter.get("displayName", ""),
+                assignee_name=assignee.get("displayName") if assignee else None,
+                priority=priority.get("name") if priority else None,
+            ))
+        return tickets
+
+    def get_request(self, issue_key: str) -> JiraTicketDetail:
+        """Fetch single issue with full description (ADF JSON)."""
+        self._check_credentials()
+        try:
+            resp = httpx.get(
+                f"{self._base_url}/rest/api/3/issue/{issue_key}",
+                headers={"Authorization": self._auth_header(), "X-Atlassian-Token": "no-check"},
+                params={"fields": "summary,description,status,created,updated,reporter,assignee,priority"},
+                timeout=self._timeout,
+            )
+        except httpx.TimeoutException as exc:
+            raise JiraTimeoutError("Jira issue fetch timed out") from exc
+        if resp.status_code in (401, 403):
+            raise JiraAuthError("Jira authentication failed")
+        if resp.status_code != 200:
+            raise JiraUpstreamError(f"Jira issue fetch failed: {resp.status_code}", resp.status_code)
+        data = resp.json()
+        fields = data.get("fields", {})
+        status_obj = fields.get("status") or {}
+        reporter = fields.get("reporter") or {}
+        assignee = fields.get("assignee")
+        priority = fields.get("priority")
+
+        def _avatar(person: dict | None) -> str | None:
+            if not person:
+                return None
+            urls = person.get("avatarUrls") or {}
+            return urls.get("48x48") or urls.get("32x32")
+
+        return JiraTicketDetail(
+            key=data["key"],
+            summary=fields.get("summary", ""),
+            status=status_obj.get("name", ""),
+            status_category=status_obj.get("statusCategory", {}).get("key", ""),
+            description=fields.get("description"),
+            created=fields.get("created", ""),
+            updated=fields.get("updated", ""),
+            reporter_name=reporter.get("displayName", ""),
+            reporter_avatar=_avatar(reporter),
+            assignee_name=assignee.get("displayName") if assignee else None,
+            assignee_avatar=_avatar(assignee),
+            priority=priority.get("name") if priority else None,
+        )

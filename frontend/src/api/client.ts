@@ -1,6 +1,6 @@
 import axios from 'axios';
 import type { AxiosRequestConfig } from 'axios';
-import type { Token, JiraRequestResponse } from '@/types';
+import type { Token, JiraRequestResponse, JiraTicket, JiraTicketDetail } from '@/types';
 import { withBasePath } from '@/lib/base-path';
 
 // Standardized API error response type
@@ -1660,5 +1660,17 @@ export const createJiraRequest = async (formData: FormData): Promise<JiraRequest
     });
     return response.data;
 };
+
+// ============ Jira Tickets ============
+
+export const listJiraRequests = async (): Promise<JiraTicket[]> => {
+    const response = await apiClient.get('/jira/requests')
+    return response.data
+}
+
+export const getJiraRequest = async (issueKey: string): Promise<JiraTicketDetail> => {
+    const response = await apiClient.get(`/jira/requests/${issueKey}`)
+    return response.data
+}
 
 export default apiClient;
