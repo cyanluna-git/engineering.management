@@ -86,6 +86,15 @@ class Settings(BaseSettings):
         "Calendars.Read,Files.Read,Files.Read.All,Sites.Read.All"
     )
 
+    # Jira Service Desk
+    JIRA_BASE_URL: str = "https://ac-avi.atlassian.net"
+    JIRA_EMAIL: str = ""
+    JIRA_TOKEN: str = ""
+    JIRA_SERVICE_DESK_ID: str = "1"
+    JIRA_REQUEST_TYPE_ID: str = "4"
+    JIRA_DEFAULT_COMPONENT: str = "eob"
+    JIRA_HTTP_TIMEOUT: float = 20.0
+
     @property
     def cors_origins_list(self) -> list[str]:
         return [origin.strip() for origin in self.CORS_ORIGINS.split(",")]

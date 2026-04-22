@@ -656,6 +656,13 @@ export interface AbsenceUpdate {
     remarks?: string | null
 }
 
+// Jira Service Desk
+export interface JiraRequestResponse {
+    issue_key: string
+    issue_id: string
+    web_url: string
+}
+
 // Generated AI Report
 export interface GeneratedReport {
     id: string

@@ -37,6 +37,7 @@ from app.api.endpoints import (
     weekly_reports,
     team_capacity,
     absences,
+    jira_requests,
 )
 
 # Import all models to ensure they are registered with SQLAlchemy Base.metadata
@@ -180,6 +181,9 @@ app.include_router(
 )
 app.include_router(
     absences.router, prefix="/api/absences", tags=["Absences"]
+)
+app.include_router(
+    jira_requests.router, prefix="/api/jira", tags=["Jira Requests"]
 )
 
 

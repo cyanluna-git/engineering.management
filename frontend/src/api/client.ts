@@ -1,6 +1,6 @@
 import axios from 'axios';
 import type { AxiosRequestConfig } from 'axios';
-import type { Token } from '@/types';
+import type { Token, JiraRequestResponse } from '@/types';
 import { withBasePath } from '@/lib/base-path';
 
 // Standardized API error response type
@@ -1650,6 +1650,15 @@ export const getGeneratedReports = async (reportType?: string, limit: number = 2
 export const getGeneratedReport = async (id: string): Promise<GeneratedReport> => {
   const response = await apiClient.get(`/reports/generated/${id}`);
   return response.data;
+};
+
+// ============ Jira Service Desk ============
+
+export const createJiraRequest = async (formData: FormData): Promise<JiraRequestResponse> => {
+    const response = await apiClient.post('/jira/requests', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return response.data;
 };
 
 export default apiClient;
