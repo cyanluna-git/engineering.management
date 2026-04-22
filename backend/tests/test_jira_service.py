@@ -166,9 +166,7 @@ class TestCreateRequestWithAttachment:
             result = service.create_request(
                 summary="Bug report",
                 reporter_email="user@test.com",
-                attachment_filename="screenshot.png",
-                attachment_content=b"fake-image-bytes",
-                attachment_content_type="image/png",
+                attachments=[("screenshot.png", b"fake-image-bytes", "image/png")],
             )
 
         assert mock_post.call_count == 2
@@ -190,9 +188,7 @@ class TestCreateRequestWithAttachment:
             service.create_request(
                 summary="With attachment",
                 reporter_email="user@test.com",
-                attachment_filename="file.txt",
-                attachment_content=b"hello",
-                attachment_content_type="text/plain",
+                attachments=[("file.txt", b"hello", "text/plain")],
             )
 
             # Second call is the request creation
@@ -237,8 +233,7 @@ class TestAuthErrors:
                 service.create_request(
                     summary="Test",
                     reporter_email="user@test.com",
-                    attachment_filename="file.txt",
-                    attachment_content=b"data",
+                    attachments=[("file.txt", b"data", "text/plain")],
                 )
 
 
@@ -266,8 +261,7 @@ class TestTimeoutErrors:
                 service.create_request(
                     summary="Test",
                     reporter_email="user@test.com",
-                    attachment_filename="file.txt",
-                    attachment_content=b"data",
+                    attachments=[("file.txt", b"data", "text/plain")],
                 )
 
 
@@ -293,8 +287,7 @@ class TestPartialFailure:
                 service.create_request(
                     summary="Test",
                     reporter_email="user@test.com",
-                    attachment_filename="file.txt",
-                    attachment_content=b"data",
+                    attachments=[("file.txt", b"data", "text/plain")],
                 )
 
         assert "tmp-1" in exc_info.value.temp_attachment_ids
@@ -314,8 +307,7 @@ class TestPartialFailure:
                 service.create_request(
                     summary="Test",
                     reporter_email="user@test.com",
-                    attachment_filename="file.txt",
-                    attachment_content=b"data",
+                    attachments=[("file.txt", b"data", "text/plain")],
                 )
 
         assert "tmp-2" in exc_info.value.temp_attachment_ids
@@ -347,6 +339,5 @@ class TestUpstreamErrors:
                 service.create_request(
                     summary="Test",
                     reporter_email="user@test.com",
-                    attachment_filename="file.txt",
-                    attachment_content=b"data",
+                    attachments=[("file.txt", b"data", "text/plain")],
                 )

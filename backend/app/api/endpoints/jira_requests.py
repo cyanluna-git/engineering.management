@@ -1,6 +1,6 @@
 """Jira Service Desk proxy endpoint."""
 import logging
-from typing import Any, Optional
+from typing import Any, List, Optional
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from fastapi.responses import JSONResponse
@@ -19,7 +19,8 @@ from app.services.jira_service import (
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
-MAX_FILE_BYTES = 10 * 1024 * 1024  # 10 MB
+MAX_FILE_BYTES = 10 * 1024 * 1024   # 10 MB per file
+MAX_TOTAL_BYTES = 25 * 1024 * 1024  # 25 MB aggregate
 
 
 class JiraTicketResponse(BaseModel):
@@ -112,18 +113,30 @@ async def get_jira_request_detail(
 async def create_jira_request(
     summary: str = Form(..., max_length=255),
     description: Optional[str] = Form(None),
-    file: Optional[UploadFile] = File(None),
+    files: List[UploadFile] = File(default=[]),
     current_user=Depends(get_current_user),
     _=Depends(require_write_permission()),
 ) -> JSONResponse:
-    content: Optional[bytes] = None
-    if file is not None:
-        content = await file.read()
+    attachments: list[tuple[str, bytes, str]] = []
+    total_bytes = 0
+    for upload in files:
+        content = await upload.read()
         if len(content) > MAX_FILE_BYTES:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail={"code": "FILE_TOO_LARGE", "message": "File must be under 10 MB"},
+                detail={"code": "FILE_TOO_LARGE", "message": f'File "{upload.filename}" exceeds 10 MB limit'},
             )
+        total_bytes += len(content)
+        if total_bytes > MAX_TOTAL_BYTES:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail={"code": "TOTAL_SIZE_EXCEEDED", "message": "Total attachment size cannot exceed 25 MB"},
+            )
+        attachments.append((
+            upload.filename or "attachment",
+            content,
+            upload.content_type or "application/octet-stream",
+        ))
 
     service = JiraService()
     try:
@@ -131,9 +144,7 @@ async def create_jira_request(
             summary=summary,
             reporter_email=current_user.email,
             description=description or None,
-            attachment_filename=file.filename if file and content else None,
-            attachment_content=content,
-            attachment_content_type=file.content_type if file and content else None,
+            attachments=attachments or None,
         )
     except JiraPartialFailureError as exc:
         logger.error(

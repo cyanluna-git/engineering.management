@@ -106,13 +106,15 @@ class TestCreateJiraRequestHappyPath:
             auth_client.post(
                 "/api/jira/requests",
                 data={"summary": "With file"},
-                files={"file": ("test.txt", io.BytesIO(file_content), "text/plain")},
+                files=[("files", ("test.txt", io.BytesIO(file_content), "text/plain"))],
             )
 
         mock_create.assert_called_once()
         call_kwargs = mock_create.call_args.kwargs
-        assert call_kwargs["attachment_filename"] == "test.txt"
-        assert call_kwargs["attachment_content"] == file_content
+        attachments = call_kwargs["attachments"]
+        assert len(attachments) == 1
+        assert attachments[0][0] == "test.txt"
+        assert attachments[0][1] == file_content
 
 
 # ---------------------------------------------------------------------------
@@ -126,7 +128,7 @@ class TestCreateJiraRequestValidation:
         resp = auth_client.post(
             "/api/jira/requests",
             data={"summary": "Big file"},
-            files={"file": ("big.bin", io.BytesIO(oversized_content), "application/octet-stream")},
+            files=[("files", ("big.bin", io.BytesIO(oversized_content), "application/octet-stream"))],
         )
         assert resp.status_code == 400
         body = resp.json()

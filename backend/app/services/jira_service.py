@@ -122,20 +122,18 @@ class JiraService:
         summary: str,
         reporter_email: str,
         description: Optional[str] = None,
-        attachment_filename: Optional[str] = None,
-        attachment_content: Optional[bytes] = None,
-        attachment_content_type: Optional[str] = None,
+        attachments: Optional[list[tuple[str, bytes, str]]] = None,
     ) -> dict:
-        """Create a Jira Service Desk request. Returns {issue_key, issue_id, web_url}."""
+        """Create a Jira Service Desk request. Returns {issue_key, issue_id, web_url}.
+
+        attachments: list of (filename, content, content_type) tuples.
+        """
         self._check_credentials()
 
         temp_attachment_ids: list[str] = []
-        if attachment_filename and attachment_content:
-            temp_attachment_ids = self._upload_temp_attachment(
-                attachment_filename,
-                attachment_content,
-                attachment_content_type or "application/octet-stream",
-            )
+        for filename, content, content_type in attachments or []:
+            ids = self._upload_temp_attachment(filename, content, content_type)
+            temp_attachment_ids.extend(ids)
 
         payload: dict = {
             "serviceDeskId": self._service_desk_id,
