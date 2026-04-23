@@ -86,3 +86,4 @@ toys/
 
 # OS
 Thumbs.db
+nginx/ssl/
