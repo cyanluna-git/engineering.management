@@ -34,15 +34,15 @@ function buildTokenRelayDestination(
   mode: "fragment" | "query",
 ) {
   const destination = new URL(targetUrl);
-  const params = new URLSearchParams({
-    token: relay.access_token,
-    refresh: relay.refresh_token,
-  }).toString();
 
   if (mode === "query") {
-    destination.search = params;
+    destination.searchParams.set("token", relay.access_token);
+    destination.searchParams.set("refresh", relay.refresh_token);
   } else {
-    destination.hash = params;
+    destination.hash = new URLSearchParams({
+      token: relay.access_token,
+      refresh: relay.refresh_token,
+    }).toString();
   }
 
   return destination;
