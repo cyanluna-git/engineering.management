@@ -49,6 +49,7 @@ const overviewNavigation: NavItem[] = [
 const workNavigation: NavItem[] = [
   { nameKey: "main.worklogs", href: "/worklogs", icon: Clock },
   { nameKey: "main.resourcePlans", href: "/resource-plans", icon: Calendar },
+  { nameKey: "main.requestBoard", href: "/requests", icon: MessageSquare },
 ];
 
 // Projects
@@ -59,7 +60,6 @@ const projectNavigation: NavItem[] = [
 // Administration
 const adminNavigation: NavItem[] = [
   { nameKey: "main.organization", href: "/organization", icon: Building2 },
-  { nameKey: "main.requestBoard", href: "/requests", icon: MessageSquare },
 ];
 
 interface SidebarProps {

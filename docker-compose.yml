@@ -111,8 +111,8 @@ services:
       OQC_UPSTREAM: ${OQC_UPSTREAM:-https://oqc.atlascopco.group/}
       JARVIS_UPSTREAM: ${JARVIS_UPSTREAM:-https://sw-portal.atlascopco.group/}
       NGINX_CERT_DOMAIN: ${PORTAL_DOMAIN:-pcas-portal.atlascopco.group}
-      NGINX_SSL_CERT: /etc/nginx/ssl/nginx-selfsigned.crt
-      NGINX_SSL_KEY: /etc/nginx/ssl/nginx-selfsigned.key
+      NGINX_SSL_CERT: ${NGINX_SSL_CERT:-/etc/nginx/ssl/nginx-selfsigned.crt}
+      NGINX_SSL_KEY: ${NGINX_SSL_KEY:-/etc/nginx/ssl/nginx-selfsigned.key}
     ports:
       - "${EDGE_HTTP_PORT:-80}:80"
       - "${EDGE_HTTPS_PORT:-443}:443"
