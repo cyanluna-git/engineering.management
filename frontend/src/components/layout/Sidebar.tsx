@@ -49,7 +49,6 @@ const overviewNavigation: NavItem[] = [
 const workNavigation: NavItem[] = [
   { nameKey: "main.worklogs", href: "/worklogs", icon: Clock },
   { nameKey: "main.resourcePlans", href: "/resource-plans", icon: Calendar },
-  { nameKey: "main.requestBoard", href: "/requests", icon: MessageSquare },
 ];
 
 // Projects
@@ -60,6 +59,11 @@ const projectNavigation: NavItem[] = [
 // Administration
 const adminNavigation: NavItem[] = [
   { nameKey: "main.organization", href: "/organization", icon: Building2 },
+];
+
+// Support - visible to all authenticated users
+const supportNavigation: NavItem[] = [
+  { nameKey: "main.requestBoard", href: "/requests", icon: MessageSquare },
 ];
 
 interface SidebarProps {
@@ -234,6 +238,9 @@ export function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
 
         {/* Administration Section - ADMIN only */}
         {canManageOrganization && renderSection(t("sections.administration"), Shield, adminNavigation, true)}
+
+        {/* Support Section - all authenticated users */}
+        {renderSection(t("sections.support"), MessageSquare, supportNavigation, true)}
       </nav>
 
       <div className={cn("px-2 pb-3", isCollapsed && "pb-2")}>

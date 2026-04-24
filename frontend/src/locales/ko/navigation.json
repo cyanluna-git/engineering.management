@@ -16,7 +16,8 @@
     "overview": "개요",
     "workManagement": "업무 관리",
     "projects": "프로젝트",
-    "administration": "관리"
+    "administration": "관리",
+    "support": "지원"
   },
   "sidebar": {
     "welcome": "환영합니다,",
