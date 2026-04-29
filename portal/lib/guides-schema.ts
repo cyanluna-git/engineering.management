@@ -27,6 +27,7 @@ export interface GuideCreateInput {
   category: string;
   content: string;
   author: string;
+  format?: "markdown" | "static-html";
 }
 
 export interface GuideUpdateInput {
@@ -34,4 +35,5 @@ export interface GuideUpdateInput {
   category?: string;
   content?: string;
   author?: string;
+  format?: "markdown" | "static-html";
 }

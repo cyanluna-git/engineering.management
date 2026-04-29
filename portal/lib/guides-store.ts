@@ -87,8 +87,10 @@ function sanitizeGuide(guide: Guide): Guide {
     ...guide,
     title: guide.title.trim(),
     category: guide.category.trim(),
-    content: guide.content.trim(),
+    // Preserve HTML content verbatim; only trim for markdown
+    content: guide.format === "static-html" ? guide.content : guide.content.trim(),
     author: guide.author.trim() || "admin",
+    format: guide.format ?? "markdown",
   };
 }
 

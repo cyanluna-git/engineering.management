@@ -2,11 +2,19 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, FileText, Search, ShieldCheck } from "lucide-react";
+import { ArrowLeft, FileText, Plus, Search, ShieldCheck } from "lucide-react";
 import type { Guide } from "@/lib/guides-schema";
 
-function toExcerpt(markdown: string): string {
-  return markdown
+function toExcerpt(content: string, format?: string): string {
+  if (format === "static-html") {
+    // Strip HTML tags for card excerpt
+    return content
+      .replace(/<[^>]+>/g, " ")
+      .replace(/\s+/g, " ")
+      .trim()
+      .slice(0, 140);
+  }
+  return content
     .replace(/[`#>*_-]/g, " ")
     .replace(/\[(.*?)\]\((.*?)\)/g, "$1")
     .replace(/\s+/g, " ")
@@ -19,6 +27,7 @@ export default function GuidesPage() {
   const [category, setCategory] = useState("All");
   const [guides, setGuides] = useState<Guide[]>([]);
   const [loading, setLoading] = useState(true);
+  const [hasSession, setHasSession] = useState(false);
 
   useEffect(() => {
     fetch("/api/guides")
@@ -31,6 +40,11 @@ export default function GuidesPage() {
         setGuides([]);
         setLoading(false);
       });
+
+    fetch("/api/auth/session")
+      .then((response) => response.json())
+      .then((data) => setHasSession(Boolean(data?.authenticated)))
+      .catch(() => setHasSession(false));
   }, []);
 
   const categories = useMemo(() => {
@@ -116,6 +130,15 @@ export default function GuidesPage() {
               className="w-full rounded-2xl border border-slate-200 bg-white py-3 pl-11 pr-4 text-sm text-slate-700 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-red-300 focus:ring-2 focus:ring-red-100"
             />
           </div>
+          {hasSession && (
+            <Link
+              href="/guides/new"
+              className="inline-flex items-center justify-center gap-2 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-600 transition hover:bg-red-100"
+            >
+              <Plus className="h-4 w-4" />
+              New guide
+            </Link>
+          )}
           <Link
             href="/guides/admin"
             className="inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-slate-950 px-4 py-3 text-sm font-medium text-white transition hover:bg-slate-800"
@@ -183,7 +206,7 @@ export default function GuidesPage() {
                     {guide.title}
                   </h2>
                   <p className="mt-3 text-sm leading-7 text-slate-600">
-                    {toExcerpt(guide.content)}
+                    {toExcerpt(guide.content, guide.format)}
                   </p>
                 </div>
               </div>

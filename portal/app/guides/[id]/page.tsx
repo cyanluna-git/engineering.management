@@ -26,6 +26,19 @@ export default async function GuideDetailPage({
     notFound();
   }
 
+  // Store-backed HTML guide (uploaded by user): render full-screen iframe
+  if (guide.format === "static-html" && !guide.readonly) {
+    return (
+      <iframe
+        srcDoc={guide.content}
+        sandbox="allow-scripts allow-same-origin"
+        style={{ width: "100vw", height: "100vh", border: "none", display: "block" }}
+        title={guide.title}
+      />
+    );
+  }
+
+  // File-backed static guide (read-only, seeded): render with full chrome
   if (guide.format === "static-html") {
     const locale = normalizeStaticGuideLocale(resolvedSearchParams?.lang);
     const chrome = getStaticGuideChrome(locale);

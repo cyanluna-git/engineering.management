@@ -2,8 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { listGuides, createGuide } from "@/lib/guides-store";
 import { requireGuideWriteAccess } from "@/lib/guide-write-guard";
 
+const HTML_MAX_BYTES = 1_048_576; // 1 MiB
+
 function isNonEmptyString(value: unknown): value is string {
   return typeof value === "string" && value.trim().length > 0;
+}
+
+function isValidFormat(value: unknown): value is "markdown" | "static-html" {
+  return value === "markdown" || value === "static-html";
 }
 
 export function GET(request: NextRequest) {
@@ -14,7 +20,7 @@ export function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  const denied = requireGuideWriteAccess(request);
+  const denied = await requireGuideWriteAccess(request);
   if (denied) return denied;
 
   const body = await request.json().catch(() => null);
@@ -30,11 +36,30 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  const format = isValidFormat(body.format) ? body.format : "markdown";
+
+  if (format === "static-html") {
+    const content: string = body.content;
+    if (new TextEncoder().encode(content).length > HTML_MAX_BYTES) {
+      return NextResponse.json(
+        { error: "HTML content exceeds 1 MiB limit." },
+        { status: 413 },
+      );
+    }
+    if (!content.includes("<")) {
+      return NextResponse.json(
+        { error: "Content does not appear to be valid HTML." },
+        { status: 400 },
+      );
+    }
+  }
+
   const guide = await createGuide({
     title: body.title.trim(),
     category: body.category.trim(),
-    content: body.content.trim(),
+    content: format === "static-html" ? body.content : body.content.trim(),
     author: isNonEmptyString(body.author) ? body.author.trim() : "admin",
+    format,
   });
   return NextResponse.json(guide, { status: 201 });
 }

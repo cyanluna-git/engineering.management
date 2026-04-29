@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getPortalSessionFromRequest } from "@/lib/portal-auth";
 
 const GUIDE_ADMIN_HEADER = "x-portal-admin-token";
 
@@ -30,32 +31,29 @@ export function getGuideWritePolicy(): GuideWritePolicy {
   };
 }
 
-export function requireGuideWriteAccess(
+export async function requireGuideWriteAccess(
   request: NextRequest,
-): NextResponse | null {
+): Promise<NextResponse | null> {
+  // Accept legacy admin token
   const configuredToken = process.env.PORTAL_GUIDE_WRITE_TOKEN?.trim();
-  const policy = getGuideWritePolicy();
-
-  if (!configuredToken) {
-    return NextResponse.json(
-      {
-        error: "Guide write endpoints are temporarily disabled.",
-        policy,
-      },
-      { status: 503 },
-    );
-  }
-
   const providedToken = request.headers.get(GUIDE_ADMIN_HEADER);
-  if (providedToken !== configuredToken) {
-    return NextResponse.json(
-      {
-        error: `Missing or invalid ${GUIDE_ADMIN_HEADER}.`,
-        policy,
-      },
-      { status: 401 },
-    );
+  if (configuredToken && providedToken === configuredToken) {
+    return null;
   }
 
-  return null;
+  // Accept any active portal OIDC session
+  const session = await getPortalSessionFromRequest(request);
+  if (session) {
+    return null;
+  }
+
+  // Neither auth method passed
+  const policy = getGuideWritePolicy();
+  return NextResponse.json(
+    {
+      error: "Authentication required. Provide a valid session or admin token.",
+      policy,
+    },
+    { status: 401 },
+  );
 }

@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Eye, PencilLine, Plus, RefreshCcw, Trash2 } from "lucide-react";
+import { ArrowLeft, Eye, PencilLine, Plus, RefreshCcw, Trash2, Upload } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import {
@@ -10,12 +10,15 @@ import {
   type Guide,
 } from "@/lib/guides-schema";
 
+const HTML_MAX_BYTES = 1_048_576; // 1 MiB
+
 type GuideDraft = {
   id: string | null;
   title: string;
   category: string;
   author: string;
   content: string;
+  format: "markdown" | "static-html";
 };
 
 const EMPTY_DRAFT: GuideDraft = {
@@ -24,6 +27,7 @@ const EMPTY_DRAFT: GuideDraft = {
   category: GUIDE_CATEGORY_OPTIONS[0],
   author: "admin",
   content: "",
+  format: "markdown",
 };
 
 function toDraft(guide: Guide): GuideDraft {
@@ -33,6 +37,7 @@ function toDraft(guide: Guide): GuideDraft {
     category: guide.category,
     author: guide.author,
     content: guide.content,
+    format: guide.format === "static-html" ? "static-html" : "markdown",
   };
 }
 
@@ -43,6 +48,9 @@ export default function GuideAdminPage() {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [htmlFile, setHtmlFile] = useState<File | null>(null);
+  const [fileError, setFileError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const activeGuide = useMemo(
     () => guides.find((guide) => guide.id === draft.id) || null,
@@ -87,16 +95,51 @@ export default function GuideAdminPage() {
     window.localStorage.setItem("portal-guide-admin-token", adminToken);
   }, [adminToken]);
 
+  function handleHtmlFileChange(event: React.ChangeEvent<HTMLInputElement>) {
+    setFileError(null);
+    const file = event.target.files?.[0] ?? null;
+    if (!file) {
+      setHtmlFile(null);
+      return;
+    }
+    if (!file.name.endsWith(".html") && !file.name.endsWith(".htm")) {
+      setFileError("Only .html files are accepted.");
+      setHtmlFile(null);
+      event.target.value = "";
+      return;
+    }
+    if (file.size > HTML_MAX_BYTES) {
+      setFileError(`File exceeds 1 MiB limit (${(file.size / 1024).toFixed(0)} KB).`);
+      setHtmlFile(null);
+      event.target.value = "";
+      return;
+    }
+    setHtmlFile(file);
+  }
+
   async function saveGuide() {
     setSaving(true);
     setMessage(null);
 
     try {
+      let content = draft.content;
+
+      // For static-html drafts being edited, read the replacement file if provided
+      if (draft.format === "static-html" && htmlFile) {
+        content = await htmlFile.text();
+        if (!content.trim()) {
+          setMessage("The selected HTML file is empty.");
+          setSaving(false);
+          return;
+        }
+      }
+
       const payload = {
         title: draft.title,
         category: draft.category,
         author: draft.author,
-        content: draft.content,
+        content,
+        format: draft.format,
       };
 
       const response = await fetch(
@@ -256,6 +299,11 @@ export default function GuideAdminPage() {
                           Read-only
                         </span>
                       ) : null}
+                      {guide.format === "static-html" && !guide.readonly ? (
+                        <span className="rounded-full bg-blue-50 px-2 py-0.5 font-medium text-blue-700">
+                          HTML
+                        </span>
+                      ) : null}
                     </div>
                   </button>
                 );
@@ -327,18 +375,54 @@ export default function GuideAdminPage() {
               />
             </label>
 
-            <label className="space-y-2 text-sm text-slate-600">
-              <span>{activeGuideReadonly ? "Read-only Summary" : "Markdown Body"}</span>
-              <textarea
-                value={draft.content}
-                onChange={(event) =>
-                  setDraft((current) => ({ ...current, content: event.target.value }))
-                }
-                rows={18}
-                disabled={activeGuideReadonly}
-                className="w-full rounded-[28px] border border-slate-200 bg-white px-4 py-4 text-sm leading-7 shadow-sm outline-none transition focus:border-red-300 focus:ring-2 focus:ring-red-100"
-              />
-            </label>
+            {draft.format === "static-html" && !activeGuideReadonly ? (
+              <div className="space-y-2 text-sm text-slate-600">
+                <span className="block font-medium">Replace HTML File</span>
+                <div
+                  className="flex cursor-pointer flex-col items-center justify-center gap-3 rounded-[28px] border-2 border-dashed border-slate-200 bg-slate-50 px-6 py-8 transition hover:border-red-300 hover:bg-red-50/30"
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  <Upload className="h-7 w-7 text-slate-400" />
+                  {htmlFile ? (
+                    <div className="text-center">
+                      <p className="font-medium text-slate-700">{htmlFile.name}</p>
+                      <p className="mt-1 text-xs text-slate-400">
+                        {(htmlFile.size / 1024).toFixed(1)} KB — click to replace
+                      </p>
+                    </div>
+                  ) : (
+                    <p className="text-slate-500">
+                      Click to select replacement .html file (leave empty to keep existing)
+                    </p>
+                  )}
+                </div>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".html,.htm"
+                  onChange={handleHtmlFileChange}
+                  className="sr-only"
+                />
+                {fileError && (
+                  <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-xs text-red-700">
+                    {fileError}
+                  </p>
+                )}
+              </div>
+            ) : (
+              <label className="space-y-2 text-sm text-slate-600">
+                <span>{activeGuideReadonly ? "Read-only Summary" : "Markdown Body"}</span>
+                <textarea
+                  value={draft.content}
+                  onChange={(event) =>
+                    setDraft((current) => ({ ...current, content: event.target.value }))
+                  }
+                  rows={18}
+                  disabled={activeGuideReadonly}
+                  className="w-full rounded-[28px] border border-slate-200 bg-white px-4 py-4 text-sm leading-7 shadow-sm outline-none transition focus:border-red-300 focus:ring-2 focus:ring-red-100"
+                />
+              </label>
+            )}
           </div>
 
           <div className="mt-6 flex flex-wrap gap-3">
