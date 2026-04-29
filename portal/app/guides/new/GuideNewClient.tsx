@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, FileText, Upload } from "lucide-react";
 import { GUIDE_CATEGORY_OPTIONS } from "@/lib/guides-schema";
+import MarkdownEditor from "@/components/guides/MarkdownEditor";
 
 const HTML_MAX_BYTES = 1_048_576; // 1 MiB
 
@@ -189,17 +190,14 @@ export default function GuideNewClient({ authorName }: GuideNewClientProps) {
           </label>
 
           {mode === "markdown" ? (
-            <label className="block space-y-2 text-sm text-slate-600">
-              <span className="font-medium">Content *</span>
-              <textarea
+            <div className="space-y-2 text-sm text-slate-600">
+              <span className="block font-medium">Content *</span>
+              <MarkdownEditor
                 value={markdownContent}
-                onChange={(e) => setMarkdownContent(e.target.value)}
-                rows={16}
-                placeholder="Write markdown content here..."
-                required
-                className="w-full rounded-[28px] border border-slate-200 bg-white px-4 py-4 text-sm leading-7 shadow-sm outline-none transition focus:border-red-300 focus:ring-2 focus:ring-red-100"
+                onChange={setMarkdownContent}
+                height={400}
               />
-            </label>
+            </div>
           ) : (
             <div className="space-y-2 text-sm text-slate-600">
               <span className="block font-medium">HTML File *</span>

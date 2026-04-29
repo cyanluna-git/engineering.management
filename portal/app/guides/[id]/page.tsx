@@ -1,9 +1,10 @@
 import Link from "next/link";
-import { ArrowLeft, ShieldCheck } from "lucide-react";
+import { ArrowLeft, PencilLine, ShieldCheck } from "lucide-react";
 import { notFound } from "next/navigation";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { getGuide } from "@/lib/guides-store";
+import { getPortalSession } from "@/lib/portal-auth";
 import {
   getStaticGuideChrome,
   getStaticGuideDocument,
@@ -20,7 +21,7 @@ export default async function GuideDetailPage({
 }) {
   const { id } = await params;
   const resolvedSearchParams = searchParams ? await searchParams : undefined;
-  const guide = await getGuide(id);
+  const [guide, session] = await Promise.all([getGuide(id), getPortalSession()]);
 
   if (!guide) {
     notFound();
@@ -149,13 +150,24 @@ export default async function GuideDetailPage({
           <ArrowLeft className="h-4 w-4" />
           Back to Guides
         </Link>
-        <Link
-          href="/guides/admin"
-          className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-red-200 hover:text-red-600"
-        >
-          <ShieldCheck className="h-4 w-4" />
-          Open Admin CMS
-        </Link>
+        <div className="flex items-center gap-2">
+          {session && (
+            <Link
+              href={`/guides/${id}/edit`}
+              className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-red-200 hover:text-red-600"
+            >
+              <PencilLine className="h-4 w-4" />
+              Edit
+            </Link>
+          )}
+          <Link
+            href="/guides/admin"
+            className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-red-200 hover:text-red-600"
+          >
+            <ShieldCheck className="h-4 w-4" />
+            Open Admin CMS
+          </Link>
+        </div>
       </div>
 
       <section className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-[0_18px_60px_-40px_rgba(15,23,42,0.45)] sm:p-8">

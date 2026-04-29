@@ -9,6 +9,7 @@ import {
   GUIDE_CATEGORY_OPTIONS,
   type Guide,
 } from "@/lib/guides-schema";
+import MarkdownEditor from "@/components/guides/MarkdownEditor";
 
 const HTML_MAX_BYTES = 1_048_576; // 1 MiB
 
@@ -236,7 +237,7 @@ export default function GuideAdminPage() {
         </div>
       )}
 
-      <div className="grid gap-6 xl:grid-cols-[280px_minmax(0,1fr)_minmax(0,1fr)]">
+      <div className={`grid gap-6 ${activeGuideReadonly || draft.format === "static-html" ? "xl:grid-cols-[280px_minmax(0,1fr)_minmax(0,1fr)]" : "xl:grid-cols-[280px_minmax(0,1fr)]"}`}>
         <section className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-[0_18px_60px_-40px_rgba(15,23,42,0.45)]">
           <div className="flex items-center justify-between">
             <h2 className="text-sm font-semibold uppercase tracking-[0.24em] text-slate-500">
@@ -409,19 +410,27 @@ export default function GuideAdminPage() {
                   </p>
                 )}
               </div>
-            ) : (
+            ) : activeGuideReadonly ? (
               <label className="space-y-2 text-sm text-slate-600">
-                <span>{activeGuideReadonly ? "Read-only Summary" : "Markdown Body"}</span>
+                <span>Read-only Summary</span>
                 <textarea
                   value={draft.content}
-                  onChange={(event) =>
-                    setDraft((current) => ({ ...current, content: event.target.value }))
-                  }
                   rows={18}
-                  disabled={activeGuideReadonly}
-                  className="w-full rounded-[28px] border border-slate-200 bg-white px-4 py-4 text-sm leading-7 shadow-sm outline-none transition focus:border-red-300 focus:ring-2 focus:ring-red-100"
+                  disabled
+                  className="w-full rounded-[28px] border border-slate-200 bg-white px-4 py-4 text-sm leading-7 shadow-sm outline-none"
                 />
               </label>
+            ) : (
+              <div className="space-y-2 text-sm text-slate-600">
+                <span className="block">Markdown Body</span>
+                <MarkdownEditor
+                  value={draft.content}
+                  onChange={(value) =>
+                    setDraft((current) => ({ ...current, content: value }))
+                  }
+                  height={400}
+                />
+              </div>
             )}
           </div>
 
@@ -450,29 +459,31 @@ export default function GuideAdminPage() {
           </div>
         </section>
 
-        <section className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-[0_18px_60px_-40px_rgba(15,23,42,0.45)]">
-          <div className="flex items-center gap-2 text-sm font-semibold uppercase tracking-[0.24em] text-slate-500">
-            <Eye className="h-4 w-4" />
-            Preview
-          </div>
+        {(activeGuideReadonly || draft.format === "static-html") && (
+          <section className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-[0_18px_60px_-40px_rgba(15,23,42,0.45)]">
+            <div className="flex items-center gap-2 text-sm font-semibold uppercase tracking-[0.24em] text-slate-500">
+              <Eye className="h-4 w-4" />
+              Preview
+            </div>
 
-          <div className="mt-5">
-            <div className="flex flex-wrap items-center gap-3 text-xs text-slate-400">
-              <span className="rounded-full bg-slate-100 px-2.5 py-1 font-medium text-slate-600">
-                {draft.category || "Uncategorized"}
-              </span>
-              <span>{draft.author || "admin"}</span>
+            <div className="mt-5">
+              <div className="flex flex-wrap items-center gap-3 text-xs text-slate-400">
+                <span className="rounded-full bg-slate-100 px-2.5 py-1 font-medium text-slate-600">
+                  {draft.category || "Uncategorized"}
+                </span>
+                <span>{draft.author || "admin"}</span>
+              </div>
+              <h2 className="mt-4 text-2xl font-semibold tracking-tight text-slate-950">
+                {draft.title || "Untitled guide"}
+              </h2>
+              <div className="prose prose-slate mt-6 max-w-none prose-headings:tracking-tight prose-a:text-red-600 prose-code:rounded prose-code:bg-slate-100 prose-code:px-1.5 prose-code:py-0.5 prose-code:text-sm prose-pre:bg-slate-900 prose-pre:text-slate-100">
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                  {draft.content || "Start writing markdown to preview the published guide."}
+                </ReactMarkdown>
+              </div>
             </div>
-            <h2 className="mt-4 text-2xl font-semibold tracking-tight text-slate-950">
-              {draft.title || "Untitled guide"}
-            </h2>
-            <div className="prose prose-slate mt-6 max-w-none prose-headings:tracking-tight prose-a:text-red-600 prose-code:rounded prose-code:bg-slate-100 prose-code:px-1.5 prose-code:py-0.5 prose-code:text-sm prose-pre:bg-slate-900 prose-pre:text-slate-100">
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                {draft.content || "Start writing markdown to preview the published guide."}
-              </ReactMarkdown>
-            </div>
-          </div>
-        </section>
+          </section>
+        )}
       </div>
     </div>
   );

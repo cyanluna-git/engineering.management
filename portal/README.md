@@ -45,7 +45,7 @@ PCAS Portal is a standalone Next.js 15 App Router application under [`portal/`](
 
 Current downstream contract:
 
-- `eob.10.182.252.32.sslip.io/auth/gateway?handoff=<token>&returnTo=<path>`
+- `eob.atlascopco.group/auth/gateway?handoff=<token>&returnTo=<path>`
 - `oqc.atlascopco.group/auth/gateway?handoff=<token>&returnTo=<path>`
 - `sw-portal.atlascopco.group/auth/gateway?handoff=<token>&returnTo=<path>`
 
