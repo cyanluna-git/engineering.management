@@ -12,12 +12,9 @@ from app.models.user import User
 from app.schemas.portal import (
     AccessLogCreate,
     AccessLogResponse,
-    ContainerMonitoringResponse,
     MyAccessHistoryResponse,
     PortalStatsResponse,
-    ServerStats,
 )
-from app.services.container_service import ContainerService
 from app.services.portal_service import PortalService
 
 router = APIRouter()
@@ -45,23 +42,6 @@ async def get_stats(
     service = PortalService(db)
     return service.get_stats()
 
-
-@router.get("/server-stats", response_model=ServerStats)
-async def get_server_stats(
-    current_user: User = Depends(require_role("ADMIN")),
-):
-    """Get host server resource stats (CPU, memory, disk, network). Admin only."""
-    service = ContainerService()
-    return service.get_server_stats()
-
-
-@router.get("/containers", response_model=ContainerMonitoringResponse)
-async def get_containers(
-    current_user: User = Depends(require_role("ADMIN")),
-):
-    """Get Docker container resource metrics grouped by stack. Admin only."""
-    service = ContainerService()
-    return service.get_containers_grouped()
 
 
 @router.get("/stats/me", response_model=MyAccessHistoryResponse)

@@ -38,8 +38,6 @@ services:
     volumes:
       # Mount Zscaler cert from project folder
       - ./backend/certs/zscaler.crt:/usr/local/share/ca-certificates/zscaler.crt:ro
-      # Docker socket for container monitoring
-      - /var/run/docker.sock:/var/run/docker.sock:ro
     networks:
       - edwards_net
 
