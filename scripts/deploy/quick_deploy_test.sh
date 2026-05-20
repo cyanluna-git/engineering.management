@@ -133,13 +133,50 @@ generate_test_env() {
   info "  ✓ $REMOTE_ENV_FILE uploaded to test server"
 }
 
-# ── Ensure docker-compose.yml exists on test server ──
-ensure_docker_compose() {
-  ssh "$USERNAME@$SERVER_IP" "test -f ${REMOTE_PATH}/docker-compose.yml" 2>/dev/null || {
-    info "[SETUP] Copying docker-compose.yml to test server..."
-    scp -q "$PROJECT_ROOT/docker-compose.yml" "$USERNAME@$SERVER_IP:${REMOTE_PATH}/docker-compose.yml"
-    info "  ✓ docker-compose.yml uploaded"
-  }
+# ── Generate docker-compose.yml for test server (image-based, no build contexts) ──
+generate_docker_compose() {
+  info "[SETUP] Generating docker-compose.yml for test server..."
+  cat > /tmp/docker-compose-test.yml << 'COMPOSE_EOF'
+services:
+  backend:
+    image: edwards_project-backend:latest
+    container_name: edwards-api-test
+    restart: unless-stopped
+    env_file:
+      - ${APP_ENV_FILE:-.env.test}
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      SECRET_KEY: ${SECRET_KEY}
+      DEBUG: ${DEBUG:-false}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      CORS_ORIGINS: ${CORS_ORIGINS}
+      SSL_CERT_FILE: "/etc/ssl/certs/ca-certificates.crt"
+      REQUESTS_CA_BUNDLE: "/etc/ssl/certs/ca-certificates.crt"
+    ports:
+      - "8004:8004"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - edwards_test_net
+
+  frontend:
+    image: edwards_project-frontend:latest
+    container_name: edwards-web-test
+    restart: unless-stopped
+    ports:
+      - "3004:80"
+    depends_on:
+      - backend
+    networks:
+      - edwards_test_net
+
+networks:
+  edwards_test_net:
+COMPOSE_EOF
+
+  scp -q /tmp/docker-compose-test.yml "$USERNAME@$SERVER_IP:${REMOTE_PATH}/docker-compose.yml"
+  rm -f /tmp/docker-compose-test.yml
+  info "  ✓ docker-compose.yml uploaded (image-based, no build contexts)"
 }
 
 # ── Build + Deploy functions ──
@@ -198,8 +235,8 @@ deploy_service() {
 # Generate and upload env file
 generate_test_env
 
-# Ensure docker-compose.yml exists
-ensure_docker_compose
+# Generate image-based docker-compose.yml (no build contexts needed)
+generate_docker_compose
 
 if [[ "$TARGET" == "frontend" || "$TARGET" == "both" ]]; then
   deploy_service "frontend" "edwards_project-frontend" "edwards-web" "eob-frontend-test.tar.gz"
