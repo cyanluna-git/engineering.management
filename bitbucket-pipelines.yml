@@ -1,65 +1,48 @@
 # EOB CI/CD Pipeline
-# CI: runs on all branches (lint, test, docker build)
-# CD: runs on release branch only (deploy to prod)
+# CI (all branches): lint + validate
+# CD (release only): lint + docker build + deploy to prod
 
 definitions:
   caches:
     pip: ~/.cache/pip
 
   steps:
-    # ── Backend CI ──
-    - step: &backend-lint-test
-        name: Backend — lint + smoke test
+    # ── Lint & Validate ──
+    - step: &lint-validate
+        name: Lint & Validate
         runs-on:
           - self.hosted
           - linux.shell
         caches:
           - pip
         script:
-          - echo "═══ Backend CI ═══"
+          - echo "═══ Backend — syntax check ═══"
           - export DATABASE_URL="sqlite:///:memory:"
           - export SECRET_KEY="ci-test-secret-key-do-not-use-in-production"
           - cd backend
           - python3 -m venv .venv
           - .venv/bin/pip install --quiet -r requirements.txt
-          - echo "--- Python syntax check ---"
           - python3 -m compileall -q app/
-          - echo "--- Import smoke test ---"
-          - .venv/bin/python3 -c "from app.main import app; print('App loaded OK')"
-          - echo "--- Backend CI complete ---"
+          - .venv/bin/python3 -c "from app.main import app; print('Backend OK')"
+          - cd ..
+          - echo "═══ Frontend — TypeScript check ═══"
+          - docker build --target build --build-arg VITE_APP_BASE=/ --build-arg VITE_API_URL=/api -t edwards_project-frontend:lint -f frontend/Dockerfile frontend
+          - docker rmi edwards_project-frontend:lint
+          - echo "═══ Lint & Validate complete ═══"
 
-    # ── Frontend CI (Docker build validates TypeScript + Vite) ──
-    - step: &frontend-build
-        name: Frontend — build
+    # ── Docker Build (release only) ──
+    - step: &docker-build
+        name: Build Docker Images
         runs-on:
           - self.hosted
           - linux.shell
         script:
-          - echo "═══ Frontend CI ═══"
-          - echo "--- Building frontend Docker image ---"
-          - docker build --target production \
-              --build-arg VITE_APP_BASE=/ \
-              --build-arg VITE_API_URL=/api \
-              --build-arg VITE_PORTAL_URL=https://pcas-portal.atlascopco.group \
-              --build-arg VITE_OQC_URL=https://oqc.atlascopco.group \
-              --build-arg VITE_JARVIS_URL=https://sw-portal.atlascopco.group \
-              -t edwards_project-frontend:ci-test \
-              -f frontend/Dockerfile \
-              frontend
-          - docker rmi edwards_project-frontend:ci-test
-          - echo "--- Frontend build complete ---"
-
-    # ── Backend Docker build ──
-    - step: &backend-docker
-        name: Backend — docker build
-        runs-on:
-          - self.hosted
-          - linux.shell
-        script:
-          - echo "═══ Backend Docker Build ═══"
-          - docker build -t edwards_project-backend:ci-test -f backend/Dockerfile backend
-          - docker rmi edwards_project-backend:ci-test
-          - echo "--- Backend Docker build complete ---"
+          - echo "═══ Building Docker images ═══"
+          - echo "--- Backend image ---"
+          - docker build -t edwards_project-backend:latest -f backend/Dockerfile backend
+          - echo "--- Frontend image ---"
+          - docker build --target production --build-arg VITE_APP_BASE=/ --build-arg VITE_API_URL=/api --build-arg VITE_PORTAL_URL=https://pcas-portal.atlascopco.group --build-arg VITE_OQC_URL=https://oqc.atlascopco.group --build-arg VITE_JARVIS_URL=https://sw-portal.atlascopco.group -t edwards_project-frontend:latest -f frontend/Dockerfile frontend
+          - echo "═══ Docker build complete ═══"
 
     # ── Deploy to Prod ──
     - step: &deploy-prod
@@ -69,31 +52,24 @@ definitions:
           - linux.shell
         script:
           - echo "═══ Deploying to Production ═══"
-          - echo "--- Setting up SSH for prod server ---"
           - mkdir -p ~/.ssh
           - chmod 700 ~/.ssh
           - cp ~/.ssh/eob-deploy-key ~/.ssh/id_ed25519 2>/dev/null || true
           - chmod 600 ~/.ssh/id_ed25519 2>/dev/null || true
           - ssh-keyscan -H 10.182.252.32 >> ~/.ssh/known_hosts 2>/dev/null || true
-          - echo "--- Running full deploy (build + upload + restart) ---"
           - ./scripts/deploy/full_deploy.sh --skip-backup
           - echo "═══ Production Deploy Complete ═══"
 
 pipelines:
-  # ── CI: All branches (lint + test + docker build) ──
+  # ── CI: All branches (lint only) ──
   default:
-    - parallel:
-        - step: *backend-lint-test
-        - step: *frontend-build
-        - step: *backend-docker
+    - step: *lint-validate
 
-  # ── CD: Release branch only (CI + manual deploy to prod) ──
+  # ── CD: Release branch (lint + docker build + deploy) ──
   branches:
     release:
-      - parallel:
-          - step: *backend-lint-test
-          - step: *frontend-build
-          - step: *backend-docker
+      - step: *lint-validate
+      - step: *docker-build
       - step:
           <<: *deploy-prod
           name: Deploy to Production 🚀
