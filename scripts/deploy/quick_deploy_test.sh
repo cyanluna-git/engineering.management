@@ -133,73 +133,20 @@ generate_test_env() {
   info "  ✓ $REMOTE_ENV_FILE uploaded to test server"
 }
 
-# ── Generate docker-compose.yml for test server (image-based, no build contexts) ──
-generate_docker_compose() {
-  info "[SETUP] Generating docker-compose.yml for test server..."
-  cat > /tmp/docker-compose-test.yml << 'COMPOSE_EOF'
-services:
-  backend:
-    image: edwards_project-backend:latest
-    container_name: edwards-api-test
-    restart: unless-stopped
-    env_file:
-      - ${APP_ENV_FILE:-.env.test}
-    environment:
-      DATABASE_URL: ${DATABASE_URL}
-      SECRET_KEY: ${SECRET_KEY}
-      DEBUG: ${DEBUG:-false}
-      LOG_LEVEL: ${LOG_LEVEL:-info}
-      CORS_ORIGINS: ${CORS_ORIGINS}
-      SSL_CERT_FILE: "/etc/ssl/certs/ca-certificates.crt"
-      REQUESTS_CA_BUNDLE: "/etc/ssl/certs/ca-certificates.crt"
-    ports:
-      - "8004:8004"
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-    networks:
-      - edwards_test_net
-
-  frontend:
-    image: edwards_project-frontend:latest
-    container_name: edwards-web-test
-    restart: unless-stopped
-    ports:
-      - "3004:80"
-    depends_on:
-      - backend
-    networks:
-      - edwards_test_net
-
-networks:
-  edwards_test_net:
-COMPOSE_EOF
-
-  scp -q /tmp/docker-compose-test.yml "$USERNAME@$SERVER_IP:${REMOTE_PATH}/docker-compose.yml"
-  rm -f /tmp/docker-compose-test.yml
-  info "  ✓ docker-compose.yml uploaded (image-based, no build contexts)"
+# ── Ensure network exists ──
+ensure_network() {
+  ssh "$USERNAME@$SERVER_IP" "docker network inspect edwards_test_net >/dev/null 2>&1 || docker network create edwards_test_net" 2>/dev/null
 }
 
 # ── Build + Deploy functions ──
+# Uses docker run directly (docker-compose 1.29.2 is broken with newer image formats)
 
-deploy_service() {
-  local service="$1"      # docker-compose service name: frontend | backend
-  local image="$2"        # image name: edwards_project-frontend | edwards_project-backend
-  local container="$3"    # container name: edwards-web | edwards-api
-  local tar_name="$4"     # tar file name
+deploy_backend() {
+  local tar_name="eob-backend-test.tar.gz"
+  local image="edwards_project-backend"
 
-  info "\n[BUILD] $service..."
-  local dockerfile_dir
-  if [[ "$service" == "frontend" ]]; then
-    dockerfile_dir="$PROJECT_ROOT/frontend"
-  else
-    dockerfile_dir="$PROJECT_ROOT/backend"
-  fi
-
-  if [[ "$service" == "frontend" ]]; then
-    docker build $NO_CACHE --target production "${FRONTEND_BUILD_ARGS[@]}" -t "$image:latest" "$dockerfile_dir" 2>&1 | tail -5
-  else
-    docker build $NO_CACHE -t "$image:latest" "$dockerfile_dir" 2>&1 | tail -5
-  fi
+  info "\n[BUILD] backend..."
+  docker build $NO_CACHE -t "$image:latest" "$PROJECT_ROOT/backend" 2>&1 | tail -5
 
   info "[EXPORT] $image → $tar_name"
   docker save "$image:latest" | gzip > "/tmp/$tar_name"
@@ -209,23 +156,75 @@ deploy_service() {
   info "[UPLOAD] → $USERNAME@$SERVER_IP"
   scp -q "/tmp/$tar_name" "$USERNAME@$SERVER_IP:/tmp/$tar_name"
 
-  info "[LOAD + RESTART] $container"
+  info "[LOAD + RESTART] edwards-api-test"
   ssh "$USERNAME@$SERVER_IP" "
-    docker load < /tmp/$tar_name && rm /tmp/$tar_name
-    cd $REMOTE_PATH && APP_ENV_FILE=$REMOTE_ENV_FILE docker-compose --env-file $REMOTE_ENV_FILE up -d --no-deps --force-recreate $service
+    docker load < /tmp/\$tar_name && rm /tmp/\$tar_name
+    docker rm -f edwards-api-test 2>/dev/null || true
+    cd $REMOTE_PATH
+
+    # Read env vars from .env.test
+    DATABASE_URL=\$(grep '^DATABASE_URL=' .env.test | head -1 | cut -d= -f2-)
+    SECRET_KEY=\$(grep '^SECRET_KEY=' .env.test | head -1 | cut -d= -f2-)
+    DEBUG=\$(grep '^DEBUG=' .env.test | head -1 | cut -d= -f2-)
+    LOG_LEVEL=\$(grep '^LOG_LEVEL=' .env.test | head -1 | cut -d= -f2-)
+    CORS_ORIGINS=\$(grep '^CORS_ORIGINS=' .env.test | head -1 | cut -d= -f2-)
+
+    docker run -d \
+      --name edwards-api-test \
+      --restart unless-stopped \
+      --network edwards_test_net \
+      -p 8004:8004 \
+      -e \"DATABASE_URL=\$DATABASE_URL\" \
+      -e \"SECRET_KEY=\$SECRET_KEY\" \
+      -e \"DEBUG=\$DEBUG\" \
+      -e \"LOG_LEVEL=\$LOG_LEVEL\" \
+      -e \"CORS_ORIGINS=\$CORS_ORIGINS\" \
+      -e \"SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt\" \
+      -e \"REQUESTS_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt\" \
+      -v /var/run/docker.sock:/var/run/docker.sock:ro \
+      $image:latest
   "
 
-  info "[HEALTH] Checking $container..."
+  info "[HEALTH] Checking backend..."
   sleep 3
-  if [[ "$service" == "backend" ]]; then
-    ssh "$USERNAME@$SERVER_IP" "curl -sf http://localhost:8004/health > /dev/null"
-    info "  ✓ Backend /health OK"
-    # Verify DB connection
-    ssh "$USERNAME@$SERVER_IP" "docker logs edwards-api --tail 20 2>&1 | grep -i 'database\|postgres\|connected' | tail -3 || true"
-  else
-    ssh "$USERNAME@$SERVER_IP" "curl -sf http://localhost:3004 > /dev/null"
-    info "  ✓ Frontend OK"
-  fi
+  ssh "$USERNAME@$SERVER_IP" "curl -sf http://localhost:8004/health > /dev/null"
+  info "  ✓ Backend /health OK"
+  ssh "$USERNAME@$SERVER_IP" "docker logs edwards-api-test --tail 10 2>&1 | grep -iE 'database|postgres|connected|startup' | tail -3 || true"
+
+  rm -f "/tmp/$tar_name"
+}
+
+deploy_frontend() {
+  local tar_name="eob-frontend-test.tar.gz"
+  local image="edwards_project-frontend"
+
+  info "\n[BUILD] frontend..."
+  docker build $NO_CACHE --target production "${FRONTEND_BUILD_ARGS[@]}" -t "$image:latest" "$PROJECT_ROOT/frontend" 2>&1 | tail -5
+
+  info "[EXPORT] $image → $tar_name"
+  docker save "$image:latest" | gzip > "/tmp/$tar_name"
+  local size=$(du -sh "/tmp/$tar_name" | cut -f1)
+  info "  ✓ $tar_name ($size)"
+
+  info "[UPLOAD] → $USERNAME@$SERVER_IP"
+  scp -q "/tmp/$tar_name" "$USERNAME@$SERVER_IP:/tmp/$tar_name"
+
+  info "[LOAD + RESTART] edwards-web-test"
+  ssh "$USERNAME@$SERVER_IP" "
+    docker load < /tmp/\$tar_name && rm /tmp/\$tar_name
+    docker rm -f edwards-web-test 2>/dev/null || true
+    docker run -d \
+      --name edwards-web-test \
+      --restart unless-stopped \
+      --network edwards_test_net \
+      -p 3004:80 \
+      $image:latest
+  "
+
+  info "[HEALTH] Checking frontend..."
+  sleep 3
+  ssh "$USERNAME@$SERVER_IP" "curl -sf http://localhost:3004 > /dev/null"
+  info "  ✓ Frontend OK"
 
   rm -f "/tmp/$tar_name"
 }
@@ -235,15 +234,15 @@ deploy_service() {
 # Generate and upload env file
 generate_test_env
 
-# Generate image-based docker-compose.yml (no build contexts needed)
-generate_docker_compose
+# Ensure Docker network exists
+ensure_network
 
 if [[ "$TARGET" == "frontend" || "$TARGET" == "both" ]]; then
-  deploy_service "frontend" "edwards_project-frontend" "edwards-web" "eob-frontend-test.tar.gz"
+  deploy_frontend
 fi
 
 if [[ "$TARGET" == "backend" || "$TARGET" == "both" ]]; then
-  deploy_service "backend" "edwards_project-backend" "edwards-api" "eob-backend-test.tar.gz"
+  deploy_backend
 fi
 
 END_TIME=$(date +%s)
