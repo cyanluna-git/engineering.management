@@ -4,7 +4,7 @@ set -eu
 CERT_PATH="${NGINX_SSL_CERT:-/etc/nginx/ssl/nginx-selfsigned.crt}"
 KEY_PATH="${NGINX_SSL_KEY:-/etc/nginx/ssl/nginx-selfsigned.key}"
 PORTAL_DOMAIN="${PORTAL_DOMAIN:-pcas-portal.atlascopco.group}"
-EOB_DOMAIN="${EOB_DOMAIN:-eob.10.182.252.32.sslip.io}"
+EOB_DOMAIN="${EOB_DOMAIN:-eob.atlascopco.group}"
 OQC_DOMAIN="${OQC_DOMAIN:-oqc.atlascopco.group}"
 JARVIS_DOMAIN="${JARVIS_DOMAIN:-sw-portal.atlascopco.group}"
 CERT_DOMAIN="${NGINX_CERT_DOMAIN:-$PORTAL_DOMAIN}"

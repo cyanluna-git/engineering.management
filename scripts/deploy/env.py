@@ -52,7 +52,7 @@ DEFAULT_OUTPUT = ".env.remote"
 # ---------------------------------------------------------------------------
 
 PORTAL_DOMAIN_DEFAULT = "pcas-portal.atlascopco.group"
-EOB_DOMAIN_DEFAULT = "eob.10.182.252.32.sslip.io"
+EOB_DOMAIN_DEFAULT = "eob.atlascopco.group"
 OQC_DOMAIN_DEFAULT = "oqc.atlascopco.group"
 JARVIS_DOMAIN_DEFAULT = "sw-portal.atlascopco.group"
 TESTRIG_URL_DEFAULT = "http://dashboard.10-182-252-5.sslip.io"

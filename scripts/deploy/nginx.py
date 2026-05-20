@@ -13,7 +13,7 @@ import tempfile
 from pathlib import Path
 
 PORTAL_DOMAIN_DEFAULT = "pcas-portal.atlascopco.group"
-EOB_DOMAIN_DEFAULT = "eob.10.182.252.32.sslip.io"
+EOB_DOMAIN_DEFAULT = "eob.atlascopco.group"
 OQC_DOMAIN_DEFAULT = "oqc.atlascopco.group"
 JARVIS_DOMAIN_DEFAULT = "sw-portal.atlascopco.group"
 
@@ -99,7 +99,7 @@ def main():
         local_conf.read_text(encoding="utf-8")
         .replace("pcas-portal.10.182.252.32.sslip.io", portal_domain)
         .replace("pcas-portal.atlascopco.group", portal_domain)
-        .replace("eob.10.182.252.32.sslip.io", eob_domain)
+        .replace("eob.atlascopco.group", eob_domain)
         .replace("eob.atlascopco.group", eob_domain)
         .replace("oqc.10.182.252.32.sslip.io", oqc_domain)
         .replace("oqc.atlascopco.group", oqc_domain)

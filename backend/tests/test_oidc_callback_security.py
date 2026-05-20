@@ -103,7 +103,7 @@ def test_calendar_connect_start_sets_flow_cookie_for_authenticated_user(
     try:
         response = client.post(
             "/api/auth/oidc/calendar/connect",
-            json={"redirect_url": "https://eob.10.182.252.32.sslip.io/worklogs"},
+            json={"redirect_url": "https://eob.atlascopco.group/worklogs"},
             headers={"Authorization": f"Bearer {access_token}"},
         )
     finally:
@@ -163,7 +163,7 @@ def test_calendar_connect_callback_persists_oauth_connection(
             "_app_flow_type": "calendar_connect",
             "_app_link_user_id": user.id,
         },
-        "https://eob.10.182.252.32.sslip.io/worklogs",
+        "https://eob.atlascopco.group/worklogs",
     )
     try:
         response = client.get(
@@ -176,7 +176,7 @@ def test_calendar_connect_callback_persists_oauth_connection(
         app.dependency_overrides.clear()
 
     assert response.status_code == 302
-    assert response.headers["location"] == "https://eob.10.182.252.32.sslip.io/worklogs?calendar=connected"
+    assert response.headers["location"] == "https://eob.atlascopco.group/worklogs?calendar=connected"
 
     connection = (
         db_session.query(UserOAuthConnection)
