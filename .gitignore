@@ -87,3 +87,7 @@ toys/
 # OS
 Thumbs.db
 nginx/ssl/
+.env.prod
+workthrough
+thoughts
+.env.dev
