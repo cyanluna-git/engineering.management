@@ -1,0 +1,97 @@
+# EOB CI/CD Pipeline
+# CI: runs on all branches (lint, test, docker build)
+# CD: runs on release branch only (deploy to prod)
+
+definitions:
+  caches:
+    pip: ~/.cache/pip
+
+  steps:
+    # ── Backend CI ──
+    - step: &backend-lint-test
+        name: Backend — lint + test
+        runs-on:
+          - self.hosted
+          - linux.shell
+        caches:
+          - pip
+        script:
+          - echo "═══ Backend CI ═══"
+          - cd backend
+          - python3 -m venv .venv
+          - .venv/bin/pip install --quiet -r requirements.txt
+          - .venv/bin/pip install --quiet pytest pytest-asyncio
+          - echo "--- Running backend tests ---"
+          - .venv/bin/pytest -v --tb=short 2>&1 | tail -30
+          - echo "--- Backend CI complete ---"
+
+    # ── Frontend CI (Docker build validates TypeScript + Vite) ──
+    - step: &frontend-build
+        name: Frontend — build
+        runs-on:
+          - self.hosted
+          - linux.shell
+        script:
+          - echo "═══ Frontend CI ═══"
+          - echo "--- Building frontend Docker image ---"
+          - docker build --target production \
+              --build-arg VITE_APP_BASE=/ \
+              --build-arg VITE_API_URL=/api \
+              --build-arg VITE_PORTAL_URL=https://pcas-portal.atlascopco.group \
+              --build-arg VITE_OQC_URL=https://oqc.atlascopco.group \
+              --build-arg VITE_JARVIS_URL=https://sw-portal.atlascopco.group \
+              -t edwards_project-frontend:ci-test \
+              -f frontend/Dockerfile \
+              frontend
+          - docker rmi edwards_project-frontend:ci-test
+          - echo "--- Frontend build complete ---"
+
+    # ── Backend Docker build ──
+    - step: &backend-docker
+        name: Backend — docker build
+        runs-on:
+          - self.hosted
+          - linux.shell
+        script:
+          - echo "═══ Backend Docker Build ═══"
+          - docker build -t edwards_project-backend:ci-test -f backend/Dockerfile backend
+          - docker rmi edwards_project-backend:ci-test
+          - echo "--- Backend Docker build complete ---"
+
+    # ── Deploy to Prod ──
+    - step: &deploy-prod
+        name: Deploy to Production
+        runs-on:
+          - self.hosted
+          - linux.shell
+        script:
+          - echo "═══ Deploying to Production ═══"
+          - echo "--- Setting up SSH for prod server ---"
+          - mkdir -p ~/.ssh
+          - chmod 700 ~/.ssh
+          - cp ~/.ssh/eob-deploy-key ~/.ssh/id_ed25519 2>/dev/null || true
+          - chmod 600 ~/.ssh/id_ed25519 2>/dev/null || true
+          - ssh-keyscan -H 10.182.252.32 >> ~/.ssh/known_hosts 2>/dev/null || true
+          - echo "--- Running full deploy (build + upload + restart) ---"
+          - ./scripts/deploy/full_deploy.sh --skip-backup
+          - echo "═══ Production Deploy Complete ═══"
+
+pipelines:
+  # ── CI: All branches (lint + test + docker build) ──
+  default:
+    - parallel:
+        - step: *backend-lint-test
+        - step: *frontend-build
+        - step: *backend-docker
+
+  # ── CD: Release branch only (CI + manual deploy to prod) ──
+  branches:
+    release:
+      - parallel:
+          - step: *backend-lint-test
+          - step: *frontend-build
+          - step: *backend-docker
+      - step:
+          <<: *deploy-prod
+          name: Deploy to Production 🚀
+          trigger: manual
