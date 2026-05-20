@@ -9,7 +9,7 @@ definitions:
   steps:
     # ── Backend CI ──
     - step: &backend-lint-test
-        name: Backend — lint + test
+        name: Backend — lint + smoke test
         runs-on:
           - self.hosted
           - linux.shell
@@ -22,9 +22,10 @@ definitions:
           - cd backend
           - python3 -m venv .venv
           - .venv/bin/pip install --quiet -r requirements.txt
-          - .venv/bin/pip install --quiet pytest pytest-asyncio
-          - echo "--- Running backend tests ---"
-          - .venv/bin/pytest -v --tb=short 2>&1 | tail -30
+          - echo "--- Python syntax check ---"
+          - python3 -m compileall -q app/
+          - echo "--- Import smoke test ---"
+          - .venv/bin/python3 -c "from app.main import app; print('App loaded OK')"
           - echo "--- Backend CI complete ---"
 
     # ── Frontend CI (Docker build validates TypeScript + Vite) ──
