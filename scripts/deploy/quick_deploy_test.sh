@@ -16,7 +16,7 @@ set -euo pipefail
 SERVER_IP="10.182.255.5"
 USERNAME="atlasAdmin"
 REMOTE_PATH="~/data/eob/edwards_project_test"
-EOB_DOMAIN="eob.10.182.255.5.sslip.io"
+EOB_DOMAIN="test.eob.10.182.255.5.sslip.io"
 ENV_SOURCE=".env.dev"
 REMOTE_ENV_FILE=".env.test"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
