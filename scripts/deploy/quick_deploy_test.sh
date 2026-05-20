@@ -158,7 +158,7 @@ deploy_backend() {
 
   info "[LOAD + RESTART] edwards-api-test"
   ssh "$USERNAME@$SERVER_IP" "
-    docker load < /tmp/\$tar_name && rm /tmp/\$tar_name
+    docker load < /tmp/$tar_name && rm /tmp/$tar_name
     docker rm -f edwards-api-test 2>/dev/null || true
     cd $REMOTE_PATH
 
@@ -211,7 +211,7 @@ deploy_frontend() {
 
   info "[LOAD + RESTART] edwards-web-test"
   ssh "$USERNAME@$SERVER_IP" "
-    docker load < /tmp/\$tar_name && rm /tmp/\$tar_name
+    docker load < /tmp/$tar_name && rm /tmp/$tar_name
     docker rm -f edwards-web-test 2>/dev/null || true
     docker run -d \
       --name edwards-web-test \
