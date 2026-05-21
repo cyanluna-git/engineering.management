@@ -14,6 +14,8 @@ from app.models.project import Project
 from app.models.user import User
 from app.models.ai_summary import AISummary
 from app.services.llm import LLMClient, get_llm_client
+from app.services.llm.pcas_client import PCASClient
+from app.services.graph_calendar_service import CalendarConnectionError, GraphCalendarService
 from app.core.config import settings
 
 
@@ -230,6 +232,7 @@ class SummaryService:
         start_date: date,
         end_date: date,
         force_regenerate: bool = False,
+        current_user: Optional[User] = None,
     ) -> Dict[str, Any]:
         """Generate weekly summary for a single user"""
 
@@ -272,8 +275,29 @@ class SummaryService:
         prompt = self._build_user_prompt(summary_data, start_date, end_date)
         system_prompt = self.USER_SUMMARY_SYSTEM_PROMPT
 
+        # Obtain Graph token for PCAS; surface friendly error when unavailable
+        graph_token: Optional[str] = None
+        if isinstance(self.client, PCASClient):
+            if current_user is None:
+                return {
+                    "summary": ["AI summary unavailable: user context required for PCAS."],
+                    "focus_areas": [],
+                    "workload_observations": [],
+                    "risk_signals": [],
+                    "record_quality_notes": [],
+                    "generated_at": date.today().isoformat(),
+                    "error": "current_user not provided for PCAS graph token resolution",
+                    **self._build_period_metadata(start_date, end_date),
+                }
+            graph_token = self._get_graph_token(current_user)
+
         try:
-            result = await self.client.generate_json(prompt, system_prompt)
+            if isinstance(self.client, PCASClient):
+                result = await self.client.generate_json(
+                    prompt, system_prompt, user_graph_token=graph_token
+                )
+            else:
+                result = await self.client.generate_json(prompt, system_prompt)
             response = self._build_user_response(
                 result,
                 start_date,
@@ -308,6 +332,7 @@ class SummaryService:
         end_date: date,
         force_regenerate: bool = False,
         dashboard_context: Optional[Dict[str, Any]] = None,
+        current_user: Optional[User] = None,
     ) -> Dict[str, Any]:
         """Generate weekly summary for a team"""
 
@@ -379,8 +404,32 @@ class SummaryService:
         )
         system_prompt = self.TEAM_SUMMARY_SYSTEM_PROMPT
 
+        # Obtain Graph token for PCAS; surface friendly error when unavailable
+        graph_token: Optional[str] = None
+        if isinstance(self.client, PCASClient):
+            if current_user is None:
+                return {
+                    "project_summary": [],
+                    "member_summary": [],
+                    "issues": ["AI summary unavailable: user context required for PCAS."],
+                    "analysis": [],
+                    "workload_observations": [],
+                    "risk_signals": [],
+                    "coverage_gaps": [],
+                    "record_quality_notes": [],
+                    "generated_at": date.today().isoformat(),
+                    "error": "current_user not provided for PCAS graph token resolution",
+                    **self._build_period_metadata(start_date, end_date),
+                }
+            graph_token = self._get_graph_token(current_user)
+
         try:
-            result = await self.client.generate_json(prompt, system_prompt)
+            if isinstance(self.client, PCASClient):
+                result = await self.client.generate_json(
+                    prompt, system_prompt, user_graph_token=graph_token
+                )
+            else:
+                result = await self.client.generate_json(prompt, system_prompt)
             response = self._build_team_response(
                 result,
                 start_date,
@@ -691,6 +740,16 @@ class SummaryService:
             }
             for h in history
         ]
+
+    def _get_graph_token(self, user: User) -> Optional[str]:
+        """Retrieve user's Microsoft Graph access token when using PCASClient."""
+        if not isinstance(self.client, PCASClient):
+            return None
+        try:
+            graph_service = GraphCalendarService(self.db)
+            return graph_service.refresh_graph_access_token(user)
+        except CalendarConnectionError:
+            return None
 
     def _get_group_filter(self, group_type: str, group_id: str):
         """Get SQLAlchemy filter for team users"""

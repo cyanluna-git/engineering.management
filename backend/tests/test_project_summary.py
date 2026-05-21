@@ -39,7 +39,7 @@ def test_project_ai_summary_calls_generate_group_summary(db_session: Session, mo
 
     captured = {}
 
-    async def fake_generate_group_summary(self, group_type, group_id, start_date, end_date, force_regenerate, dashboard_context=None):
+    async def fake_generate_group_summary(self, group_type, group_id, start_date, end_date, force_regenerate, dashboard_context=None, current_user=None):
         captured["group_type"] = group_type
         captured["group_id"] = group_id
         return {"project_summary": ["test"], "member_summary": [], "issues": [], "generated_at": "2026-03-20"}
@@ -109,7 +109,7 @@ def test_team_ai_summary_backward_compat(db_session: Session, monkeypatch):
 
     captured = {}
 
-    async def fake_generate_group_summary(self, group_type, group_id, start_date, end_date, force_regenerate, dashboard_context=None):
+    async def fake_generate_group_summary(self, group_type, group_id, start_date, end_date, force_regenerate, dashboard_context=None, current_user=None):
         captured["group_type"] = group_type
         captured["group_id"] = group_id
         return {"project_summary": [], "member_summary": [], "issues": []}
@@ -133,7 +133,7 @@ def test_project_ai_summary_force_regenerate(db_session: Session, monkeypatch):
 
     captured = {}
 
-    async def fake_generate_group_summary(self, group_type, group_id, start_date, end_date, force_regenerate, dashboard_context=None):
+    async def fake_generate_group_summary(self, group_type, group_id, start_date, end_date, force_regenerate, dashboard_context=None, current_user=None):
         captured["force_regenerate"] = force_regenerate
         return {"project_summary": [], "member_summary": [], "issues": [], "generated_at": "2026-03-20"}
 

@@ -132,7 +132,7 @@ def test_user_ai_summary_endpoint_uses_last_completed_month_range(db_session: Se
 
     captured = {}
 
-    async def fake_generate_user_summary(self, user_id, start_date, end_date, force_regenerate):
+    async def fake_generate_user_summary(self, user_id, start_date, end_date, force_regenerate, current_user=None):
         captured["user_id"] = user_id
         captured["start_date"] = start_date
         captured["end_date"] = end_date
@@ -166,7 +166,7 @@ def test_team_ai_summary_endpoint_uses_last_completed_week_and_passes_dashboard_
     captured = {}
 
     async def fake_generate_group_summary(
-        self, group_type, group_id, start_date, end_date, force_regenerate, dashboard_context=None
+        self, group_type, group_id, start_date, end_date, force_regenerate, dashboard_context=None, current_user=None
     ):
         captured["group_id"] = group_id
         captured["group_type"] = group_type

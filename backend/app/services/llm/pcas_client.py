@@ -38,19 +38,23 @@ class PCASClient:
         self.timeout = settings.PCAS_LLM_TIMEOUT
         self.verify_ssl = settings.PCAS_LLM_VERIFY_SSL
 
-    def _get_headers(self) -> dict:
-        """Build request headers with AI Brains token."""
-        return {
+    def _get_headers(self, user_graph_token: Optional[str] = None) -> dict:
+        """Build request headers with AI Brains token and optional Graph token."""
+        headers = {
             "ai-brains-token": self.api_key,
             "Content-Type": "application/json",
             "User-Agent": _DEFAULT_USER_AGENT,
         }
+        if user_graph_token:
+            headers["user-graph-token"] = user_graph_token
+        return headers
 
     async def generate(
         self,
         prompt: str,
         system_prompt: Optional[str] = None,
         user_email: Optional[str] = None,
+        user_graph_token: Optional[str] = None,
     ) -> str:
         """
         Send a message to PCAS AI Brains and get text response.
@@ -62,6 +66,7 @@ class PCASClient:
             prompt: User prompt text
             system_prompt: Optional system instruction (merged into content)
             user_email: Optional user UPN for the API request
+            user_graph_token: Optional Microsoft Graph access token forwarded as user-graph-token header
 
         Returns:
             Raw text response from the AI
@@ -93,7 +98,7 @@ class PCASClient:
             verify=self.verify_ssl,
         ) as client:
             response = await client.post(
-                url, json=payload, headers=self._get_headers()
+                url, json=payload, headers=self._get_headers(user_graph_token=user_graph_token)
             )
             response.raise_for_status()
             result = response.json()
@@ -114,6 +119,7 @@ class PCASClient:
         prompt: str,
         system_prompt: Optional[str] = None,
         user_email: Optional[str] = None,
+        user_graph_token: Optional[str] = None,
     ) -> dict:
         """
         Generate JSON response from PCAS AI Brains.
@@ -125,6 +131,7 @@ class PCASClient:
             prompt: User prompt text
             system_prompt: Optional system instruction
             user_email: User UPN (required by PCAS; falls back to PCAS_LLM_DEFAULT_UPN)
+            user_graph_token: Optional Microsoft Graph access token forwarded as user-graph-token header
 
         Returns:
             Parsed JSON dict from the response
@@ -133,7 +140,9 @@ class PCASClient:
         if system_prompt and "JSON" not in system_prompt and "json" not in system_prompt:
             system_prompt = system_prompt + "\n\nYou MUST respond with JSON only."
 
-        text = await self.generate(prompt, system_prompt, user_email=user_email)
+        text = await self.generate(
+            prompt, system_prompt, user_email=user_email, user_graph_token=user_graph_token
+        )
 
         # Strip markdown code block wrappers
         text = text.strip()

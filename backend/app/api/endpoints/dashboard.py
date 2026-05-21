@@ -160,6 +160,7 @@ async def get_user_ai_summary(
         start_date=start_date,
         end_date=end_date,
         force_regenerate=force_regenerate,
+        current_user=current_user,
     )
 
 
@@ -214,6 +215,7 @@ async def get_team_ai_summary(
         end_date=end_date,
         force_regenerate=force_regenerate,
         dashboard_context=dashboard_context,
+        current_user=current_user,
     )
 
 
@@ -296,6 +298,7 @@ async def get_project_ai_summary(
         start_date=start_date,
         end_date=end_date,
         force_regenerate=force_regenerate,
+        current_user=current_user,
     )
 
 

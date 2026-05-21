@@ -41,7 +41,7 @@ def test_team_ai_summary_uses_primary_business_unit_id(db_session: Session, monk
     captured = {}
 
     async def fake_generate_group_summary(
-        self, group_type, group_id, start_date, end_date, force_regenerate, dashboard_context=None
+        self, group_type, group_id, start_date, end_date, force_regenerate, dashboard_context=None, current_user=None
     ):
         captured["group_id"] = group_id
         captured["group_type"] = group_type
