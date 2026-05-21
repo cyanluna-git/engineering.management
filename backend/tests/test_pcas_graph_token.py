@@ -286,26 +286,21 @@ class TestSummaryServiceNoCurrentUser:
         assert "analysis" in result
         assert "workload_observations" in result
 
-    def test_generate_user_summary_with_calendar_error_proceeds_without_token(self, db_session):
-        """When CalendarConnectionError is raised, summary still generates (graph_token=None)."""
+    def test_generate_user_summary_with_calendar_error_returns_friendly_error(self, db_session):
+        """When CalendarConnectionError is raised (no Graph token), return friendly error dict — do NOT call PCAS."""
         from app.services.graph_calendar_service import CalendarConnectionError
 
         self._seed_worklog(db_session)
         pcas_client = _make_pcas_client()
         service = SummaryService(db_session, client=pcas_client)
 
-        called_with: dict = {}
-
-        async def mock_generate_json(prompt, system_prompt=None, user_email=None, user_graph_token=None):
-            called_with["user_graph_token"] = user_graph_token
-            return {
-                "focus_areas": ["Done"],
-                "workload_observations": [],
-                "risk_signals": [],
-                "record_quality_notes": [],
-            }
-
         fake_user = _make_fake_user()
+        generate_json_called = False
+
+        async def mock_generate_json(*args, **kwargs):
+            nonlocal generate_json_called
+            generate_json_called = True
+            return {}
 
         with patch(
             "app.services.summary_service.GraphCalendarService"
@@ -324,8 +319,8 @@ class TestSummaryServiceNoCurrentUser:
                     )
                 )
 
-        # Must have called generate_json with graph_token=None (graceful degradation)
-        assert called_with["user_graph_token"] is None
-        # Must still return a valid response shape
-        assert "focus_areas" in result
-        assert "error" not in result
+        # PCAS must NOT be called — we short-circuit with friendly error
+        assert not generate_json_called
+        # Must return a structured error dict (not raise 500)
+        assert "error" in result
+        assert "Microsoft" in result["error"]

@@ -290,6 +290,17 @@ class SummaryService:
                     **self._build_period_metadata(start_date, end_date),
                 }
             graph_token = self._get_graph_token(current_user)
+            if graph_token is None:
+                return {
+                    "summary": ["AI summary unavailable: Microsoft 계정 연결이 필요합니다."],
+                    "focus_areas": [],
+                    "workload_observations": [],
+                    "risk_signals": [],
+                    "record_quality_notes": [],
+                    "generated_at": date.today().isoformat(),
+                    "error": "Microsoft 계정을 연결하면 AI Summary를 사용할 수 있습니다. 설정에서 Microsoft 계정을 연결하세요.",
+                    **self._build_period_metadata(start_date, end_date),
+                }
 
         try:
             if isinstance(self.client, PCASClient):
@@ -422,6 +433,20 @@ class SummaryService:
                     **self._build_period_metadata(start_date, end_date),
                 }
             graph_token = self._get_graph_token(current_user)
+            if graph_token is None:
+                return {
+                    "project_summary": [],
+                    "member_summary": [],
+                    "issues": ["AI summary unavailable: Microsoft 계정 연결이 필요합니다."],
+                    "analysis": [],
+                    "workload_observations": [],
+                    "risk_signals": [],
+                    "coverage_gaps": [],
+                    "record_quality_notes": [],
+                    "generated_at": date.today().isoformat(),
+                    "error": "Microsoft 계정을 연결하면 AI Summary를 사용할 수 있습니다. 설정에서 Microsoft 계정을 연결하세요.",
+                    **self._build_period_metadata(start_date, end_date),
+                }
 
         try:
             if isinstance(self.client, PCASClient):
