@@ -36,7 +36,8 @@
     "notice": {
       "connected": "Microsoft Calendar connected. You can import your meetings now.",
       "accountMismatch": "Calendar connection was cancelled because the signed-in Microsoft account did not match your current user.",
-      "imported": "Imported {{count}} meetings into worklogs. Skipped existing: {{skipped}}."
+      "imported": "Imported {{count}} meetings into worklogs. Skipped existing: {{skipped}}.",
+      "reconnectRequired": "Microsoft Calendar reconnection is required. Redirecting to the authorization page..."
     },
     "previewTitle": "Meeting Import Preview ({{count}})",
     "previewDescription": "Review the meetings detected for this week before saving them to your worklog.",

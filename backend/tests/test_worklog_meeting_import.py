@@ -1,7 +1,9 @@
 from datetime import date, datetime, timedelta, timezone
 from types import SimpleNamespace
+from unittest.mock import MagicMock
 
 import httpx
+import pytest
 from fastapi import status
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
@@ -15,6 +17,7 @@ from app.models.project import Project
 from app.models.resource import WorkLog
 from app.models.user import User
 from app.models.work_type import WorkTypeCategory
+from app.services.graph_calendar_service import CalendarConnectionError, GraphCalendarService
 from app.services.oauth_connection_service import OAuthConnectionService
 from app.services.meeting_import_service import MeetingImportService
 
@@ -449,3 +452,56 @@ def test_meeting_import_preview_refresh_ignores_reserved_scopes(
 
     assert len(response.items) == 1
     assert captured_scopes["value"] == ["Calendars.Read"]
+
+
+# ---------------------------------------------------------------------------
+# Tests for Change 1: _is_access_token_valid() / list_calendar_events() 401
+# ---------------------------------------------------------------------------
+
+
+def test_is_access_token_valid_returns_false_when_token_expires_at_is_none():
+    """_is_access_token_valid must return False when token_expires_at is None (forces refresh)."""
+    connection = MagicMock()
+    connection.access_token_encrypted = OAuthConnectionService.encrypt("some-token")
+    connection.token_expires_at = None
+
+    result = GraphCalendarService._is_access_token_valid(connection)
+
+    assert result is False, (
+        "Expected False when token_expires_at is None — a missing expiry must not be "
+        "treated as a valid (forever-live) token."
+    )
+
+
+def test_list_calendar_events_401_raises_calendar_connection_error_with_korean_message():
+    """list_calendar_events must convert a 401 HTTPStatusError into a CalendarConnectionError
+    containing a Korean reconnect instruction."""
+    db_mock = MagicMock()
+    service = GraphCalendarService(db_mock)
+
+    # Patch refresh_graph_access_token so it returns a dummy token without DB access
+    service.refresh_graph_access_token = MagicMock(return_value="dummy-access-token")
+
+    fake_request = httpx.Request("GET", "https://graph.microsoft.com/v1.0/me/calendarView")
+    fake_response = httpx.Response(401, text="Unauthorized", request=fake_request)
+
+    def fake_get(self_inner, url, *, headers=None, params=None):
+        raise httpx.HTTPStatusError("401 Unauthorized", request=fake_request, response=fake_response)
+
+    import httpx as _httpx
+    original_get = _httpx.Client.get
+    try:
+        _httpx.Client.get = fake_get
+        with pytest.raises(CalendarConnectionError) as exc_info:
+            service.list_calendar_events(
+                user=MagicMock(),
+                start_date=date(2026, 4, 1),
+                end_date=date(2026, 4, 3),
+            )
+    finally:
+        _httpx.Client.get = original_get
+
+    error_message = str(exc_info.value)
+    assert "재연결" in error_message, (
+        f"Expected Korean reconnect instruction in error message, got: {error_message!r}"
+    )

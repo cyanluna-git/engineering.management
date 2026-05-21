@@ -71,7 +71,7 @@ class GraphCalendarService:
 
         expires_at = cls._normalize_expiry(connection.token_expires_at)
         if expires_at is None:
-            return True
+            return False
 
         return expires_at > (datetime.now(timezone.utc) + cls.ACCESS_TOKEN_EXPIRY_SKEW)
 
@@ -220,6 +220,10 @@ class GraphCalendarService:
                     )
                     response.raise_for_status()
                 except httpx.HTTPStatusError as exc:
+                    if exc.response.status_code == 401:
+                        raise CalendarConnectionError(
+                            "Microsoft 계정 재연결이 필요합니다. 액세스 토큰이 만료되었거나 권한이 취소되었습니다."
+                        ) from exc
                     message = self._token_error_message(exc)
                     raise CalendarConnectionError(
                         f"Microsoft Calendar fetch failed: {message}"

@@ -5,6 +5,7 @@
  */
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
+import axios from 'axios';
 import { format, startOfWeek, addWeeks, addDays, subWeeks } from 'date-fns';
 import { useTranslation } from 'react-i18next';
 import { useApiError } from '@/hooks/useApiError';
@@ -220,6 +221,10 @@ export function WorkLogsPage() {
             setIsMeetingImportModalOpen(true);
         } catch (error: unknown) {
             console.error('Meeting import preview failed', error);
+            if (axios.isAxiosError(error) && error.response?.status === 409) {
+                await handleCalendarConnect();
+                return;
+            }
             alert(getErrorMessage(error));
         }
     };
@@ -243,6 +248,10 @@ export function WorkLogsPage() {
             setIsMeetingImportModalOpen(true);
         } catch (error: unknown) {
             console.error('Day meeting import preview failed', error);
+            if (axios.isAxiosError(error) && error.response?.status === 409) {
+                await handleCalendarConnect();
+                return;
+            }
             alert(getErrorMessage(error));
         } finally {
             setImportingDate(null);
